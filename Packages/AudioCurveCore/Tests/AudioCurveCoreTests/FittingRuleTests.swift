@@ -137,3 +137,19 @@ private func expectFitting(_ b: BandFitting, _ soft: Double, _ loud: Double, _ c
     }
     #expect(p.attack_ms == 5 && p.release_ms == 50)
 }
+
+@Test func hostParametersAreClamped() {
+    func p(_ mpo: Double, _ gain: Double) -> ac_params {
+        FittingRule.params(profile: nil, strength: 0.5, mpoDBFS: mpo, outputGainDB: gain, mode: .speech)
+    }
+    #expect(p(5, 100).mpo_dbfs == -1)
+    #expect(p(5, 100).output_gain_db == 12)
+    #expect(p(-100, -100).mpo_dbfs == -20)
+    #expect(p(-100, -100).output_gain_db == -48)
+    #expect(p(-5, 3).mpo_dbfs == -5)
+    #expect(p(-5, 3).output_gain_db == 3)
+    #expect(p(.nan, .nan).mpo_dbfs == -3)
+    #expect(p(.nan, .nan).output_gain_db == 0)
+    #expect(p(.infinity, -.infinity).mpo_dbfs == -1)
+    #expect(p(.infinity, -.infinity).output_gain_db == -48)
+}

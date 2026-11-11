@@ -92,8 +92,8 @@ public enum FittingRule {
                                          compression_ratio: right[i].compressionRatio)
             }
         }
-        p.mpo_dbfs = mpoDBFS
-        p.output_gain_db = outputGainDB
+        p.mpo_dbfs = mpoDBFS.isNaN ? -3 : min(max(mpoDBFS, -20), -1)
+        p.output_gain_db = outputGainDB.isNaN ? 0 : min(max(outputGainDB, -48), 12)
         p.attack_ms = mode.attackMS
         p.release_ms = mode.releaseMS
         return p
