@@ -4,3 +4,4 @@ dsp/target/
 DerivedData/
 xcuserdata/
 build/
+.DS_Store

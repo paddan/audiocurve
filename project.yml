@@ -1,0 +1,55 @@
+name: audiocurve
+options:
+  bundleIdPrefix: se.lindefors
+  deploymentTarget:
+    macOS: "27.0"
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    ARCHS: arm64
+    CODE_SIGN_STYLE: Manual
+    CODE_SIGN_IDENTITY: "-"
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "1"
+packages:
+  AudioCurveCore:
+    path: Packages/AudioCurveCore
+targets:
+  audiocurve:
+    type: application
+    platform: macOS
+    sources: [App]
+    dependencies:
+      - target: AudioCurveAU
+        embed: true
+      - package: AudioCurveCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: se.lindefors.audiocurve
+        INFOPLIST_FILE: App/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+  AudioCurveAU:
+    type: app-extension
+    platform: macOS
+    sources: [AU]
+    dependencies:
+      - package: AudioCurveCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: se.lindefors.audiocurve.AudioCurveAU
+        INFOPLIST_FILE: AU/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        CODE_SIGN_ENTITLEMENTS: AU/AudioCurveAU.entitlements
+        OTHER_LDFLAGS: "-L$(SRCROOT)/dsp/target/aarch64-apple-darwin/release -laudiocurve_dsp"
+    preBuildScripts:
+      - name: Build Rust DSP
+        basedOnDependencyAnalysis: false
+        script: |
+          export PATH="$HOME/.cargo/bin:$PATH"; cd "$SRCROOT/dsp" && cargo build --release --target aarch64-apple-darwin
+schemes:
+  audiocurve:
+    build:
+      targets:
+        audiocurve: all
+    run:
+      config: Debug
