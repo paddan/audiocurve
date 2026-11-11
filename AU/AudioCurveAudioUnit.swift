@@ -7,14 +7,24 @@ public final class AudioCurveAudioUnit: AUAudioUnit {
     private var outputBus: AUAudioUnitBus
     private var inputBusArray: AUAudioUnitBusArray!
     private var outputBusArray: AUAudioUnitBusArray!
-    private var kernel: OpaquePointer?
-    private var scratch: UnsafeMutablePointer<Float>?
-    private var scratchFrames: Int = 0
-    private let maxChannels = 2
+    /// Stable heap state read by the render block. The block captures only this pointer,
+    /// so hosts may cache the block across allocate/deallocate cycles.
+    private struct RenderState {
+        var kernel: OpaquePointer?
+        var maxFrames: UInt32 = 0
+        var scratch: UnsafeMutablePointer<Float>
+    }
+    private static let maxSupportedFrames = 16384
+    private static let maxChannels = 2
+    private let state: UnsafeMutablePointer<RenderState>
 
     public override init(componentDescription: AudioComponentDescription,
                          options: AudioComponentInstantiationOptions = []) throws {
         let format = AVAudioFormat(standardFormatWithSampleRate: 48000, channels: 2)!
+        let scratch = UnsafeMutablePointer<Float>.allocate(capacity: Self.maxSupportedFrames * Self.maxChannels)
+        scratch.initialize(repeating: 0, count: Self.maxSupportedFrames * Self.maxChannels)
+        state = .allocate(capacity: 1)
+        state.initialize(to: RenderState(kernel: nil, maxFrames: 0, scratch: scratch))
         inputBus = try AUAudioUnitBus(format: format)
         outputBus = try AUAudioUnitBus(format: format)
         try super.init(componentDescription: componentDescription, options: options)
@@ -23,7 +33,11 @@ public final class AudioCurveAudioUnit: AUAudioUnit {
         maximumFramesToRender = 4096
     }
 
-    deinit { releaseResources() }
+    deinit {
+        releaseResources()
+        state.pointee.scratch.deallocate()
+        state.deallocate()
+    }
 
     public override var inputBusses: AUAudioUnitBusArray { inputBusArray }
     public override var outputBusses: AUAudioUnitBusArray { outputBusArray }
@@ -33,15 +47,14 @@ public final class AudioCurveAudioUnit: AUAudioUnit {
     public override var channelCapabilities: [NSNumber]? { [2, 2] }
 
     private func releaseResources() {
-        if let k = kernel { ac_kernel_free(k); kernel = nil }
-        scratch?.deallocate(); scratch = nil
-        scratchFrames = 0
+        if let k = state.pointee.kernel { ac_kernel_free(k); state.pointee.kernel = nil }
     }
 
     public override func allocateRenderResources() throws {
         let fmt = outputBus.format
         guard inputBus.format.sampleRate == fmt.sampleRate,
-              fmt.channelCount == 2, fmt.commonFormat == .pcmFormatFloat32, !fmt.isInterleaved else {
+              fmt.channelCount == 2, fmt.commonFormat == .pcmFormatFloat32, !fmt.isInterleaved,
+              Int(maximumFramesToRender) <= Self.maxSupportedFrames else {
             throw NSError(domain: NSOSStatusErrorDomain, code: Int(kAudioUnitErr_FormatNotSupported))
         }
         try super.allocateRenderResources()
@@ -49,11 +62,8 @@ public final class AudioCurveAudioUnit: AUAudioUnit {
         guard let k = ac_kernel_new(fmt.sampleRate, maximumFramesToRender) else {
             throw NSError(domain: NSOSStatusErrorDomain, code: Int(kAudioUnitErr_FailedInitialization))
         }
-        kernel = k
-        // Fallback storage for hosts that pass null mData in the output list.
-        scratchFrames = Int(maximumFramesToRender)
-        scratch = .allocate(capacity: scratchFrames * maxChannels)
-        scratch?.initialize(repeating: 0, count: scratchFrames * maxChannels)
+        state.pointee.kernel = k
+        state.pointee.maxFrames = maximumFramesToRender
     }
 
     public override func deallocateRenderResources() {
@@ -62,16 +72,16 @@ public final class AudioCurveAudioUnit: AUAudioUnit {
     }
 
     public override var internalRenderBlock: AUInternalRenderBlock {
-        let scratch = self.scratch
-        let scratchFrames = self.scratchFrames
+        let state = self.state
+        let stride = Self.maxSupportedFrames
         return { _, timestamp, frameCount, _, outputData, _, pullInputBlock in
+            guard frameCount <= state.pointee.maxFrames else { return kAudioUnitErr_TooManyFramesToProcess }
             guard let pull = pullInputBlock else { return kAudioUnitErr_NoConnection }
             let abl = UnsafeMutableAudioBufferListPointer(outputData)
-            if let scratch, Int(frameCount) <= scratchFrames {
-                for (i, buf) in abl.enumerated() where buf.mData == nil {
-                    abl[i].mData = UnsafeMutableRawPointer(scratch + i * scratchFrames)
-                    abl[i].mDataByteSize = frameCount * UInt32(MemoryLayout<Float>.size)
-                }
+            for i in 0..<abl.count where abl[i].mData == nil {
+                // Host passed no buffer: render into the stable internal scratch (stereo max).
+                abl[i].mData = UnsafeMutableRawPointer(state.pointee.scratch + min(i, 1) * stride)
+                abl[i].mDataByteSize = frameCount * UInt32(MemoryLayout<Float>.size)
             }
             var flags = AudioUnitRenderActionFlags()
             return pull(&flags, timestamp, frameCount, 0, outputData)

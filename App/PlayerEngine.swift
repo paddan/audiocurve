@@ -25,16 +25,9 @@ final class PlayerEngine {
         engine.attach(player)
         engine.attach(unit)
         let mixer = engine.mainMixerNode
-        mixer.installTap(onBus: 0, bufferSize: 1024, format: nil) { [peakBox] buffer, _ in
-            var peak: Float = 0
-            if let data = buffer.floatChannelData {
-                for c in 0..<Int(buffer.format.channelCount) {
-                    for i in 0..<Int(buffer.frameLength) { peak = max(peak, abs(data[c][i])) }
-                }
-            }
-            peakBox.set(peak)
-        }
-        connect()
+        // NS_REFINED_FOR_SWIFT throwing variant (the old installTap is deprecated in macOS 27).
+        try mixer.__installTap(onBus: 0, bufferSize: 1024, format: nil, error: (), block: Self.makeTap(peakBox))
+        try connect()
         timer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated {
                 guard let self else { return }
@@ -44,19 +37,31 @@ final class PlayerEngine {
         }
     }
 
-    private func connect() {
+    nonisolated private static func makeTap(_ box: PeakBox) -> AVAudioNodeTapBlock {
+        { buffer, _ in
+            var peak: Float = 0
+            if let data = buffer.floatChannelData {
+                for c in 0..<Int(buffer.format.channelCount) {
+                    for i in 0..<Int(buffer.frameLength) { peak = max(peak, abs(data[c][i])) }
+                }
+            }
+            box.set(peak)
+        }
+    }
+
+    private func connect() throws {
         guard let effect else { return }
         let format = file?.processingFormat ?? AVAudioFormat(standardFormatWithSampleRate: 48000, channels: 2)
         engine.disconnectNodeOutput(player)
         engine.disconnectNodeOutput(effect)
-        engine.connect(player, to: effect, format: format)
-        engine.connect(effect, to: engine.mainMixerNode, format: format)
+        try engine.connectNode(player, to: effect, format: format)
+        try engine.connectNode(effect, to: engine.mainMixerNode, format: format)
     }
 
     func open(file url: URL) throws {
         stop()
         file = try AVAudioFile(forReading: url)
-        connect()
+        try connect()
     }
 
     func play() {
@@ -66,7 +71,7 @@ final class PlayerEngine {
             try? engine.start()
         }
         player.scheduleFile(file, at: nil) { }
-        player.play()
+        try? player.playAudio()
     }
 
     func stop() {
@@ -75,14 +80,16 @@ final class PlayerEngine {
     }
 
     var bypass: Bool {
-        get { effect?.auAudioUnit.shouldBypassEffect ?? false }
-        set { effect?.auAudioUnit.shouldBypassEffect = newValue }
+        get { effect?.withAUAudioUnit { $0.shouldBypassEffect } ?? false }
+        set { effect?.withAUAudioUnit { $0.shouldBypassEffect = newValue } }
     }
 
     func pluginViewController() async -> NSViewController? {
         await withCheckedContinuation { (cont: CheckedContinuation<NSViewController?, Never>) in
-            guard let au = effect?.auAudioUnit else { cont.resume(returning: nil); return }
-            au.requestViewController { vc in cont.resume(returning: vc) }
+            guard let effect else { cont.resume(returning: nil); return }
+            effect.withAUAudioUnit { au in
+                au.requestViewController { vc in cont.resume(returning: vc) }
+            }
         }
     }
 }
