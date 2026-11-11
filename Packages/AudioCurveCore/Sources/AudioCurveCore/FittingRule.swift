@@ -50,9 +50,11 @@ public enum FittingRule {
             case 500: corr = 5
             default: corr = 0
             }
-            let gSoft = (max(0, 0.6 * hl - corr) + trim[i]) * s
-            let gLoud = (max(0, 0.25 * hl - corr) + trim[i]) * s
-            let cr = min(max(45 / (45 - (gSoft - gLoud)), 1), 10)
+            let t = i < trim.count ? trim[i] : 0
+            let gSoft = (max(0, 0.6 * hl - corr) + t) * s
+            let gLoud = (max(0, 0.25 * hl - corr) + t) * s
+            let den = 45 - (gSoft - gLoud)
+            let cr = den <= 0 ? 10 : min(max(45 / den, 1), 10)
             return BandFitting(gainSoftDB: gSoft, gainLoudDB: gLoud, compressionRatio: cr)
         }
     }
@@ -98,6 +100,7 @@ public enum FittingRule {
     }
 
     private static func clampStrength(_ s: Double) -> Double {
-        min(max(s, 0), 1)
+        if s.isNaN { return 0 }
+        return min(max(s, 0), 1)
     }
 }

@@ -66,6 +66,25 @@ private func expectFitting(_ b: BandFitting, _ soft: Double, _ loud: Double, _ c
     #expect(abs(half[9].gainLoudDB - 11.875) < 1e-9)
 }
 
+@Test func crDenominatorEdgeIsTen() {
+    // Unvalidated input: spread 0.35 * 130 = 45.5 > 45, so the denominator is negative.
+    let bands = FittingRule.bands(for: uniformProfile(130), ear: .left, strength: 1)
+    #expect(bands[4].compressionRatio == 10)
+}
+
+@Test func shortTrimArrayDoesNotCrash() {
+    var p = userProfile()
+    p.leftTrimDB = []
+    let bands = FittingRule.bands(for: p, ear: .left, strength: 1)
+    #expect(bands.count == 12)
+    expectFitting(bands[9], 60, 25, 4.5)
+}
+
+@Test func nanStrengthIsZero() {
+    let bands = FittingRule.bands(for: userProfile(), ear: .left, strength: .nan)
+    for b in bands { expectFitting(b, 0, 0, 1) }
+}
+
 @Test func trimAddsToBoth() {
     var p = userProfile()
     var t = p.trim(.left)
@@ -98,6 +117,10 @@ private func expectFitting(_ b: BandFitting, _ soft: Double, _ loud: Double, _ c
     #expect(abs(b.gain_soft_db - 42) < 1e-9)
     #expect(abs(b.gain_loud_db - 17.5) < 1e-9)
     #expect(abs(b.compression_ratio - 45 / 20.5) < 1e-9)
+    let r = p.right.6
+    #expect(abs(r.gain_soft_db - 30) < 1e-9)
+    #expect(abs(r.gain_loud_db - 12.5) < 1e-9)
+    #expect(abs(r.compression_ratio - 45 / 27.5) < 1e-9)
     #expect(abs(p.mpo_dbfs - -3) < 1e-9)
     #expect(abs(p.output_gain_db - -6) < 1e-9)
     #expect(abs(p.attack_ms - 10) < 1e-9)

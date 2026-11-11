@@ -32,9 +32,9 @@ import Testing
         return p
     }
     #expect(validationError(profile(120)) == nil)
-    #expect(validationError(profile(120.5)) != nil)
+    #expect(validationError(profile(120.5)) == .thresholdOutOfRange(.left, frequencyHz: 125))
     #expect(validationError(profile(-10)) == nil)
-    #expect(validationError(profile(-10.5)) != nil)
+    #expect(validationError(profile(-10.5)) == .thresholdOutOfRange(.left, frequencyHz: 125))
 }
 
 @Test func trimBounds() {
