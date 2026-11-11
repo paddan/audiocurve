@@ -1,0 +1,15 @@
+[package]
+name = "audiocurve-dsp"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+name = "audiocurve_dsp"
+crate-type = ["staticlib", "rlib"]
+
+[profile.release]
+panic = "abort"
+lto = true
+
+[dev-dependencies]
+assert_no_alloc = "1"
