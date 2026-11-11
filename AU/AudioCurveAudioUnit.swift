@@ -77,8 +77,10 @@ public final class AudioCurveAudioUnit: AUAudioUnit {
         }
     }
 
-    public func setParameter(_ a: ParamAddress, _ value: AUValue) {
-        parameterTree?.parameter(withAddress: a.rawValue)?.value = value
+    /// Goes through the parameter tree so hosts see the change. Pass the UI's own observer token as
+    /// `originator` to keep that observer from being notified about its own write.
+    public func setParameter(_ a: ParamAddress, _ value: AUValue, originator: AUParameterObserverToken? = nil) {
+        parameterTree?.parameter(withAddress: a.rawValue)?.setValue(value, originator: originator)
     }
 
     public func readMeters() -> ac_meters {

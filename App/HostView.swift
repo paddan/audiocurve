@@ -32,13 +32,13 @@ struct HostView: View {
             }
             Text(status).font(.caption).foregroundStyle(.secondary)
             if let pluginVC {
-                PluginViewHost(controller: pluginVC).frame(minWidth: 480, minHeight: 320)
+                PluginViewHost(controller: pluginVC).frame(minWidth: 640, minHeight: 380)
             } else {
                 Spacer()
             }
         }
         .padding()
-        .frame(minWidth: 520, minHeight: 440)
+        .frame(minWidth: 680, minHeight: 540)
         .onReceive(ticker) { _ in peak = engine.outputPeakDB }
         .task {
             do {
