@@ -23,8 +23,13 @@ struct HostView: View {
             HStack {
                 Button("Öppna ljudfil…") { openFile() }
                 Button(playing ? "Stop" : "Play") {
-                    if playing { engine.stop() } else { engine.play() }
-                    playing.toggle()
+                    if playing {
+                        engine.stop()
+                    } else {
+                        do { try engine.play(); status = "Spelar (slinga)" }
+                        catch { status = "Kunde inte spela: \(error.localizedDescription)" }
+                    }
+                    playing = engine.isPlaying
                 }
                 Toggle("Bypass (A/B)", isOn: $bypass)
                     .onChange(of: bypass) { _, v in engine.bypass = v }

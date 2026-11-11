@@ -64,17 +64,42 @@ final class PlayerEngine {
         try connect()
     }
 
-    func play() {
-        guard let file else { return }
+    private(set) var isPlaying = false
+    /// Bumped on every play/stop so stale completion callbacks do not reschedule.
+    private var generation = 0
+
+    /// Starts looping playback. Throws if the engine or player cannot start.
+    func play() throws {
+        guard let file, !isPlaying else { return }
         if !engine.isRunning {
             engine.prepare()
-            try? engine.start()
+            try engine.start()
         }
-        player.scheduleFile(file, at: nil) { }
-        try? player.playAudio()
+        generation += 1
+        isPlaying = true
+        schedule(file, generation: generation)
+        do {
+            try player.playAudio()
+        } catch {
+            stop()
+            throw error
+        }
+    }
+
+    private func schedule(_ file: AVAudioFile, generation gen: Int) {
+        player.scheduleFile(file, at: nil, completionCallbackType: .dataPlayedBack) { [weak self] _ in
+            DispatchQueue.main.async {
+                MainActor.assumeIsolated {
+                    guard let self, self.isPlaying, self.generation == gen else { return }
+                    self.schedule(file, generation: gen)
+                }
+            }
+        }
     }
 
     func stop() {
+        generation += 1
+        isPlaying = false
         player.stop()
         file?.framePosition = 0
     }
