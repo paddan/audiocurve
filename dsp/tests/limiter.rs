@@ -58,11 +58,35 @@ fn limiter_transparent_below() {
 }
 
 #[test]
+fn limiter_nan_inf_safe() {
+    let n = 20_000;
+    let mut l = noise(0.5, n, 3);
+    let mut r = noise(0.5, n, 4);
+    for i in (100..n).step_by(97) {
+        l[i] = f32::NAN;
+        r[i + 1] = f32::INFINITY;
+        l[i + 2] = f32::NEG_INFINITY;
+        r[i + 3] = -f32::NAN;
+    }
+    run(&mut l, &mut r, -3.0, 512);
+    let c = 10f32.powf(-3.0 / 20.0);
+    assert!(l.iter().chain(r.iter()).all(|y| y.is_finite() && y.abs() <= c + 1e-6));
+}
+
+#[test]
 fn limiter_odd_block_sizes_and_empty() {
     let mut lim = Limiter::new(FS, 64);
     lim.process(&mut [], &mut [], -3.0);
     let mut a = [5.0f32; 1];
     let mut b = [5.0f32; 1];
     lim.process(&mut a, &mut b, -3.0);
+    assert_eq!((a[0], b[0]), (0.0, 0.0)); // still inside the delay line
+    let c = 10f32.powf(-3.0 / 20.0);
+    for (k, &len) in [1usize, 7, 64, 3, 33, 64, 2].iter().cycle().take(200).enumerate() {
+        let mut x = noise(4.0, len, k as u64 + 1);
+        let mut y = x.clone();
+        lim.process(&mut x, &mut y, -3.0);
+        assert!(x.iter().chain(y.iter()).all(|v| v.abs() <= c + 1e-6));
+    }
     lim.reset();
 }

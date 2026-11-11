@@ -9,6 +9,17 @@ const ATTACK_S: f64 = 0.0005;
 const RELEASE_S: f64 = 0.050;
 const ABSOLUTE_CEILING_DBFS: f64 = -1.0;
 
+#[inline]
+fn finite_or_zero(x: f32) -> f32 {
+    if x.is_finite() { x } else { 0.0 }
+}
+
+/// Hard clamp to +-c that maps NaN to 0 (f32::clamp passes NaN through).
+#[inline]
+fn safe_clamp(y: f32, c: f32) -> f32 {
+    if y.is_nan() { 0.0 } else { y.clamp(-c, c) }
+}
+
 pub struct Limiter {
     latency: usize,
     /// Ring length = latency + 1.
@@ -57,17 +68,19 @@ impl Limiter {
         let len = self.dl.len();
         for (xl, xr) in l.iter_mut().zip(r.iter_mut()) {
             let p = self.pos;
-            self.dl[p] = *xl;
-            self.dr[p] = *xr;
-            let peak = xl.abs().max(xr.abs());
+            // Non-finite input is replaced by silence so it cannot poison state.
+            let (il, ir) = (finite_or_zero(*xl), finite_or_zero(*xr));
+            self.dl[p] = il;
+            self.dr[p] = ir;
+            let peak = il.abs().max(ir.abs());
             self.need[p] = if peak > c { c / peak } else { 1.0 };
             let target = self.need.iter().fold(1.0f32, |m, &v| m.min(v));
             let a = if target < self.g { self.a_attack } else { self.a_release };
             self.g = target + a * (self.g - target);
             // Oldest entry (input from `latency` samples ago).
             let o = if p + 1 == len { 0 } else { p + 1 };
-            *xl = (self.dl[o] * self.g).clamp(-c, c);
-            *xr = (self.dr[o] * self.g).clamp(-c, c);
+            *xl = safe_clamp(self.dl[o] * self.g, c);
+            *xr = safe_clamp(self.dr[o] * self.g, c);
             self.pos = o;
         }
     }
