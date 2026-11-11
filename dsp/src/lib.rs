@@ -1,10 +1,10 @@
 //! audiocurve-dsp: realtime hearing-compensation DSP behind a C ABI.
-//! The FFI functions below are temporary stubs (replaced when the kernel is implemented).
 
 pub mod bands;
 pub mod biquad;
 pub mod compressor;
 pub mod filterbank;
+pub mod kernel;
 pub mod limiter;
 pub mod meters;
 pub mod params;
@@ -14,23 +14,23 @@ pub use bands::{BAND_COUNT, CENTERS, crossovers};
 pub use biquad::Biquad;
 pub use filterbank::{BandBuffers, Filterbank};
 pub use params::{BandFitting, Meters, Params, gain_db};
+pub use kernel::Handle;
 
-/// Placeholder kernel object.
-pub struct Kernel {
-    _sample_rate: f64,
-    _max_frames: u32,
-}
+/// Opaque C type `ac_kernel`.
+pub type Kernel = Handle;
 
+/// Returns a new kernel, or null for invalid arguments.
 #[unsafe(no_mangle)]
 pub extern "C" fn ac_kernel_new(sample_rate: f64, max_frames: u32) -> *mut Kernel {
-    if !(sample_rate.is_finite() && sample_rate > 0.0) || max_frames == 0 {
-        return std::ptr::null_mut();
+    match Handle::new(sample_rate, max_frames as usize) {
+        Some(b) => Box::into_raw(b),
+        None => std::ptr::null_mut(),
     }
-    Box::into_raw(Box::new(Kernel { _sample_rate: sample_rate, _max_frames: max_frames }))
 }
 
 /// # Safety
-/// `k` must be null or a pointer returned by `ac_kernel_new`, not yet freed.
+/// `k` must be null or a pointer returned by `ac_kernel_new`, not yet freed, and no other
+/// thread may be using it.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn ac_kernel_free(k: *mut Kernel) {
     if !k.is_null() {
@@ -38,32 +38,54 @@ pub unsafe extern "C" fn ac_kernel_free(k: *mut Kernel) {
     }
 }
 
+/// Copies `*p`.
+///
+/// # Safety
+/// `k` must be null or valid, `p` null or point to a readable `Params`. Must be called from
+/// a single thread at a time.
 #[unsafe(no_mangle)]
-pub extern "C" fn ac_kernel_set_params(_k: *mut Kernel, _p: *const Params) {}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn ac_kernel_process(_k: *mut Kernel, _left: *mut f32, _right: *mut f32, _frames: u32) {}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn ac_kernel_latency_frames(_k: *const Kernel) -> u32 {
-    0
+pub unsafe extern "C" fn ac_kernel_set_params(k: *mut Kernel, p: *const Params) {
+    if let (Some(k), Some(p)) = (unsafe { k.as_ref() }, unsafe { p.as_ref() }) {
+        k.set_params(p);
+    }
 }
 
+/// # Safety
+/// `k` must be null or valid; `left`/`right` null or valid for `frames` floats each. Must be
+/// called from a single (audio) thread at a time.
 #[unsafe(no_mangle)]
-pub extern "C" fn ac_kernel_reset(_k: *mut Kernel) {}
+pub unsafe extern "C" fn ac_kernel_process(k: *mut Kernel, left: *mut f32, right: *mut f32, frames: u32) {
+    if k.is_null() || left.is_null() || right.is_null() || frames == 0 {
+        return;
+    }
+    unsafe {
+        let l = std::slice::from_raw_parts_mut(left, frames as usize);
+        let r = std::slice::from_raw_parts_mut(right, frames as usize);
+        (*k).process(l, r);
+    }
+}
 
 /// # Safety
-/// `out` must be null or point to a writable `Meters`.
+/// `k` must be null or valid.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn ac_kernel_read_meters(_k: *const Kernel, out: *mut Meters) {
-    if !out.is_null() {
-        unsafe {
-            *out = Meters {
-                in_rms_db: [-120.0; 2],
-                in_peak_db: [-120.0; 2],
-                out_rms_db: [-120.0; 2],
-                out_peak_db: [-120.0; 2],
-            };
-        }
+pub unsafe extern "C" fn ac_kernel_latency_frames(k: *const Kernel) -> u32 {
+    unsafe { k.as_ref() }.map_or(0, |k| k.latency_frames())
+}
+
+/// # Safety
+/// `k` must be null or valid; same threading contract as `ac_kernel_process`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ac_kernel_reset(k: *mut Kernel) {
+    if let Some(k) = unsafe { k.as_ref() } {
+        unsafe { k.reset() };
+    }
+}
+
+/// # Safety
+/// `k` must be null or valid; `out` null or point to a writable `Meters`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ac_kernel_read_meters(k: *const Kernel, out: *mut Meters) {
+    if let (Some(k), false) = (unsafe { k.as_ref() }, out.is_null()) {
+        unsafe { *out = k.meters() };
     }
 }
