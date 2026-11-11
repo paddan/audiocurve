@@ -14,6 +14,10 @@ public final class AudioCurveAudioUnit: AUAudioUnit {
         var kernel: OpaquePointer?
         var maxFrames: UInt32 = 0
         var scratch: UnsafeMutablePointer<Float>
+        /// Host bypass request. Plain word written outside render, read once per render.
+        var bypass: Bool = false
+        /// Render-thread private: the previous render was bypassed.
+        var wasBypassed: Bool = false
     }
     private static let maxSupportedFrames = 16384
     private static let maxChannels = 2
@@ -26,7 +30,7 @@ public final class AudioCurveAudioUnit: AUAudioUnit {
     private var _profile: HearingProfile?
     private var latestParams = ac_params()
 
-    /// Called on the main queue after the profile changed (not for the programmatic no-op case).
+    /// Called on the main queue after the profile changed (not called when the new value equals the current one).
     public var onProfileChange: (@MainActor (HearingProfile?) -> Void)?
 
     public override init(componentDescription: AudioComponentDescription,
@@ -68,7 +72,10 @@ public final class AudioCurveAudioUnit: AUAudioUnit {
     public var profile: HearingProfile? {
         get { lock.lock(); defer { lock.unlock() }; return _profile }
         set {
-            lock.lock(); _profile = newValue; lock.unlock()
+            lock.lock()
+            if _profile == newValue { lock.unlock(); return }
+            _profile = newValue
+            lock.unlock()
             Self.onMain { [self] in
                 recompute()
                 let cb = onProfileChange
@@ -131,7 +138,9 @@ public final class AudioCurveAudioUnit: AUAudioUnit {
     }
 
     deinit {
-        releaseResources()
+        // No KVO notifications during deinit; free the kernel directly.
+        if let k = state.pointee.kernel { ac_kernel_free(k) }
+        state.pointee.kernel = nil
         state.pointee.scratch.deallocate()
         state.deallocate()
     }
@@ -143,6 +152,18 @@ public final class AudioCurveAudioUnit: AUAudioUnit {
         lock.lock(); defer { lock.unlock() }
         guard let k = state.pointee.kernel else { return 0 }
         return Double(ac_kernel_latency_frames(k)) / outputBus.format.sampleRate
+    }
+
+    public override var shouldBypassEffect: Bool {
+        get { state.pointee.bypass }
+        set { state.pointee.bypass = newValue }
+    }
+
+    /// Clears envelopes and filter/delay state. Called by hosts outside render.
+    public override func reset() {
+        super.reset()
+        lock.lock(); defer { lock.unlock() }
+        if let k = state.pointee.kernel { ac_kernel_reset(k) }
     }
 
     public override var tailTime: TimeInterval { 0.1 }
@@ -204,6 +225,15 @@ public final class AudioCurveAudioUnit: AUAudioUnit {
             }
             var flags = AudioUnitRenderActionFlags()
             let err = pull(&flags, timestamp, frameCount, 0, outputData)
+            if state.pointee.bypass {
+                state.pointee.wasBypassed = true
+                return err
+            }
+            if state.pointee.wasBypassed {
+                // Leaving bypass: drop stale envelope/delay state so it cannot burst.
+                state.pointee.wasBypassed = false
+                if let kernel { ac_kernel_reset(kernel) }
+            }
             if err == noErr, let kernel, abl.count >= 2,
                let l = abl[0].mData, let r = abl[1].mData {
                 ac_kernel_process(kernel, l.assumingMemoryBound(to: Float.self),
