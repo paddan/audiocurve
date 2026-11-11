@@ -468,8 +468,8 @@ enum Fmt {
     static func freq(_ hz: Double) -> String {
         if hz < 1000 { return "\(Int(hz)) Hz" }
         let k = hz / 1000
-        return k < 10 ? String(format: "%.1f kHz", k).replacingOccurrences(of: ".", with: ",")
-                      : String(format: "%.0f kHz", k)
+        if k == k.rounded() { return String(format: "%.0f kHz", k) }
+        return String(format: "%.1f kHz", k).replacingOccurrences(of: ".", with: ",")
     }
 
     static func axisFreq(_ hz: Double) -> String {

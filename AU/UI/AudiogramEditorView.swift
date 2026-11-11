@@ -25,9 +25,19 @@ struct AudiogramEditorView: View {
     @FocusState private var focused: Bool
     @State private var dragging = false
 
+    /// Everything the canvas draws, read in `body` so Observation tracks it and triggers redraws.
+    private struct Snapshot {
+        let profile: HearingProfile?
+        let selection: PointSelection?
+        let activeEar: Ear
+        let label: String
+    }
+
     var body: some View {
+        let snap = Snapshot(profile: vm.profile, selection: vm.selection, activeEar: vm.activeEar,
+                            label: vm.selection.map { vm.label(for: $0) } ?? "")
         GeometryReader { geo in
-            Canvas { ctx, size in draw(ctx, size) }
+            Canvas { ctx, size in draw(ctx, size, snap) }
                 .contentShape(Rectangle())
                 .gesture(
                     DragGesture(minimumDistance: 0)
@@ -42,7 +52,7 @@ struct AudiogramEditorView: View {
                         .onEnded { _ in dragging = false; vm.endDrag() }
                 )
                 .accessibilityLabel("Audiogram")
-                .accessibilityChildren { pointElements }
+                .accessibilityChildren { pointElements(geo.size) }
         }
         .focusable()
         .focused($focused)
@@ -52,8 +62,8 @@ struct AudiogramEditorView: View {
 
     // MARK: Drawing
 
-    private func draw(_ ctx: GraphicsContext, _ size: CGSize) {
-        guard let profile = vm.profile else { return }
+    private func draw(_ ctx: GraphicsContext, _ size: CGSize, _ snap: Snapshot) {
+        guard let profile = snap.profile else { return }
         let g = PlotGeometry(size: size)
         let grid = Color.primary.opacity(0.08)
 
@@ -84,9 +94,9 @@ struct AudiogramEditorView: View {
         }
 
         // Curves and markers: inactive ear first so the active one is on top.
-        let ears = Ear.allCases.sorted { a, _ in a != vm.activeEar }
+        let ears: [Ear] = snap.activeEar == .left ? [.right, .left] : [.left, .right]
         for ear in ears {
-            let active = ear == vm.activeEar
+            let active = ear == snap.activeEar
             let color = Theme.color(ear)
             let pts = profile.audiogram(ear).points.map { CGPoint(x: g.x($0.frequencyHz), y: g.y($0.thresholdDBHL)) }
             var path = Path()
@@ -97,12 +107,12 @@ struct AudiogramEditorView: View {
         }
 
         // Selected point: focus ring and label.
-        if let s = vm.selection,
+        if let s = snap.selection,
            let pt = profile.audiogram(s.ear).points.first(where: { $0.frequencyHz == s.frequencyHz }) {
             let c = CGPoint(x: g.x(pt.frequencyHz), y: g.y(pt.thresholdDBHL))
             ctx.stroke(Path(ellipseIn: CGRect(x: c.x - 11, y: c.y - 11, width: 22, height: 22)),
                        with: .color(Color.accentColor), lineWidth: 2)
-            ctx.drawPill(vm.label(for: s), near: c, gap: 16, in: g.plot, color: Theme.color(s.ear),
+            ctx.drawPill(snap.label, near: c, gap: 16, in: g.plot, color: Theme.color(s.ear),
                          background: Color(nsColor: .windowBackgroundColor))
         }
     }
@@ -135,9 +145,12 @@ struct AudiogramEditorView: View {
         }
     }
 
-    @ViewBuilder private var pointElements: some View {
+    @ViewBuilder private func pointElements(_ size: CGSize) -> some View {
+        let g = PlotGeometry(size: size)
         ForEach(items) { item in
             Rectangle().fill(Color.clear)
+                .frame(width: 24, height: 24)
+                .position(x: g.x(item.sel.frequencyHz), y: g.y(item.dbHL))
                 .accessibilityElement()
                 .accessibilityLabel("\(Fmt.earName(item.sel.ear)) \(Fmt.freq(item.sel.frequencyHz))")
                 .accessibilityValue("\(Fmt.db(item.dbHL)) dB HL")

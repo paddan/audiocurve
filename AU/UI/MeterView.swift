@@ -25,9 +25,11 @@ struct MeterView: View {
                         ctx.fill(Path(roundedRect: CGRect(x: 0, y: y, width: w, height: rowH), cornerRadius: 2),
                                  with: .color(Color.accentColor.opacity(0.85)))
                     }
-                    let px = min(size.width - 1, size.width * fraction(p))
-                    ctx.fill(Path(CGRect(x: px - 1, y: y - 1, width: 2, height: rowH + 2)),
-                             with: .color(p > -1 ? Color(nsColor: .systemRed) : Color.primary.opacity(0.8)))
+                    if p.isFinite, p > Self.floorDB {
+                        let px = min(size.width - 1, size.width * fraction(p))
+                        ctx.fill(Path(CGRect(x: px - 1, y: y - 1, width: 2, height: rowH + 2)),
+                                 with: .color(p > -1 ? Color(nsColor: .systemRed) : Color.primary.opacity(0.8)))
+                    }
                 }
             }
             .frame(height: 14)

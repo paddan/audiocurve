@@ -3,7 +3,7 @@ import AudioCurveCore
 
 enum Theme {
     static let left = Color(red: 0x37 / 255, green: 0x8A / 255, blue: 0xDD / 255)    // #378ADD
-    static let right = Color(red: 0xE2 / 255, green: 0x4A / 255, blue: 0x4B / 255)   // #E24B4A
+    static let right = Color(red: 0xE2 / 255, green: 0x4A / 255, blue: 0x4A / 255)   // #E24B4A
     static func color(_ ear: Ear) -> Color { ear == .left ? left : right }
 
     static let label = Font.system(size: 13)
@@ -119,14 +119,17 @@ private struct EarLegend: View {
                     .contentShape(Capsule())
                 }
                 .buttonStyle(.plain)
+                .fixedSize()
                 .accessibilityLabel("\(Fmt.earName(ear)) öra")
                 .accessibilityAddTraits(active ? .isSelected : [])
             }
             Spacer()
             if vm.profile != nil && vm.view == .gain {
-                Text("Stapel: svag insignal  ·  Streckad: stark insignal")
+                Text("Stapel: svag · streckad: stark")
                     .font(Theme.label)
                     .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .layoutPriority(-1)
             }
         }
         .frame(height: 26)
@@ -139,7 +142,7 @@ extension GraphicsContext {
     /// Draws a small rounded label with an ear-coloured outline, kept inside `bounds`.
     func drawPill(_ text: String, near anchor: CGPoint, gap: CGFloat, in bounds: CGRect, color: Color,
                   background: Color) {
-        let resolved = resolve(Text(text).font(Theme.tick).foregroundStyle(Color.primary))
+        let resolved = resolve(Text(text).font(.system(size: 13).monospacedDigit()).foregroundStyle(Color.primary))
         let size = resolved.measure(in: CGSize(width: 400, height: 40))
         let w = size.width + 14, h = size.height + 6
         var y = anchor.y - gap - h

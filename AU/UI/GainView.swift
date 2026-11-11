@@ -44,9 +44,22 @@ struct GainView: View {
     @FocusState private var focused: Bool
     @State private var dragging = false
 
+    /// Everything the canvas draws, read in `body` so Observation tracks it and triggers redraws.
+    private struct Snapshot {
+        let profile: HearingProfile?
+        let range: ClosedRange<Double>
+        let fits: [Ear: [BandFitting]]
+        let trimSelection: TrimSelection?
+        let label: String
+    }
+
     var body: some View {
+        let snap = Snapshot(profile: vm.profile, range: vm.gainRange,
+                            fits: [.left: vm.fitting(.left), .right: vm.fitting(.right)],
+                            trimSelection: vm.trimSelection,
+                            label: vm.trimSelection.map { vm.label(for: $0) } ?? "")
         GeometryReader { geo in
-            Canvas { ctx, size in draw(ctx, size) }
+            Canvas { ctx, size in draw(ctx, size, snap) }
                 .contentShape(Rectangle())
                 .gesture(
                     DragGesture(minimumDistance: 0)
@@ -64,7 +77,7 @@ struct GainView: View {
                     SpatialTapGesture(count: 2).onEnded { vm.resetTrim(at: $0.location, in: geo.size) }
                 )
                 .accessibilityLabel("Gain per band")
-                .accessibilityChildren { barElements }
+                .accessibilityChildren { barElements(geo.size) }
         }
         .focusable()
         .focused($focused)
@@ -72,9 +85,9 @@ struct GainView: View {
         .onKeyPress(phases: [.down, .repeat]) { vm.handleKey($0) }
     }
 
-    private func draw(_ ctx: GraphicsContext, _ size: CGSize) {
-        guard let profile = vm.profile else { return }
-        let range = vm.gainRange
+    private func draw(_ ctx: GraphicsContext, _ size: CGSize, _ snap: Snapshot) {
+        guard let profile = snap.profile else { return }
+        let range = snap.range
         let g = GainGeometry(size: size, range: range)
         let grid = Color.primary.opacity(0.08)
 
@@ -95,7 +108,7 @@ struct GainView: View {
 
         for ear in Ear.allCases {
             let color = Theme.color(ear)
-            let fits = vm.fitting(ear)
+            let fits = snap.fits[ear] ?? []
             let trims = profile.trim(ear)
             for band in 0..<Bands.count {
                 let soft = fits[band].gainSoftDB
@@ -112,12 +125,12 @@ struct GainView: View {
             }
         }
 
-        if let t = vm.trimSelection {
-            let soft = vm.fitting(t.ear)[t.band].gainSoftDB
+        if let t = snap.trimSelection, let tf = snap.fits[t.ear], tf.indices.contains(t.band) {
+            let soft = tf[t.band].gainSoftDB
             let rect = g.barRect(ear: t.ear, band: t.band, value: soft)
             ctx.stroke(Path(roundedRect: rect.insetBy(dx: -3, dy: -3), cornerRadius: 4),
                        with: .color(Color.accentColor), lineWidth: 2)
-            ctx.drawPill(vm.label(for: t), near: CGPoint(x: rect.midX, y: rect.minY), gap: 10, in: g.plot,
+            ctx.drawPill(snap.label, near: CGPoint(x: rect.midX, y: rect.minY), gap: 10, in: g.plot,
                          color: Theme.color(t.ear), background: Color(nsColor: .windowBackgroundColor))
         }
     }
@@ -135,9 +148,13 @@ struct GainView: View {
         }
     }
 
-    @ViewBuilder private var barElements: some View {
+    @ViewBuilder private func barElements(_ size: CGSize) -> some View {
+        let g = GainGeometry(size: size, range: vm.gainRange)
         ForEach(items) { item in
+            let r = g.barRect(ear: item.sel.ear, band: item.sel.band, value: 0)
             Rectangle().fill(Color.clear)
+                .frame(width: g.barWidth, height: g.plot.height)
+                .position(x: r.midX, y: g.plot.midY)
                 .accessibilityElement()
                 .accessibilityLabel("\(Fmt.earName(item.sel.ear)) \(Fmt.freq(Bands.centers[item.sel.band])) trim")
                 .accessibilityValue("\(Fmt.signed(item.trim)) dB")
