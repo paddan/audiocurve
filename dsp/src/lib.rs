@@ -5,7 +5,10 @@ pub mod bands;
 pub mod biquad;
 pub mod compressor;
 pub mod filterbank;
+pub mod limiter;
+pub mod meters;
 pub mod params;
+pub mod triple;
 
 pub use bands::{BAND_COUNT, CENTERS, crossovers};
 pub use biquad::Biquad;
