@@ -22,6 +22,16 @@ impl Biquad {
         (w0.cos(), w0.sin(), w0.sin() / (2.0 * q))
     }
 
+    /// Pass-through section (`y = x`).
+    pub fn identity() -> Self {
+        Self { b0: 1.0, b1: 0.0, b2: 0.0, a1: 0.0, a2: 0.0, z1: 0.0, z2: 0.0 }
+    }
+
+    /// Section with zero output (`y = 0`).
+    pub fn zero() -> Self {
+        Self { b0: 0.0, b1: 0.0, b2: 0.0, a1: 0.0, a2: 0.0, z1: 0.0, z2: 0.0 }
+    }
+
     pub fn lowpass(fc: f64, fs: f64, q: f64) -> Self {
         let (c, _s, alpha) = Self::trig(fc, fs, q);
         Self::from_raw((1.0 - c) / 2.0, 1.0 - c, (1.0 - c) / 2.0, 1.0 + alpha, -2.0 * c, 1.0 - alpha)

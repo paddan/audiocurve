@@ -117,6 +117,13 @@ impl Dsp {
             self.ears[0].run(cl, &p.left, p.attack_ms, p.release_ms);
             self.ears[1].run(cr, &p.right, p.attack_ms, p.release_ms);
             self.apply_output_gain(p.output_gain_db, cl, cr);
+            // Defence in depth: never feed a non-finite value to the limiter. Drop the
+            // chunk and restart every filter/envelope from a clean state.
+            if cl.iter().chain(cr.iter()).any(|v| !v.is_finite()) {
+                self.reset();
+                cl.fill(0.0);
+                cr.fill(0.0);
+            }
             self.limiter.process(cl, cr, p.mpo_dbfs);
             let (rms, peak) = self.out_meter.update(cl, cr);
             meters.store_out(rms, peak);
@@ -129,6 +136,7 @@ pub struct Handle {
     params: TripleBuffer<Params>,
     meters: AtomicMeters,
     dsp: UnsafeCell<Dsp>,
+    latency: u32,
 }
 
 // SAFETY: `params` is single-writer/single-reader (see `set_params`/`process`), `meters`
@@ -142,10 +150,13 @@ impl Handle {
         if !(fs.is_finite() && (8000.0..=384000.0).contains(&fs)) || !(1..=16384).contains(&max_frames) {
             return None;
         }
+        let dsp = Dsp::new(fs, max_frames);
+        let latency = dsp.limiter.latency_frames() as u32;
         Some(Box::new(Handle {
             params: TripleBuffer::new(Params::unity()),
             meters: AtomicMeters::new(),
-            dsp: UnsafeCell::new(Dsp::new(fs, max_frames)),
+            dsp: UnsafeCell::new(dsp),
+            latency,
         }))
     }
 
@@ -168,8 +179,7 @@ impl Handle {
     }
 
     pub fn latency_frames(&self) -> u32 {
-        // SAFETY: only reads the limiter's immutable latency.
-        unsafe { (*self.dsp.get()).limiter.latency_frames() as u32 }
+        self.latency
     }
 
     pub fn meters(&self) -> Meters {

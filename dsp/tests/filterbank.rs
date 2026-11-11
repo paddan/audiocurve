@@ -70,3 +70,46 @@ fn biquad_lowpass_basics() {
     let y: Vec<f32> = x.iter().map(|&v| lp.process(v)).collect();
     assert!((level_dbfs(&y, 0.1, fs) + 10.0).abs() < 0.1);
 }
+
+const ALL_FS: [f64; 11] = [
+    8_000.0, 11_025.0, 16_000.0, 22_050.0, 32_000.0, 44_100.0, 48_000.0, 88_200.0, 96_000.0, 192_000.0, 384_000.0,
+];
+
+#[test]
+fn bands_sum_flat_every_accepted_fs() {
+    for fs in ALL_FS {
+        for f in [50., 100., 177., 300., 612., 1000., 1732., 3000., 4899., 8000., 9798., 15000.] {
+            if f >= 0.4 * fs {
+                continue;
+            }
+            let x = sine(f, -20.0, 1.0, fs);
+            let mut fb = Filterbank::new(fs);
+            let mut out = BandBuffers::new(x.len());
+            fb.split(&x, &mut out);
+            assert!(out.bands.iter().all(|b| b[..x.len()].iter().all(|v| v.is_finite())), "fs={fs} f={f} nonfinite");
+            let sum = sum_bands(&out, x.len());
+            let dev = level_dbfs(&sum, 0.25, fs) + 20.0;
+            assert!(dev.abs() <= 0.5, "fs={fs} f={f} dev={dev}");
+        }
+    }
+}
+
+#[test]
+fn stable_and_silent_every_accepted_fs() {
+    for fs in ALL_FS {
+        let n = (fs * 2.0) as usize;
+        let mut fb = Filterbank::new(fs);
+        let mut out = BandBuffers::new(n);
+        // loud noise burst must stay finite and bounded
+        fb.split(&noise(1.0, n, 3), &mut out);
+        for b in &out.bands {
+            assert!(b[..n].iter().all(|v| v.is_finite() && v.abs() < 20.0), "fs={fs} unstable");
+        }
+        // silence stays silent
+        fb.reset();
+        fb.split(&vec![0.0; n], &mut out);
+        for b in &out.bands {
+            assert!(b[..n].iter().all(|&v| v == 0.0), "fs={fs} silence not silent");
+        }
+    }
+}

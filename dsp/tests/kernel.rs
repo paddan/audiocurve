@@ -207,3 +207,32 @@ fn meters_report_in_and_out() {
     assert!((m.in_rms_db[0] + 20.0).abs() <= 0.5);
     assert!((m.out_rms_db[0] + 30.0).abs() <= 0.5);
 }
+
+#[test]
+fn low_fs_strong_profile_is_finite_and_below_ceiling() {
+    let fit_l = |g: f64, cr: f64| fit(g, g * 0.5, cr);
+    for fs in [8_000.0, 16_000.0, 22_050.0] {
+        let mut p = Params::unity();
+        p.left = [
+            fit_l(60.0, 4.0), fit_l(60.0, 4.0), fit_l(25.0, 3.0), fit_l(25.0, 3.0), fit_l(25.0, 3.0), fit_l(4.5, 2.0),
+            fit_l(4.5, 2.0), fit_l(4.5, 2.0), fit_l(4.5, 2.0), fit_l(4.5, 2.0), fit_l(4.5, 2.0), fit_l(4.5, 2.0),
+        ];
+        p.right = p.left;
+        let h = Handle::new(fs, 512).unwrap();
+        h.set_params(&p);
+        let mut x = noise(0.5, (fs * 2.0) as usize, 11);
+        let s = sine(440.0, -6.0, 2.0, fs);
+        for (a, b) in x.iter_mut().zip(&s) {
+            *a = (*a + *b).clamp(-1.0, 1.0);
+        }
+        let (y, _) = run_on(&h, &x, &x, 512);
+        let ceiling = 10f32.powf(-3.0 / 20.0) * 1.01;
+        assert!(y.iter().all(|v| v.is_finite()), "fs={fs} nonfinite");
+        assert!(max_abs(&y) <= ceiling, "fs={fs} max {} > ceiling {ceiling}", max_abs(&y));
+        // must not be permanently silent afterwards: a quiet tone still comes out loud
+        let tone = sine(440.0, -40.0, 1.0, fs);
+        let (z, _) = run_on(&h, &tone, &tone, 512);
+        assert!(z.iter().all(|v| v.is_finite()), "fs={fs} nonfinite after");
+        assert!(level_dbfs(&z, 0.5, fs) > -45.0, "fs={fs} went silent: {}", level_dbfs(&z, 0.5, fs));
+    }
+}
