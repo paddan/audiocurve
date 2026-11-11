@@ -2,9 +2,13 @@
 //! The FFI functions below are temporary stubs (replaced when the kernel is implemented).
 
 pub mod bands;
+pub mod biquad;
+pub mod filterbank;
 pub mod params;
 
 pub use bands::{BAND_COUNT, CENTERS, crossovers};
+pub use biquad::Biquad;
+pub use filterbank::{BandBuffers, Filterbank};
 pub use params::{BandFitting, Meters, Params, gain_db};
 
 /// Placeholder kernel object.
