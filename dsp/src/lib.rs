@@ -3,6 +3,7 @@
 
 pub mod bands;
 pub mod biquad;
+pub mod compressor;
 pub mod filterbank;
 pub mod params;
 
