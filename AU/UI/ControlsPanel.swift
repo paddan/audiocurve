@@ -11,9 +11,13 @@ struct ControlsPanel: View {
             Picker("Läge", selection: Binding(get: { vm.mode }, set: { vm.setMode($0) })) {
                 Text("Tal").tag(CompressionMode.speech)
                 Text("Musik").tag(CompressionMode.music)
+                Text("Auto").tag(CompressionMode.auto)
             }
             .pickerStyle(.segmented)
             .labelsHidden()
+            if vm.mode == .auto {
+                AutoModeStatus(vm: vm)
+            }
 
             SliderRow(title: "Styrka", value: binding(.strength), range: 0...100, step: 1, defaultValue: 50) {
                 "\(Int($0.rounded())) %"
@@ -99,6 +103,22 @@ struct ControlsPanel: View {
         case .done(let g): "Utnivå satt till \(Fmt.signed(g)) dB"
         case .tooQuiet: "För tyst – spela upp något"
         }
+    }
+}
+
+/// What Auto currently hears. Its own view: it reads the 20 Hz meters.
+private struct AutoModeStatus: View {
+    let vm: PluginViewModel
+
+    var body: some View {
+        let s = vm.meters.speech
+        // Same hysteresis idea as the kernel: the label only names a side once it is clear.
+        let text = s > 0.7 ? "Auto: tal" : s < 0.3 ? "Auto: musik" : "Auto: lyssnar…"
+        Text(text)
+            .font(Theme.label)
+            .foregroundStyle(.secondary)
+            .frame(height: 16, alignment: .leading)
+            .accessibilityLabel(text)
     }
 }
 

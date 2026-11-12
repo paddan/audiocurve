@@ -442,3 +442,18 @@ fn input_gain_drives_compression_less() {
     let d = level_dbfs(&a, 1.0, FS) - level_dbfs(&b, 1.0, FS);
     assert!(d > 3.5 && d < 7.0, "output drop {d} dB");
 }
+
+#[test]
+fn auto_mode_reports_speech_value_and_stays_bounded() {
+    let mut p = Params::unity();
+    p.left = [fit(20.0, 5.0, 2.0); 12];
+    p.right = p.left;
+    p.auto_mode = 1.0;
+    let h = Handle::new(FS, 512).unwrap();
+    h.set_params(&p);
+    // A steady tone is music-like (no dips): the speech value falls toward 0.
+    let (l, _) = run_on(&h, &sine(1000.0, -20.0, 12.0, FS), &sine(1000.0, -20.0, 12.0, FS), 512);
+    let m = h.meters();
+    assert!(m.speech < 0.1, "speech {}", m.speech);
+    assert!(l.iter().all(|v| v.is_finite()));
+}

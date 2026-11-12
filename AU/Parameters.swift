@@ -83,9 +83,9 @@ enum Parameters {
         gain.value = AUValue(d.outputGain)
         let mode = AUParameterTree.createParameter(
             withIdentifier: ParamAddress.mode.identifier, name: "Läge",
-            address: ParamAddress.mode.rawValue, min: 0, max: 1, unit: .indexed,
+            address: ParamAddress.mode.rawValue, min: 0, max: 2, unit: .indexed,
             unitName: nil, flags: [.flag_IsReadable, .flag_IsWritable],
-            valueStrings: ["Tal", "Musik"], dependentParameters: nil)
+            valueStrings: ["Tal", "Musik", "Auto"], dependentParameters: nil)
         mode.value = AUValue(d.mode)
         let compression = AUParameterTree.createParameter(
             withIdentifier: ParamAddress.compression.identifier, name: "Kompression",

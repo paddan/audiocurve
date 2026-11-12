@@ -81,7 +81,7 @@ impl ReductionMeter {
 
 /// Meter values shared across threads (f32 bits in relaxed atomics).
 pub struct AtomicMeters {
-    v: [AtomicU32; 10],
+    v: [AtomicU32; 11],
 }
 
 impl Default for AtomicMeters {
@@ -115,6 +115,10 @@ impl AtomicMeters {
         self.v[9].store(db[1].to_bits(), Ordering::Relaxed);
     }
 
+    pub fn store_speech(&self, s: f32) {
+        self.v[10].store(s.to_bits(), Ordering::Relaxed);
+    }
+
     pub fn load(&self) -> Meters {
         let g = |i: usize| f32::from_bits(self.v[i].load(Ordering::Relaxed));
         Meters {
@@ -123,6 +127,7 @@ impl AtomicMeters {
             out_rms_db: [g(4), g(5)],
             out_peak_db: [g(6), g(7)],
             reduction_db: [g(8), g(9)],
+            speech: g(10),
         }
     }
 }

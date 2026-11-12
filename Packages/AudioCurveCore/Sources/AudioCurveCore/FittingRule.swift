@@ -14,8 +14,10 @@ public struct BandFitting: Equatable, Sendable {
 }
 
 public enum CompressionMode: Int, Sendable {
-    case speech = 0, music = 1
+    /// `auto`: the kernel glides between the Musik and Tal time constants by its classifier.
+    case speech = 0, music = 1, auto = 2
 
+    /// For `auto` these are the Musik end of the glide.
     public var attackMS: Double { self == .speech ? 5 : 10 }
     public var releaseMS: Double { self == .speech ? 50 : 200 }
 }
@@ -105,6 +107,7 @@ public enum FittingRule {
         p.release_ms = mode.releaseMS
         p.limiter_enabled = limiter ? 1 : 0
         p.input_gain_db = inputGainDB.isNaN ? 0 : min(max(inputGainDB, -30), 12)
+        p.auto_mode = mode == .auto ? 1 : 0
         return p
     }
 

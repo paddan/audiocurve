@@ -1,6 +1,7 @@
 //! Processing chain (`Dsp`) and the FFI object (`Handle`).
 
 use crate::bands::BAND_COUNT;
+use crate::classifier::Classifier;
 use crate::compressor::BandCompressor;
 use crate::filterbank::{BandBuffers, Filterbank};
 use crate::limiter::{soft_knee_db, Limiter};
@@ -13,6 +14,15 @@ use std::sync::Mutex;
 
 /// Output-gain smoothing time constant: 20/3 ms.
 const GAIN_TAU_S: f64 = 0.020 / 3.0;
+/// Tal time constants; Auto glides (log-wise) from the Musik values in `Params` to these.
+const SPEECH_ATTACK_MS: f64 = 5.0;
+const SPEECH_RELEASE_MS: f64 = 50.0;
+
+/// Geometric blend: `a` at s = 0, `b` at s = 1.
+#[inline]
+fn log_blend(a: f64, b: f64, s: f64) -> f64 {
+    a * (b / a).powf(s.clamp(0.0, 1.0))
+}
 /// The summed band-output budget sits this far below the MPO. It leaves room for the
 /// crest factor of real signals (the budget is a short-term power level), so the
 /// broadband limiter only catches brief peaks instead of ducking the whole mix.
@@ -212,6 +222,7 @@ struct Dsp {
     in_meter: MeterState,
     out_meter: MeterState,
     reduction: ReductionMeter,
+    classifier: Classifier,
     input_gain: SmoothGain,
     output_gain: SmoothGain,
 }
@@ -225,6 +236,7 @@ impl Dsp {
             in_meter: MeterState::new(fs),
             out_meter: MeterState::new(fs),
             reduction: ReductionMeter::new(fs),
+            classifier: Classifier::new(fs),
             input_gain: SmoothGain::new(fs),
             output_gain: SmoothGain::new(fs),
         }
@@ -232,6 +244,7 @@ impl Dsp {
 
     fn reset(&mut self) {
         self.reduction.reset();
+        self.classifier.reset();
         for e in &mut self.ears {
             e.reset();
         }
@@ -266,9 +279,17 @@ impl Dsp {
             capture.put_in(base, cl, cr);
             let (rms, peak) = self.in_meter.update(cl, cr);
             meters.store_in(rms, peak);
+            self.classifier.process(cl, cr);
+            let speech = self.classifier.speech() as f64;
+            meters.store_speech(speech as f32);
+            let (attack, release) = if p.auto_mode >= 0.5 && p.attack_ms > 0.0 && p.release_ms > 0.0 {
+                (log_blend(p.attack_ms, SPEECH_ATTACK_MS, speech), log_blend(p.release_ms, SPEECH_RELEASE_MS, speech))
+            } else {
+                (p.attack_ms, p.release_ms)
+            };
             // pre_process: identity (reserved for v2)
-            let red_l = self.ears[0].run(cl, &p.left, p.attack_ms, p.release_ms, band_ceiling);
-            let red_r = self.ears[1].run(cr, &p.right, p.attack_ms, p.release_ms, band_ceiling);
+            let red_l = self.ears[0].run(cl, &p.left, attack, release, band_ceiling);
+            let red_r = self.ears[1].run(cr, &p.right, attack, release, band_ceiling);
             self.output_gain.apply(p.output_gain_db, cl, cr);
             // Defence in depth: never feed a non-finite value to the limiter. Drop the
             // chunk and restart every filter/envelope from a clean state.

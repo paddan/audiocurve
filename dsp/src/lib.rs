@@ -2,6 +2,7 @@
 
 pub mod bands;
 pub mod biquad;
+pub mod classifier;
 pub mod compressor;
 pub mod filterbank;
 pub mod kernel;

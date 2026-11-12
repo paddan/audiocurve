@@ -29,6 +29,9 @@ pub struct Params {
     /// Gain (dB) before the bands: how hard the input drives the compressors. Applied before
     /// the In meter and spectrum, so those show what the bands get.
     pub input_gain_db: f64,
+    /// 1.0 = Auto: attack/release glide between Musik (`attack_ms`/`release_ms`) and Tal
+    /// (5/50 ms) following the speech/music classifier; 0.0 = use `attack_ms`/`release_ms`.
+    pub auto_mode: f64,
 }
 
 impl Params {
@@ -42,6 +45,7 @@ impl Params {
             release_ms: 50.0,
             limiter_enabled: 1.0,
             input_gain_db: 0.0,
+            auto_mode: 0.0,
         }
     }
 }
@@ -55,6 +59,8 @@ pub struct Meters {
     pub out_peak_db: [f32; 2],
     /// How much the safety stage (band budget + limiter) currently lowers each ear (dB, >= 0).
     pub reduction_db: [f32; 2],
+    /// Classifier output, 0 = music … 1 = speech (always computed; used in Auto mode).
+    pub speech: f32,
 }
 
 /// Static gain curve (dB) for an input level in dBFS.

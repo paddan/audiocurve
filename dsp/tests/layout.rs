@@ -1,6 +1,6 @@
 use audiocurve_dsp::*;
-#[test] fn params_is_624_bytes() { assert_eq!(std::mem::size_of::<Params>(), 624); }
-#[test] fn meters_is_40_bytes() { assert_eq!(std::mem::size_of::<Meters>(), 40); }
+#[test] fn params_is_632_bytes() { assert_eq!(std::mem::size_of::<Params>(), 632); }
+#[test] fn meters_is_44_bytes() { assert_eq!(std::mem::size_of::<Meters>(), 44); }
 #[test] fn centers_and_crossovers() {
     assert_eq!(CENTERS, [125.,250.,500.,750.,1000.,1500.,2000.,3000.,4000.,6000.,8000.,12000.]);
     let x = crossovers(); assert!((x[0]-176.777).abs() < 0.01 && (x[10]-9797.959).abs() < 0.01);

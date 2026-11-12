@@ -184,3 +184,11 @@ private func expectFitting(_ b: BandFitting, _ soft: Double, _ loud: Double, _ c
     let def = FittingRule.params(profile: nil, strength: 0.5, mpoDBFS: -3, outputGainDB: 0, mode: .music)
     #expect(def.input_gain_db == 0)
 }
+
+@Test func autoModeSetsFlagWithMusicTimes() {
+    let a = FittingRule.params(profile: nil, strength: 0.5, mpoDBFS: -3, outputGainDB: 0, mode: .auto)
+    #expect(a.auto_mode == 1)
+    #expect(a.attack_ms == 10 && a.release_ms == 200)
+    let s = FittingRule.params(profile: nil, strength: 0.5, mpoDBFS: -3, outputGainDB: 0, mode: .speech)
+    #expect(s.auto_mode == 0)
+}

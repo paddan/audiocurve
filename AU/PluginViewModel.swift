@@ -99,6 +99,7 @@ final class PluginViewModel {
         m.in_rms_db = (-120, -120); m.in_peak_db = (-120, -120)
         m.out_rms_db = (-120, -120); m.out_peak_db = (-120, -120)
         m.reduction_db = (0, 0)
+        m.speech = 0.5
         return m
     }()
 
