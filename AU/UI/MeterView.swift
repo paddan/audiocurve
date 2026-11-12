@@ -50,7 +50,8 @@ struct MeterView: View {
 }
 
 /// How much the safety stage (band budget + limiter) lowers each ear right now, 0…24 dB.
-/// Bars grow from the left; a full bar means the limiter is working hard.
+/// Bars grow from the left (top row left ear, blue; bottom row right ear, red); a full bar
+/// means the limiter is working hard.
 struct ReductionMeterView: View {
     let reduction: (Float, Float)
     let enabled: Bool
@@ -71,7 +72,7 @@ struct ReductionMeterView: View {
                     let w = size.width * fraction(r)
                     if enabled, w > 0.5 {
                         ctx.fill(Path(roundedRect: CGRect(x: 0, y: y, width: w, height: rowH), cornerRadius: 2),
-                                 with: .color(Color(nsColor: .systemOrange).opacity(0.9)))
+                                 with: .color(Theme.color(i == 0 ? .left : .right).opacity(0.85)))
                     }
                 }
             }
