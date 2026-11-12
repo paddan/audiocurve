@@ -15,10 +15,10 @@ struct ProfileMenu: View {
         }
     }
 
-    @State private var prompt: Prompt?
-    @State private var promptShown = false
-    @State private var name = ""
-    @State private var confirmDelete = false
+    @ViewState private var prompt: Prompt?
+    @ViewState private var promptShown = false
+    @ViewState private var name = ""
+    @ViewState private var confirmDelete = false
 
     private var label: String { (vm.currentName ?? String(localized: "Unsaved profile")) + (vm.isDirty ? " •" : "") }
     private var hasSource: Bool { vm.currentName != nil }

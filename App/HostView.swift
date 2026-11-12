@@ -10,12 +10,12 @@ struct PluginViewHost: NSViewControllerRepresentable {
 
 @MainActor
 struct HostView: View {
-    @State private var engine = PlayerEngine()
-    @State private var pluginVC: NSViewController?
-    @State private var bypass = false
-    @State private var peak: Float = -120
-    @State private var status = String(localized: "Loading plugin…")
-    @State private var playing = false
+    @ViewState private var engine = PlayerEngine()
+    @ViewState private var pluginVC: NSViewController?
+    @ViewState private var bypass = false
+    @ViewState private var peak: Float = -120
+    @ViewState private var status = String(localized: "Loading plugin…")
+    @ViewState private var playing = false
     private let ticker = Timer.publish(every: 0.05, on: .main, in: .common).autoconnect()
 
     var body: some View {
