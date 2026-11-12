@@ -1,6 +1,7 @@
 import AVFoundation
 import AudioToolbox
 import CAudioCurveDSP
+import Synchronization
 import AudioCurveCore
 
 public final class AudioCurveAudioUnit: AUAudioUnit {
@@ -22,6 +23,10 @@ public final class AudioCurveAudioUnit: AUAudioUnit {
     private static let maxSupportedFrames = 16384
     private static let maxChannels = 2
     private let state: UnsafeMutablePointer<RenderState>
+    /// Host reset request. Set by `reset()` on any thread (release), consumed by the render
+    /// block (acquire exchange), which alone may touch the kernel's DSP state. Kept outside
+    /// `RenderState` because `Atomic` is noncopyable; allocated once, stable for the AU's life.
+    private let resetRequested: UnsafeMutablePointer<Atomic<Bool>>
 
     /// Guards `model`, `latestParams` and every control-side use of `state.kernel`
     /// (set_params / meters / free). Never taken on the render thread.
@@ -40,6 +45,8 @@ public final class AudioCurveAudioUnit: AUAudioUnit {
         scratch.initialize(repeating: 0, count: Self.maxSupportedFrames * Self.maxChannels)
         state = .allocate(capacity: 1)
         state.initialize(to: RenderState(kernel: nil, maxFrames: 0, scratch: scratch))
+        resetRequested = .allocate(capacity: 1)
+        resetRequested.initialize(to: Atomic(false))
         inputBus = try AUAudioUnitBus(format: format)
         outputBus = try AUAudioUnitBus(format: format)
         try super.init(componentDescription: componentDescription, options: options)
@@ -143,6 +150,8 @@ public final class AudioCurveAudioUnit: AUAudioUnit {
         state.pointee.kernel = nil
         state.pointee.scratch.deallocate()
         state.deallocate()
+        resetRequested.deinitialize(count: 1)
+        resetRequested.deallocate()
     }
 
     public override var inputBusses: AUAudioUnitBusArray { inputBusArray }
@@ -162,8 +171,8 @@ public final class AudioCurveAudioUnit: AUAudioUnit {
     /// Clears envelopes and filter/delay state. Called by hosts outside render.
     public override func reset() {
         super.reset()
-        lock.lock(); defer { lock.unlock() }
-        if let k = state.pointee.kernel { ac_kernel_reset(k) }
+        // The kernel needs single-thread access; the render block performs the reset.
+        resetRequested.pointee.store(true, ordering: .releasing)
     }
 
     public override var tailTime: TimeInterval { 0.1 }
@@ -212,6 +221,7 @@ public final class AudioCurveAudioUnit: AUAudioUnit {
 
     public override var internalRenderBlock: AUInternalRenderBlock {
         let state = self.state
+        let resetRequested = self.resetRequested
         let stride = Self.maxSupportedFrames
         return { _, timestamp, frameCount, _, outputData, _, pullInputBlock in
             let kernel = state.pointee.kernel
@@ -229,11 +239,13 @@ public final class AudioCurveAudioUnit: AUAudioUnit {
                 state.pointee.wasBypassed = true
                 return err
             }
+            // Host reset request and leaving bypass share one reset (drops stale envelope/delay state).
+            var needsReset = resetRequested.pointee.exchange(false, ordering: .acquiring)
             if state.pointee.wasBypassed {
-                // Leaving bypass: drop stale envelope/delay state so it cannot burst.
                 state.pointee.wasBypassed = false
-                if let kernel { ac_kernel_reset(kernel) }
+                needsReset = true
             }
+            if needsReset, let kernel { ac_kernel_reset(kernel) }
             if err == noErr, let kernel, abl.count >= 2,
                let l = abl[0].mData, let r = abl[1].mData {
                 ac_kernel_process(kernel, l.assumingMemoryBound(to: Float.self),
