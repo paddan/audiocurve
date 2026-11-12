@@ -14,10 +14,10 @@ public struct BandFitting: Equatable, Sendable {
 }
 
 public enum CompressionMode: Int, Sendable {
-    /// `auto`: the kernel glides between the Musik and Tal time constants by its classifier.
+    /// `auto`: the kernel glides between the Music and Speech time constants by its classifier.
     case speech = 0, music = 1, auto = 2
 
-    /// For `auto` these are the Musik end of the glide.
+    /// For `auto` these are the Music end of the glide.
     public var attackMS: Double { self == .speech ? 5 : 10 }
     public var releaseMS: Double { self == .speech ? 50 : 200 }
 }

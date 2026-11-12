@@ -24,26 +24,26 @@ private func expectFitting(_ b: BandFitting, _ soft: Double, _ loud: Double, _ c
     for b in bands { expectFitting(b, 0, 0, 1) }
 }
 
-@Test func userLeftAt1500() {
-    let bands = FittingRule.bands(for: userProfile(), ear: .left, strength: 1)
+@Test func exampleLeftAt1500() {
+    let bands = FittingRule.bands(for: exampleProfile(), ear: .left, strength: 1)
     expectFitting(bands[5], 39, 16.25, 45 / 22.25)
 }
 
-@Test func userLeftAt6k() {
-    let bands = FittingRule.bands(for: userProfile(), ear: .left, strength: 1)
-    expectFitting(bands[9], 60, 25, 4.5)
+@Test func exampleLeftAt6k() {
+    let bands = FittingRule.bands(for: exampleProfile(), ear: .left, strength: 1)
+    expectFitting(bands[9], 57, 23.75, 45 / 11.75)
 }
 
-@Test func user12kHoldsAt8k() {
-    let p = userProfile()
+@Test func example12kHoldsAt8k() {
+    let p = exampleProfile()
     for ear in Ear.allCases {
         let bands = FittingRule.bands(for: p, ear: ear, strength: 1)
         #expect(bands[11] == bands[10])
     }
 }
 
-@Test func userRightAt500() {
-    let bands = FittingRule.bands(for: userProfile(), ear: .right, strength: 1)
+@Test func exampleRightAt500() {
+    let bands = FittingRule.bands(for: exampleProfile(), ear: .right, strength: 1)
     expectFitting(bands[2], 7, 0, 45 / 38)
 }
 
@@ -59,7 +59,7 @@ private func expectFitting(_ b: BandFitting, _ soft: Double, _ loud: Double, _ c
 }
 
 @Test func strengthScales() {
-    let p = userProfile()
+    let p = exampleProfile()
     for b in FittingRule.bands(for: p, ear: .left, strength: 0) { expectFitting(b, 0, 0, 1) }
     let half = FittingRule.bands(for: p, ear: .left, strength: 0.5)
     #expect(abs(half[9].gainSoftDB - 28.5) < 1e-9)
@@ -73,27 +73,27 @@ private func expectFitting(_ b: BandFitting, _ soft: Double, _ loud: Double, _ c
 }
 
 @Test func shortTrimArrayDoesNotCrash() {
-    var p = userProfile()
+    var p = exampleProfile()
     p.leftTrimDB = []
     let bands = FittingRule.bands(for: p, ear: .left, strength: 1)
     #expect(bands.count == 12)
-    expectFitting(bands[9], 60, 25, 4.5)
+    expectFitting(bands[9], 57, 23.75, 45 / 11.75)
 }
 
 @Test func nanStrengthIsZero() {
-    let bands = FittingRule.bands(for: userProfile(), ear: .left, strength: .nan)
+    let bands = FittingRule.bands(for: exampleProfile(), ear: .left, strength: .nan)
     for b in bands { expectFitting(b, 0, 0, 1) }
 }
 
 @Test func trimAddsToBoth() {
-    var p = userProfile()
+    var p = exampleProfile()
     var t = p.trim(.left)
     t[4] = 5
     p.setTrim(t, for: .left)
     let left = FittingRule.bands(for: p, ear: .left, strength: 1)
     expectFitting(left[4], 38, 18.75, 45 / (45 - 19.25))
     let right = FittingRule.bands(for: p, ear: .right, strength: 1)
-    let original = FittingRule.bands(for: userProfile(), ear: .right, strength: 1)
+    let original = FittingRule.bands(for: exampleProfile(), ear: .right, strength: 1)
     #expect(right == original)
 }
 
@@ -112,7 +112,7 @@ private func expectFitting(_ b: BandFitting, _ soft: Double, _ loud: Double, _ c
 }
 
 @Test func paramsPacking() {
-    let p = FittingRule.params(profile: userProfile(), strength: 1, mpoDBFS: -3, outputGainDB: -6, mode: .music)
+    let p = FittingRule.params(profile: exampleProfile(), strength: 1, mpoDBFS: -3, outputGainDB: -6, mode: .music)
     let b = p.left.6
     #expect(abs(b.gain_soft_db - 42) < 1e-9)
     #expect(abs(b.gain_loud_db - 17.5) < 1e-9)
@@ -155,9 +155,9 @@ private func expectFitting(_ b: BandFitting, _ soft: Double, _ loud: Double, _ c
 }
 
 @Test func compressionOffGivesFixedLoudGain() {
-    let p = FittingRule.params(profile: userProfile(), strength: 0.5, mpoDBFS: -3, outputGainDB: 0,
+    let p = FittingRule.params(profile: exampleProfile(), strength: 0.5, mpoDBFS: -3, outputGainDB: 0,
                                mode: .speech, compression: false)
-    let expected = FittingRule.bands(for: userProfile(), ear: .left, strength: 0.5)
+    let expected = FittingRule.bands(for: exampleProfile(), ear: .left, strength: 0.5)
     withUnsafeBytes(of: p.left) { raw in
         let b = raw.bindMemory(to: ac_band_fitting.self)
         for i in 0..<Bands.count {

@@ -1,4 +1,4 @@
-//! Diagnostic: render a float32 stereo WAV through the kernel with the user's audiogram.
+//! Diagnostic: render a float32 stereo WAV through the kernel with a fictional, steeply sloping example audiogram.
 //! usage: render <in.wav> <out.wav> <strength 0..1> <full|linear> [gain_db] [output_gain_db] [limiter 1|0]
 use audiocurve_dsp::{BandFitting, Handle, Params};
 #[path = "thd.rs"] #[allow(dead_code)] mod thd;
@@ -47,7 +47,7 @@ fn main() {
     let right = [(125.,15.),(250.,15.),(500.,20.),(750.,25.),(1000.,35.),(1500.,45.),(2000.,50.),(3000.,60.),(4000.,65.),(6000.,75.),(8000.,85.)];
     let mut p = Params::unity();
     p.left = thd::fit(&left, s); p.right = thd::fit(&right, s);
-    p.left[11].gain_soft_db -= 20.0 * s; p.left[11].gain_loud_db -= 20.0 * s; // user's -20 trim at 12k
+    p.left[11].gain_soft_db -= 20.0 * s; p.left[11].gain_loud_db -= 20.0 * s; // example -20 dB trim at 12k
     p.right[11].gain_soft_db -= 20.0 * s; p.right[11].gain_loud_db -= 20.0 * s;
     if a[4] == "linear" {
         for b in p.left.iter_mut().chain(p.right.iter_mut()) {
@@ -55,7 +55,7 @@ fn main() {
         }
     }
 
-    p.attack_ms = 10.0; p.release_ms = 200.0; // Musik
+    p.attack_ms = 10.0; p.release_ms = 200.0; // Music mode
     p.output_gain_db = a.get(6).map(|v| v.parse().unwrap()).unwrap_or(0.0);
     p.limiter_enabled = a.get(7).map(|v| v.parse().unwrap()).unwrap_or(1.0);
     let h = Handle::new(fs, 512).unwrap();

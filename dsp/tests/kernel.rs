@@ -422,7 +422,7 @@ fn input_gain_applies_before_bands_and_in_meter() {
     h.set_params(&p);
     let (l, _) = run_on(&h, &x, &x, 512);
     let m = h.meters();
-    // The In meter follows Innivå: it shows what the bands get.
+    // The In meter follows the input level: it shows what the bands get.
     assert!((m.in_rms_db[0] + 30.0).abs() <= 0.5, "in {}", m.in_rms_db[0]);
     let lv = level_dbfs(&l, 0.5, FS);
     assert!((lv + 30.0).abs() <= 0.3, "out {lv}");

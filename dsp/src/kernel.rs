@@ -14,7 +14,7 @@ use std::sync::Mutex;
 
 /// Output-gain smoothing time constant: 20/3 ms.
 const GAIN_TAU_S: f64 = 0.020 / 3.0;
-/// Tal time constants; Auto glides (log-wise) from the Musik values in `Params` to these.
+/// Speech time constants; Auto glides (log-wise) from the Music values in `Params` to these.
 const SPEECH_ATTACK_MS: f64 = 5.0;
 const SPEECH_RELEASE_MS: f64 = 50.0;
 
@@ -273,7 +273,7 @@ impl Dsp {
                     *s = 0.0;
                 }
             }
-            // Innivå first: the In meter and spectrum show what the bands actually get.
+            // Input level first: the In meter and spectrum show what the bands actually get.
             self.input_gain.apply(p.input_gain_db, cl, cr);
             let base = capture.position();
             capture.put_in(base, cl, cr);

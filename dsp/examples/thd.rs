@@ -1,4 +1,4 @@
-//! Diagnostic: THD+N of single sines through the kernel with the user's audiogram.
+//! Diagnostic: THD+N of single sines through the kernel with a fictional, steeply sloping example audiogram.
 use audiocurve_dsp::{BandFitting, Handle, Params, CENTERS};
 
 fn hl(pts: &[(f64, f64)], f: f64) -> f64 {

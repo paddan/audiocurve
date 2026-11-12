@@ -22,8 +22,8 @@
 					<key>type</key><string>aufx</string>
 					<key>subtype</key><string>hcmp</string>
 					<key>manufacturer</key><string>Lnds</string>
-					<key>name</key><string>audiocurve: Hörselkompensation</string>
-					<key>description</key><string>Hörselkompensation</string>
+					<key>name</key><string>audiocurve: Hearing Compensation</string>
+					<key>description</key><string>Hearing compensation</string>
 					<key>version</key><integer>65536</integer>
 					<key>factoryFunction</key><string>$(PRODUCT_MODULE_NAME).AudioCurveViewController</string>
 					<key>sandboxSafe</key><true/>

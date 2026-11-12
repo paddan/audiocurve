@@ -92,9 +92,9 @@ public final class ProfileStore: @unchecked Sendable {
     }
 
     /// Name for the `n`th copy of `base` (n = 1 for the first). The package has no resources, so the
-    /// UI passes a localized one; this default is the Swedish original.
+    /// UI passes a localized one; this default is the English source.
     public static func defaultCopyName(_ base: String, _ n: Int) -> String {
-        n == 1 ? "\(base) kopia" : "\(base) kopia \(n)"
+        n == 1 ? "\(base) copy" : "\(base) copy \(n)"
     }
 
     @discardableResult

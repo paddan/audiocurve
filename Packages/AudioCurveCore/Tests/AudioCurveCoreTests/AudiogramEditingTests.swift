@@ -17,7 +17,7 @@ private func threshold(_ p: HearingProfile, _ ear: Ear, _ f: Double) -> Double? 
 }
 
 @Test func setValueAddsMissingPoint() {
-    var p = userProfile()
+    var p = exampleProfile()
     p.left.points.removeAll { $0.frequencyHz == 750 }
     AudiogramEditing.setValue(&p, sel(.left, 750), dbHL: 40, fine: false)
     #expect(threshold(p, .left, 750) == 40)
@@ -27,23 +27,23 @@ private func threshold(_ p: HearingProfile, _ ear: Ear, _ f: Double) -> Double? 
 }
 
 @Test func setValueIgnoresNonStandardFrequency() {
-    var p = userProfile()
+    var p = exampleProfile()
     let before = p
     AudiogramEditing.setValue(&p, sel(.left, 900), dbHL: 40, fine: false)
     #expect(p == before)
 }
 
 @Test func nudgeUpLowersHL() {
-    var coarse = userProfile()
+    var coarse = exampleProfile()
     AudiogramEditing.nudge(&coarse, sel(.left, 1500), up: true, fine: false)
     #expect(threshold(coarse, .left, 1500) == 60)
-    var fine = userProfile()
+    var fine = exampleProfile()
     AudiogramEditing.nudge(&fine, sel(.left, 1500), up: true, fine: true)
     #expect(threshold(fine, .left, 1500) == 64)
 }
 
 @Test func nudgeDownRaisesHL() {
-    var p = userProfile()
+    var p = exampleProfile()
     AudiogramEditing.nudge(&p, sel(.left, 1500), up: false, fine: false)
     #expect(threshold(p, .left, 1500) == 70)
 }

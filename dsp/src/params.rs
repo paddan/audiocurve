@@ -29,7 +29,7 @@ pub struct Params {
     /// Gain (dB) before the bands: how hard the input drives the compressors. Applied before
     /// the In meter and spectrum, so those show what the bands get.
     pub input_gain_db: f64,
-    /// 1.0 = Auto: attack/release glide between Musik (`attack_ms`/`release_ms`) and Tal
+    /// 1.0 = Auto: attack/release glide between Music (`attack_ms`/`release_ms`) and Speech
     /// (5/50 ms) following the speech/music classifier; 0.0 = use `attack_ms`/`release_ms`.
     pub auto_mode: f64,
 }

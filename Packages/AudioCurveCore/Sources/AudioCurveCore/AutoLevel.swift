@@ -8,7 +8,7 @@ public enum AutoLevelResult: Equatable, Sendable {
 
 /// Accumulates meter blocks and derives an output gain: the processed level matches the input
 /// level, but never so high that the limiter has to work — loudness beyond that belongs to the
-/// computer's volume, not to Utnivå.
+/// computer's volume, not to the output level.
 public struct AutoLevelMeasurement: Sendable {
     private var inPowerSum: Double = 0
     private var outPowerSum: Double = 0

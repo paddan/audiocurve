@@ -123,7 +123,7 @@ private struct SpectrumLegend: View {
     }
 }
 
-/// "✕ Vänster  ○ Höger": a click picks the active ear.
+/// "✕ Left  ○ Right": a click picks the active ear.
 private struct EarLegend: View {
     let vm: PluginViewModel
 

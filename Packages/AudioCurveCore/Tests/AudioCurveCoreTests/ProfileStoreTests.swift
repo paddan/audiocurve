@@ -13,13 +13,13 @@ private func profileFile(_ dir: URL, _ id: UUID) -> URL {
 
 @Test func saveNewAndListRoundTrip() throws {
     let (store, dir) = tempStore(); defer { try? FileManager.default.removeItem(at: dir) }
-    let saved = try store.saveNew(name: "  Hemma  ", profile: userProfile())
-    #expect(saved.name == "Hemma")
+    let saved = try store.saveNew(name: "  Home  ", profile: exampleProfile())
+    #expect(saved.name == "Home")
     let list = store.list()
     #expect(list.count == 1)
     #expect(list[0].id == saved.id)
-    #expect(list[0].profile == userProfile())
-    #expect(store.saved(id: saved.id)?.name == "Hemma")
+    #expect(list[0].profile == exampleProfile())
+    #expect(store.saved(id: saved.id)?.name == "Home")
     #expect(store.saved(id: UUID()) == nil)
 }
 
@@ -31,8 +31,8 @@ private func profileFile(_ dir: URL, _ id: UUID) -> URL {
 
 @Test func duplicateAndEmptyNamesRejected() throws {
     let (store, dir) = tempStore(); defer { try? FileManager.default.removeItem(at: dir) }
-    try store.saveNew(name: "Hemma", profile: .flat())
-    #expect(throws: ProfileStoreError.nameTaken) { try store.saveNew(name: " hemma ", profile: .flat()) }
+    try store.saveNew(name: "Home", profile: .flat())
+    #expect(throws: ProfileStoreError.nameTaken) { try store.saveNew(name: " home ", profile: .flat()) }
     #expect(throws: ProfileStoreError.emptyName) { try store.saveNew(name: "   ", profile: .flat()) }
     #expect(store.list().count == 1)
 }
@@ -55,9 +55,9 @@ private func profileFile(_ dir: URL, _ id: UUID) -> URL {
 @Test func overwriteReplacesProfileAndUpdatesModified() throws {
     let (store, dir) = tempStore(); defer { try? FileManager.default.removeItem(at: dir) }
     let saved = try store.saveNew(name: "X", profile: .flat())
-    try store.overwrite(id: saved.id, profile: userProfile())
+    try store.overwrite(id: saved.id, profile: exampleProfile())
     let again = try #require(store.saved(id: saved.id))
-    #expect(again.profile == userProfile())
+    #expect(again.profile == exampleProfile())
     #expect(again.modified >= saved.modified)
     #expect(again.name == "X")
     #expect(throws: ProfileStoreError.notFound) { try store.overwrite(id: UUID(), profile: .flat()) }
@@ -78,13 +78,13 @@ private func profileFile(_ dir: URL, _ id: UUID) -> URL {
 
 @Test func duplicateNaming() throws {
     let (store, dir) = tempStore(); defer { try? FileManager.default.removeItem(at: dir) }
-    let x = try store.saveNew(name: "X", profile: userProfile())
+    let x = try store.saveNew(name: "X", profile: exampleProfile())
     let c1 = try store.duplicate(id: x.id)
     let c2 = try store.duplicate(id: x.id)
-    #expect(c1.name == "X kopia")
-    #expect(c2.name == "X kopia 2")
+    #expect(c1.name == "X copy")
+    #expect(c2.name == "X copy 2")
     #expect(c1.id != x.id)
-    #expect(c1.profile == userProfile())
+    #expect(c1.profile == exampleProfile())
     #expect(store.list().count == 3)
     #expect(throws: ProfileStoreError.notFound) { try store.duplicate(id: UUID()) }
 }
@@ -92,10 +92,10 @@ private func profileFile(_ dir: URL, _ id: UUID) -> URL {
 @Test func duplicateUsesInjectedCopyName() throws {
     let (store, dir) = tempStore(); defer { try? FileManager.default.removeItem(at: dir) }
     let x = try store.saveNew(name: "X", profile: .flat())
-    let name: (String, Int) -> String = { $1 == 1 ? "\($0) copy" : "\($0) copy \($1)" }
-    #expect(try store.duplicate(id: x.id, copyName: name).name == "X copy")
-    #expect(try store.duplicate(id: x.id, copyName: name).name == "X copy 2")
-    #expect(try store.duplicate(id: x.id).name == "X kopia")
+    let name: (String, Int) -> String = { $1 == 1 ? "\($0) Kopie" : "\($0) Kopie \($1)" }
+    #expect(try store.duplicate(id: x.id, copyName: name).name == "X Kopie")
+    #expect(try store.duplicate(id: x.id, copyName: name).name == "X Kopie 2")
+    #expect(try store.duplicate(id: x.id).name == "X copy")
 }
 
 @Test func deleteRemoves() throws {
@@ -128,8 +128,8 @@ private func profileFile(_ dir: URL, _ id: UUID) -> URL {
 @Test func workingCopyRoundTrip() throws {
     let (store, dir) = tempStore(); defer { try? FileManager.default.removeItem(at: dir) }
     let id = UUID()
-    store.saveWorkingCopy(WorkingCopy(profile: userProfile(), sourceID: id))
-    #expect(store.loadWorkingCopy() == WorkingCopy(profile: userProfile(), sourceID: id))
+    store.saveWorkingCopy(WorkingCopy(profile: exampleProfile(), sourceID: id))
+    #expect(store.loadWorkingCopy() == WorkingCopy(profile: exampleProfile(), sourceID: id))
     store.saveWorkingCopy(WorkingCopy(profile: .flat(), sourceID: nil))
     #expect(store.loadWorkingCopy() == WorkingCopy(profile: .flat(), sourceID: nil))
 }

@@ -3,7 +3,7 @@ import Testing
 @testable import AudioCurveCore
 
 @Test func roundTrip() {
-    let state = PluginState(version: PluginState.currentVersion, profile: userProfile())
+    let state = PluginState(version: PluginState.currentVersion, profile: exampleProfile())
     let decoded = PluginState.decode(state.encoded())
     #expect(decoded == state)
     #expect(decoded.profile != nil)
@@ -18,7 +18,7 @@ import Testing
 }
 
 @Test func unknownVersionYieldsNilProfile() {
-    let state = PluginState(version: 99, profile: userProfile())
+    let state = PluginState(version: 99, profile: exampleProfile())
     #expect(PluginState.decode(state.encoded()).profile == nil)
 }
 
@@ -30,13 +30,13 @@ import Testing
 }
 
 @Test func resolveKeepsCurrentWhenHostHasNoProfile() {
-    let current = userProfile()
+    let current = exampleProfile()
     #expect(PluginState.resolve(hostProfile: nil, current: current) == current)
     #expect(PluginState.resolve(hostProfile: nil, current: nil) == nil)
 }
 
 @Test func resolvePrefersHostProfile() {
-    let host = userProfile()
+    let host = exampleProfile()
     #expect(PluginState.resolve(hostProfile: host, current: .flat()) == host)
     #expect(PluginState.resolve(hostProfile: host, current: nil) == host)
 }
