@@ -67,6 +67,8 @@ Requirements:
 - Rust via [rustup](https://rustup.rs), with the `aarch64-apple-darwin` target.
 - [XcodeGen](https://github.com/yonaskolb/XcodeGen), if you change `project.yml`.
 
+To build a release without Xcode, see [Building without Xcode](#building-without-xcode).
+
 ```bash
 xcodegen generate                      # regenerate audiocurve.xcodeproj from project.yml
 xcodebuild -scheme audiocurve -configuration Debug build
@@ -83,6 +85,39 @@ cd Packages/AudioCurveCore && swift test   # fitting rule, profile storage, auto
 
 Run `docs/manual-test.md` for the checks that need ears and a real host.
 
+### Building without Xcode
+
+A release build needs only the Command Line Tools and Rust:
+
+```bash
+xcode-select --install                 # Command Line Tools (swiftc, clang, codesign, lipo)
+curl https://sh.rustup.rs -sSf | sh    # Rust via rustup; the needed targets are added on demand
+```
+
+```bash
+make release                           # build/release/audiocurve.app with the embedded AudioCurveAU.appex
+make install                           # copy to /Applications and register the extension
+```
+
+The `Makefile` compiles the Rust DSP as a static library, compiles the Swift sources with `swiftc` (Swift 6 language mode, macOS 27 deployment target, the same settings as `project.yml`), turns the String Catalogs into `.lproj/Localizable.strings` files with `scripts/xcstrings2strings.py` (the Xcode-only `xcstringstool` is not needed), and assembles and signs the bundles. The extension is signed with `AU/AudioCurveAU.entitlements`, because an AUv3 extension must run in the App Sandbox.
+
+Other targets and options:
+
+| Command | What it does |
+|---|---|
+| `make release ARCHS="arm64 x86_64"` | Universal build for Apple silicon and Intel |
+| `make release SIGN_IDENTITY="Developer ID Application: …"` | Sign with a Developer ID (hardened runtime, secure timestamp) instead of ad hoc |
+| `make notarize SIGN_IDENTITY="…" NOTARY_PROFILE=<profile>` | Notarize and staple; create the profile once with `xcrun notarytool store-credentials` |
+| `make uninstall` | Unregister the extension and remove the app from `/Applications` |
+| `make test` | Run the Rust and Swift package tests |
+| `make clean` | Remove `build/` |
+
+An ad hoc signed build runs on the Mac that built it. To give it to other people, sign it with a Developer ID and notarize it.
+
+After `make install`, `pluginkit -m -v | grep audiocurve` should list the extension in `/Applications`. If an Xcode build in DerivedData is also registered, macOS can pick either copy. Remove the one you do not want with `pluginkit -r <path to AudioCurveAU.appex>`.
+
+The macOS 27 SDK declares SwiftUI's `@State` as a macro, and its compiler plugin ships only with Xcode. Views therefore use `@ViewState`, an alias of the `State` property wrapper (`App/ViewState.swift`, `AU/UI/ViewState.swift`). `make release` stops with an error if `@State` shows up again.
+
 ## Layout
 
 | Path | What it is |
@@ -93,6 +128,7 @@ Run `docs/manual-test.md` for the checks that need ears and a real host.
 | `App/` | Container and test-host app |
 | `docs/` | Design spec and manual test checklist |
 | `App/AppIcon.icon` | App icon (Icon Composer, light and dark); `assets/AppIcon.icns` is a dark fallback for builds without Xcode |
+| `Makefile`, `scripts/` | Release build without Xcode |
 
 ## License
 

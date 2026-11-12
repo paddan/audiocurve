@@ -23,7 +23,7 @@ struct PlotGeometry {
 struct AudiogramEditorView: View {
     let vm: PluginViewModel
     @FocusState private var focused: Bool
-    @State private var dragging = false
+    @ViewState private var dragging = false
 
     /// Everything the canvas draws, read in `body` so Observation tracks it and triggers redraws.
     private struct Snapshot {

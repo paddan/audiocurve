@@ -4,7 +4,7 @@ import AudioCurveCore
 
 struct ControlsPanel: View {
     @Bindable var vm: PluginViewModel
-    @State private var confirmLimiterOff = false
+    @ViewState private var confirmLimiterOff = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
