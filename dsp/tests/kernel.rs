@@ -412,3 +412,33 @@ fn reduction_meter_reports_safety_stage() {
     let m = h.meters();
     assert!(m.reduction_db[0] < 0.1 && m.reduction_db[1] < 0.1, "off {:?}", m.reduction_db);
 }
+
+#[test]
+fn input_gain_applies_before_bands_and_after_in_meter() {
+    let mut p = Params::unity();
+    p.input_gain_db = -10.0;
+    let x = sine(1000.0, -20.0, 2.0, FS);
+    let h = Handle::new(FS, 512).unwrap();
+    h.set_params(&p);
+    let (l, _) = run_on(&h, &x, &x, 512);
+    let m = h.meters();
+    // In meter and spectrum show what the host sends; the bands see 10 dB less.
+    assert!((m.in_rms_db[0] + 20.0).abs() <= 0.5, "in {}", m.in_rms_db[0]);
+    let lv = level_dbfs(&l, 0.5, FS);
+    assert!((lv + 30.0).abs() <= 0.3, "out {lv}");
+}
+
+#[test]
+fn input_gain_drives_compression_less() {
+    // A compressing band (2:1 above -60): 10 dB less input gives ~5 dB less output.
+    let mut p = Params::unity();
+    p.left = [fit(20.0, 0.0, 2.0); 12];
+    p.right = p.left;
+    p.mpo_dbfs = -1.0;
+    let x = sine(1000.0, -20.0, 2.0, FS);
+    let (a, _) = run(&p, &x, &x, 512);
+    p.input_gain_db = -10.0;
+    let (b, _) = run(&p, &x, &x, 512);
+    let d = level_dbfs(&a, 1.0, FS) - level_dbfs(&b, 1.0, FS);
+    assert!(d > 3.5 && d < 7.0, "output drop {d} dB");
+}

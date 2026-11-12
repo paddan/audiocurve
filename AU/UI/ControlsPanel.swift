@@ -18,6 +18,10 @@ struct ControlsPanel: View {
             SliderRow(title: "Styrka", value: binding(.strength), range: 0...100, step: 1, defaultValue: 50) {
                 "\(Int($0.rounded())) %"
             }
+            SliderRow(title: "Innivå", value: binding(.inputGain), range: -30...12, step: 0.5, defaultValue: 0) {
+                "\(Fmt.signed($0)) dB"
+            }
+            .help("Sänker eller höjer ljudet innan det förstärks. Lägre innivå gör att kompressionen arbetar mindre.")
             SliderRow(title: "Utnivå", value: binding(.outputGain), range: -48...12, step: 0.5, defaultValue: 0) {
                 "\(Fmt.signed($0)) dB"
             }
@@ -78,6 +82,7 @@ struct ControlsPanel: View {
                 case .mode: Double(vm.mode.rawValue)
                 case .compression: vm.compressionOn ? 1 : 0
                 case .limiter: vm.limiterOn ? 1 : 0
+                case .inputGain: vm.inputGain
                 }
             },
             set: { vm.set(a, $0) })

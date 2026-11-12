@@ -2,7 +2,7 @@ import AudioToolbox
 import AudioCurveCore
 
 public enum ParamAddress: AUParameterAddress {
-    case strength = 0, mpo = 1, outputGain = 2, mode = 3, compression = 4, limiter = 5
+    case strength = 0, mpo = 1, outputGain = 2, mode = 3, compression = 4, limiter = 5, inputGain = 6
 
     var identifier: String {
         switch self {
@@ -12,6 +12,7 @@ public enum ParamAddress: AUParameterAddress {
         case .mode: "mode"
         case .compression: "compression"
         case .limiter: "limiter"
+        case .inputGain: "inputGain"
         }
     }
 }
@@ -25,6 +26,7 @@ struct ParamValues: Sendable {
     /// 1 = on, 0 = off (lab switches).
     var compression: Int = 1
     var limiter: Int = 1
+    var inputGain: Double = 0
 
     subscript(a: ParamAddress) -> Double {
         get {
@@ -35,6 +37,7 @@ struct ParamValues: Sendable {
             case .mode: Double(mode)
             case .compression: Double(compression)
             case .limiter: Double(limiter)
+            case .inputGain: inputGain
             }
         }
         set {
@@ -45,6 +48,7 @@ struct ParamValues: Sendable {
             case .mode: mode = Int(newValue.rounded())
             case .compression: compression = newValue >= 0.5 ? 1 : 0
             case .limiter: limiter = newValue >= 0.5 ? 1 : 0
+            case .inputGain: inputGain = newValue
             }
         }
     }
@@ -65,6 +69,12 @@ enum Parameters {
             unitName: nil, flags: [.flag_IsReadable, .flag_IsWritable], valueStrings: nil,
             dependentParameters: nil)
         mpo.value = AUValue(d.mpo)
+        let input = AUParameterTree.createParameter(
+            withIdentifier: ParamAddress.inputGain.identifier, name: "Innivå",
+            address: ParamAddress.inputGain.rawValue, min: -30, max: 12, unit: .decibels,
+            unitName: nil, flags: [.flag_IsReadable, .flag_IsWritable], valueStrings: nil,
+            dependentParameters: nil)
+        input.value = AUValue(d.inputGain)
         let gain = AUParameterTree.createParameter(
             withIdentifier: ParamAddress.outputGain.identifier, name: "Utnivå",
             address: ParamAddress.outputGain.rawValue, min: -48, max: 12, unit: .decibels,
@@ -89,6 +99,6 @@ enum Parameters {
             unitName: nil, flags: [.flag_IsReadable, .flag_IsWritable], valueStrings: nil,
             dependentParameters: nil)
         limiter.value = AUValue(d.limiter)
-        return AUParameterTree.createTree(withChildren: [strength, mpo, gain, mode, compression, limiter])
+        return AUParameterTree.createTree(withChildren: [strength, mpo, gain, mode, compression, limiter, input])
     }
 }

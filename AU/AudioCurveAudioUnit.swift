@@ -170,7 +170,8 @@ public final class AudioCurveAudioUnit: AUAudioUnit {
         let p = FittingRule.params(profile: _profile, strength: model.strength / 100, mpoDBFS: model.mpo,
                                    outputGainDB: model.outputGain,
                                    mode: CompressionMode(rawValue: model.mode) ?? .speech,
-                                   compression: model.compression != 0, limiter: model.limiter != 0)
+                                   compression: model.compression != 0, limiter: model.limiter != 0,
+                                   inputGainDB: model.inputGain)
         latestParams = p
         if let k = state.pointee.kernel { withUnsafePointer(to: p) { ac_kernel_set_params(k, $0) } }
     }

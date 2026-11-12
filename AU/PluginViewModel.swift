@@ -66,6 +66,7 @@ final class PluginViewModel {
     var strength: Double = 50
     var mpo: Double = -3
     var outputGain: Double = 0
+    var inputGain: Double = 0
     var mode: CompressionMode = .speech
     var compressionOn = true
     var limiterOn = true
@@ -111,6 +112,7 @@ final class PluginViewModel {
             strength = value(.strength) ?? strength
             mpo = value(.mpo) ?? mpo
             outputGain = value(.outputGain) ?? outputGain
+            inputGain = value(.inputGain) ?? inputGain
             mode = CompressionMode(rawValue: Int((value(.mode) ?? 0).rounded())) ?? .speech
             compressionOn = (value(.compression) ?? 1) >= 0.5
             limiterOn = (value(.limiter) ?? 1) >= 0.5
@@ -150,6 +152,7 @@ final class PluginViewModel {
         case .mode: mode = CompressionMode(rawValue: Int(value.rounded())) ?? .speech
         case .compression: compressionOn = value >= 0.5
         case .limiter: limiterOn = value >= 0.5
+        case .inputGain: inputGain = value
         }
     }
 
@@ -161,6 +164,7 @@ final class PluginViewModel {
         case .mode: mode = CompressionMode(rawValue: Int(value.rounded())) ?? .speech
         case .compression: compressionOn = value >= 0.5
         case .limiter: limiterOn = value >= 0.5
+        case .inputGain: inputGain = value
         }
         audioUnit.setParameter(a, AUValue(value), originator: paramObserver?.token)
     }

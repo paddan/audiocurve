@@ -173,3 +173,14 @@ private func expectFitting(_ b: BandFitting, _ soft: Double, _ loud: Double, _ c
     let p = FittingRule.params(profile: nil, strength: 0.5, mpoDBFS: -3, outputGainDB: 0, mode: .music, limiter: false)
     #expect(p.limiter_enabled == 0)
 }
+
+@Test func inputGainPassesThroughClamped() {
+    let p = FittingRule.params(profile: nil, strength: 0.5, mpoDBFS: -3, outputGainDB: 0, mode: .music, inputGainDB: -12)
+    #expect(p.input_gain_db == -12)
+    let lo = FittingRule.params(profile: nil, strength: 0.5, mpoDBFS: -3, outputGainDB: 0, mode: .music, inputGainDB: -99)
+    #expect(lo.input_gain_db == -30)
+    let nan = FittingRule.params(profile: nil, strength: 0.5, mpoDBFS: -3, outputGainDB: 0, mode: .music, inputGainDB: .nan)
+    #expect(nan.input_gain_db == 0)
+    let def = FittingRule.params(profile: nil, strength: 0.5, mpoDBFS: -3, outputGainDB: 0, mode: .music)
+    #expect(def.input_gain_db == 0)
+}

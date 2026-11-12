@@ -168,6 +168,43 @@ impl Ear {
     }
 }
 
+/// A gain in dB, smoothed per sample (tau 20/3 ms) so changes never click.
+struct SmoothGain {
+    db: f64,
+    init: bool,
+    alpha: f64,
+}
+
+impl SmoothGain {
+    fn new(fs: f64) -> Self {
+        Self { db: 0.0, init: false, alpha: 1.0 - (-1.0 / (GAIN_TAU_S * fs)).exp() }
+    }
+
+    fn reset(&mut self) {
+        self.init = false;
+    }
+
+    fn apply(&mut self, target_db: f64, l: &mut [f32], r: &mut [f32]) {
+        if !self.init {
+            self.db = target_db;
+            self.init = true;
+        }
+        if self.db == target_db && target_db == 0.0 {
+            return;
+        }
+        for (a, b) in l.iter_mut().zip(r.iter_mut()) {
+            if (target_db - self.db).abs() > 1e-6 {
+                self.db += self.alpha * (target_db - self.db);
+            } else {
+                self.db = target_db;
+            }
+            let g = 10f64.powf(self.db / 20.0) as f32;
+            *a *= g;
+            *b *= g;
+        }
+    }
+}
+
 struct Dsp {
     max_frames: usize,
     ears: [Ear; 2],
@@ -175,9 +212,8 @@ struct Dsp {
     in_meter: MeterState,
     out_meter: MeterState,
     reduction: ReductionMeter,
-    gain_db: f64,
-    gain_init: bool,
-    gain_alpha: f64,
+    input_gain: SmoothGain,
+    output_gain: SmoothGain,
 }
 
 impl Dsp {
@@ -189,9 +225,8 @@ impl Dsp {
             in_meter: MeterState::new(fs),
             out_meter: MeterState::new(fs),
             reduction: ReductionMeter::new(fs),
-            gain_db: 0.0,
-            gain_init: false,
-            gain_alpha: 1.0 - (-1.0 / (GAIN_TAU_S * fs)).exp(),
+            input_gain: SmoothGain::new(fs),
+            output_gain: SmoothGain::new(fs),
         }
     }
 
@@ -201,24 +236,8 @@ impl Dsp {
             e.reset();
         }
         self.limiter.reset();
-        self.gain_init = false;
-    }
-
-    fn apply_output_gain(&mut self, target_db: f64, l: &mut [f32], r: &mut [f32]) {
-        if !self.gain_init {
-            self.gain_db = target_db;
-            self.gain_init = true;
-        }
-        for (a, b) in l.iter_mut().zip(r.iter_mut()) {
-            if (target_db - self.gain_db).abs() > 1e-6 {
-                self.gain_db += self.gain_alpha * (target_db - self.gain_db);
-            } else {
-                self.gain_db = target_db;
-            }
-            let g = 10f64.powf(self.gain_db / 20.0) as f32;
-            *a *= g;
-            *b *= g;
-        }
+        self.input_gain.reset();
+        self.output_gain.reset();
     }
 
     fn process(&mut self, p: &Params, meters: &AtomicMeters, capture: &Capture, l: &mut [f32], r: &mut [f32]) {
@@ -245,10 +264,11 @@ impl Dsp {
             capture.put_in(base, cl, cr);
             let (rms, peak) = self.in_meter.update(cl, cr);
             meters.store_in(rms, peak);
+            self.input_gain.apply(p.input_gain_db, cl, cr);
             // pre_process: identity (reserved for v2)
             let red_l = self.ears[0].run(cl, &p.left, p.attack_ms, p.release_ms, band_ceiling);
             let red_r = self.ears[1].run(cr, &p.right, p.attack_ms, p.release_ms, band_ceiling);
-            self.apply_output_gain(p.output_gain_db, cl, cr);
+            self.output_gain.apply(p.output_gain_db, cl, cr);
             // Defence in depth: never feed a non-finite value to the limiter. Drop the
             // chunk and restart every filter/envelope from a clean state.
             if cl.iter().chain(cr.iter()).any(|v| !v.is_finite()) {

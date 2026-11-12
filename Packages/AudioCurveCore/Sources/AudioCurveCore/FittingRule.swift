@@ -75,7 +75,8 @@ public enum FittingRule {
     /// `limiter: false` turns off the band budget and the lookahead limiter in the kernel.
     public static func params(profile: HearingProfile?, strength: Double, mpoDBFS: Double,
                               outputGainDB: Double, mode: CompressionMode,
-                              compression: Bool = true, limiter: Bool = true) -> ac_params {
+                              compression: Bool = true, limiter: Bool = true,
+                              inputGainDB: Double = 0) -> ac_params {
         var p = ac_params()
         let s = clampStrength(strength)
         let unity = BandFitting(gainSoftDB: 0, gainLoudDB: 0, compressionRatio: 1)
@@ -103,6 +104,7 @@ public enum FittingRule {
         p.attack_ms = mode.attackMS
         p.release_ms = mode.releaseMS
         p.limiter_enabled = limiter ? 1 : 0
+        p.input_gain_db = inputGainDB.isNaN ? 0 : min(max(inputGainDB, -30), 12)
         return p
     }
 
