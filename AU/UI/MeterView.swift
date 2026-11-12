@@ -1,7 +1,8 @@
 import SwiftUI
 import CAudioCurveDSP
 
-/// Stereo level meter: RMS bar plus a peak tick per channel, −60…0 dBFS.
+/// Stereo level meter: RMS bar plus a peak tick per channel, −60…0 dBFS. Top row is the left
+/// ear (blue), bottom row the right ear (red), as in the audiogram.
 struct MeterView: View {
     let title: String
     let rms: (Float, Float)
@@ -23,12 +24,15 @@ struct MeterView: View {
                     let w = size.width * fraction(r)
                     if w > 0 {
                         ctx.fill(Path(roundedRect: CGRect(x: 0, y: y, width: w, height: rowH), cornerRadius: 2),
-                                 with: .color(Color.accentColor.opacity(0.85)))
+                                 with: .color(Theme.color(i == 0 ? .left : .right).opacity(0.85)))
                     }
                     if p.isFinite, p > Self.floorDB {
-                        let px = min(size.width - 1, size.width * fraction(p))
-                        ctx.fill(Path(CGRect(x: px - 1, y: y - 1, width: 2, height: rowH + 2)),
-                                 with: .color(p > -1 ? Color(nsColor: .systemRed) : Color.primary.opacity(0.8)))
+                        // Near full scale the tick gets wider instead of red (red is the right ear).
+                        let over = p > -1
+                        let w: CGFloat = over ? 4 : 2
+                        let px = min(size.width - w / 2, size.width * fraction(p))
+                        ctx.fill(Path(CGRect(x: px - w / 2, y: y - 1, width: w, height: rowH + 2)),
+                                 with: .color(Color.primary.opacity(over ? 1 : 0.8)))
                     }
                 }
             }
