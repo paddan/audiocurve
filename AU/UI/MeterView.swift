@@ -75,7 +75,9 @@ struct ReductionMeterView: View {
             Text(enabled ? "\(Self.text(max(reduction.0, reduction.1))) dB" : "av")
                 .font(Theme.label.monospacedDigit())
                 .foregroundStyle(.secondary)
-                .frame(width: 44, alignment: .trailing)
+                .lineLimit(1)
+                .fixedSize()
+                .frame(width: 56, alignment: .trailing)
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Skydd, dämpning")
