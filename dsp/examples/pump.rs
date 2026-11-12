@@ -48,7 +48,7 @@ fn main() {
     }
     println!("{:<34} {:>10} {:>10}", "case", "mod L dB", "mod R dB");
     for &(name, s, atk, rel) in &[("speech s=50%", 0.5, 5.0, 50.0), ("music s=50%", 0.5, 10.0, 200.0), ("speech s=100%", 1.0, 5.0, 50.0), ("music s=100%", 1.0, 10.0, 200.0)] {
-        for &(og, lab) in &[(0.0, "limiter on"), (-40.0, "limiter idle")] {
+        for &(og, lab) in &[(0.0, "")] {
             let mut p = Params::unity();
             p.left = fit(&left, s); p.right = fit(&right, s);
             p.attack_ms = atk; p.release_ms = rel; p.output_gain_db = og; p.mpo_dbfs = -3.0;

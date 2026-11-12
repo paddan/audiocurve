@@ -241,15 +241,18 @@ fn low_fs_strong_profile_is_finite_and_below_ceiling() {
 fn hf_bursts_do_not_pump_bass() {
     let fs = FS;
     let sig = pump_signal(fs, 4.0);
-    let mut p = Params::unity();
-    p.left = pump_fit(&PUMP_LEFT, 0.5);
-    p.right = pump_fit(&PUMP_RIGHT, 0.5);
-    p.attack_ms = 5.0;
-    p.release_ms = 50.0;
-    p.output_gain_db = 0.0;
-    p.mpo_dbfs = -3.0;
-    let (l, r) = run(&p, &sig, &sig, 512);
-    let (ml, mr) = (mod_200_db(&l, fs), mod_200_db(&r, fs));
-    println!("pump mod L {ml:.1} dB R {mr:.1} dB");
-    assert!(ml <= 3.0 && mr <= 3.0, "bass modulation L {ml:.1} dB, R {mr:.1} dB");
+    // (strength, attack ms, release ms, max allowed bass modulation dB)
+    for (s, atk, rel, max) in [(0.5, 5.0, 50.0, 3.0), (0.5, 10.0, 200.0, 3.0), (1.0, 5.0, 50.0, 4.5), (1.0, 10.0, 200.0, 4.5)] {
+        let mut p = Params::unity();
+        p.left = pump_fit(&PUMP_LEFT, s);
+        p.right = pump_fit(&PUMP_RIGHT, s);
+        p.attack_ms = atk;
+        p.release_ms = rel;
+        p.output_gain_db = 0.0;
+        p.mpo_dbfs = -3.0;
+        let (l, r) = run(&p, &sig, &sig, 512);
+        let (ml, mr) = (mod_200_db(&l, fs), mod_200_db(&r, fs));
+        println!("pump s={s} rel={rel}: L {ml:.1} dB R {mr:.1} dB");
+        assert!(ml <= max && mr <= max, "s={s} rel={rel}: bass modulation L {ml:.1} dB, R {mr:.1} dB > {max}");
+    }
 }

@@ -14,12 +14,17 @@ const GAIN_TAU_S: f64 = 0.020 / 3.0;
 const LEVEL_FLOOR_DB: f64 = -120.0;
 /// Release time constant of the band-MPO level envelope (instant attack).
 const MPO_RELEASE_S: f64 = 0.100;
+/// Power-averaging time constant of the MPO detector (faster than the WDRC detector so
+/// onsets are caught before they reach the broadband limiter).
+const MPO_POWER_TAU_S: f64 = 0.0005;
 
 pub struct BandCompressor {
     fs: f64,
     power: f64,
     level_db: f64,
     mpo_db: f64,
+    mpo_power: f64,
+    mpo_power_coef: f64,
     gain_db_smoothed: f64,
     attack_ms: f64,
     release_ms: f64,
@@ -50,12 +55,12 @@ impl BandCompressor {
             power_coef: one_pole(POWER_TAU_S, fs),
             gain_coef: one_pole(GAIN_TAU_S, fs),
             mpo_release_coef: one_pole(MPO_RELEASE_S, fs),
+            mpo_power: 0.0,
+            mpo_power_coef: one_pole(MPO_POWER_TAU_S, fs),
         }
     }
 
-    /// Compresses `x` in place. Does not allocate. `ceiling_dbfs` caps the band output
-    /// level (same dB scale as the detector); `f64::INFINITY` disables it.
-    pub fn process(&mut self, x: &mut [f32], b: &BandFitting, attack_ms: f64, release_ms: f64, ceiling_dbfs: f64) {
+    fn update_coefs(&mut self, attack_ms: f64, release_ms: f64) {
         if attack_ms != self.attack_ms {
             self.attack_ms = attack_ms;
             self.attack_coef = one_pole(attack_ms / 1000.0, self.fs);
@@ -64,36 +69,65 @@ impl BandCompressor {
             self.release_ms = release_ms;
             self.release_coef = one_pole(release_ms / 1000.0, self.fs);
         }
+    }
 
+    /// Analysis pass: for every sample of `x` writes the smoothed WDRC gain (dB) to
+    /// `gain_out` and the MPO detector level (dB, instant attack / 100 ms release) to
+    /// `level_out`. Does not modify `x`. Does not allocate.
+    pub fn analyze(&mut self, x: &[f32], b: &BandFitting, attack_ms: f64, release_ms: f64,
+                   gain_out: &mut [f32], level_out: &mut [f32]) {
+        self.update_coefs(attack_ms, release_ms);
         let mut power = self.power;
         let mut level = self.level_db;
         let mut mpo = self.mpo_db;
+        let mut mp = self.mpo_power;
         let mut g = self.gain_db_smoothed;
-        for s in x.iter_mut() {
+        for ((s, go), lo) in x.iter().zip(gain_out.iter_mut()).zip(level_out.iter_mut()) {
             let p = (*s as f64) * (*s as f64);
             power += (p - power) * self.power_coef;
             let l = 10.0 * (2.0 * power + 1e-20).log10();
             let coef = if l > level { self.attack_coef } else { self.release_coef };
             level += (l - level) * coef;
-            if l > mpo {
-                mpo = l;
+            mp += (p - mp) * self.mpo_power_coef;
+            let lm = 10.0 * (2.0 * mp + 1e-20).log10();
+            if lm > mpo {
+                mpo = lm;
             } else {
-                mpo += (l - mpo) * self.mpo_release_coef;
+                mpo += (lm - mpo) * self.mpo_release_coef;
             }
-            let target = gain_db(b, level).min(ceiling_dbfs - mpo);
-            g += (target - g) * self.gain_coef;
-            *s = ((*s as f64) * 10f64.powf(g / 20.0)) as f32;
+            g += (gain_db(b, level) - g) * self.gain_coef;
+            *go = g as f32;
+            *lo = mpo as f32;
         }
         self.power = power;
         self.level_db = level;
         self.mpo_db = mpo;
+        self.mpo_power = mp;
         self.gain_db_smoothed = g;
+    }
+
+    /// Compresses `x` in place with a per-band output ceiling (`f64::INFINITY` disables
+    /// it). Convenience wrapper over `analyze` for single-band use; processes in chunks
+    /// on the stack. Does not allocate.
+    pub fn process(&mut self, x: &mut [f32], b: &BandFitting, attack_ms: f64, release_ms: f64, ceiling_dbfs: f64) {
+        const CHUNK: usize = 256;
+        let mut g = [0f32; CHUNK];
+        let mut m = [0f32; CHUNK];
+        for c in x.chunks_mut(CHUNK) {
+            let n = c.len();
+            self.analyze(c, b, attack_ms, release_ms, &mut g[..n], &mut m[..n]);
+            for ((s, &gi), &mi) in c.iter_mut().zip(&g[..n]).zip(&m[..n]) {
+                let applied = (gi as f64).min(ceiling_dbfs - mi as f64);
+                *s = ((*s as f64) * 10f64.powf(applied / 20.0)) as f32;
+            }
+        }
     }
 
     pub fn reset(&mut self) {
         self.power = 0.0;
         self.level_db = LEVEL_FLOOR_DB;
         self.mpo_db = LEVEL_FLOOR_DB;
+        self.mpo_power = 0.0;
         self.gain_db_smoothed = 0.0;
     }
 }

@@ -11,13 +11,45 @@ use std::cell::UnsafeCell;
 
 /// Output-gain smoothing time constant: 20/3 ms.
 const GAIN_TAU_S: f64 = 0.020 / 3.0;
-/// Band output ceiling sits this far below the MPO so summed bands stay under it.
-const BAND_CEILING_MARGIN_DB: f64 = 6.0;
+/// The summed band-output budget sits this far below the MPO. It leaves room for the
+/// crest factor of real signals (the budget is a short-term power level), so the
+/// broadband limiter only catches brief peaks instead of ducking the whole mix.
+const BAND_CEILING_MARGIN_DB: f64 = 9.0;
 
 struct Ear {
     bank: Filterbank,
     bufs: BandBuffers,
     comps: Vec<BandCompressor>,
+    /// Per-band, per-sample WDRC gain (dB) from the analysis pass.
+    gains: Vec<Vec<f32>>,
+    /// Per-band, per-sample MPO detector level (dB).
+    levels: Vec<Vec<f32>>,
+}
+
+/// Water-filling: given band output powers `p` (linear) whose sum exceeds `budget`,
+/// returns the per-band cap `c` such that `sum(min(p_i, c)) == budget`. Bands below `c`
+/// are untouched, so a loud band is limited without ducking the quiet ones.
+fn water_level(p: &[f64; BAND_COUNT], budget: f64) -> f64 {
+    let mut s = *p;
+    // Descending insertion sort (12 elements, no allocation).
+    for i in 1..BAND_COUNT {
+        let mut j = i;
+        while j > 0 && s[j - 1] < s[j] {
+            s.swap(j - 1, j);
+            j -= 1;
+        }
+    }
+    // With the k largest bands capped at c: k*c + sum(rest) = budget.
+    let mut rest: f64 = s.iter().sum();
+    for k in 1..=BAND_COUNT {
+        rest -= s[k - 1];
+        let c = (budget - rest) / k as f64;
+        let next = if k < BAND_COUNT { s[k] } else { 0.0 };
+        if c >= next {
+            return c.max(0.0);
+        }
+    }
+    0.0
 }
 
 impl Ear {
@@ -26,6 +58,8 @@ impl Ear {
             bank: Filterbank::new(fs),
             bufs: BandBuffers::new(max_frames),
             comps: (0..BAND_COUNT).map(|_| BandCompressor::new(fs)).collect(),
+            gains: (0..BAND_COUNT).map(|_| vec![0.0; max_frames]).collect(),
+            levels: (0..BAND_COUNT).map(|_| vec![0.0; max_frames]).collect(),
         }
     }
 
@@ -37,16 +71,34 @@ impl Ear {
     }
 
     /// Split, compress every band and sum back into `x` (len <= max_frames).
+    /// `ceiling_dbfs` is the total output budget of all bands together (same dB scale
+    /// as the band detectors); when the bands' predicted output exceeds it, the loudest
+    /// bands are capped (water-filling) and the rest pass unchanged.
     fn run(&mut self, x: &mut [f32], fits: &[crate::params::BandFitting; BAND_COUNT], attack: f64, release: f64, ceiling_dbfs: f64) {
         self.bank.split(x, &mut self.bufs);
         let n = x.len();
-        x.fill(0.0);
-        for (band, (comp, fit)) in self.bufs.bands.iter_mut().zip(self.comps.iter_mut().zip(fits)) {
-            let b = &mut band[..n];
-            comp.process(b, fit, attack, release, ceiling_dbfs);
-            for (o, v) in x.iter_mut().zip(b.iter()) {
-                *o += *v;
+        for i in 0..BAND_COUNT {
+            self.comps[i].analyze(&self.bufs.bands[i][..n], &fits[i], attack, release,
+                                  &mut self.gains[i][..n], &mut self.levels[i][..n]);
+        }
+        let budget = 10f64.powf(ceiling_dbfs / 10.0);
+        let mut p = [0f64; BAND_COUNT];
+        for t in 0..n {
+            let mut total = 0.0;
+            for i in 0..BAND_COUNT {
+                p[i] = 10f64.powf((self.levels[i][t] + self.gains[i][t]) as f64 / 10.0);
+                total += p[i];
             }
+            let cap = if total > budget { water_level(&p, budget) } else { f64::INFINITY };
+            let mut y = 0.0f64;
+            for i in 0..BAND_COUNT {
+                let mut g = self.gains[i][t] as f64;
+                if p[i] > cap {
+                    g -= 10.0 * (p[i] / cap).log10();
+                }
+                y += self.bufs.bands[i][t] as f64 * 10f64.powf(g / 20.0);
+            }
+            x[t] = y as f32;
         }
     }
 }
@@ -195,5 +247,29 @@ impl Handle {
     pub unsafe fn reset(&self) {
         // SAFETY: exclusive access guaranteed by the caller contract.
         unsafe { (*self.dsp.get()).reset() };
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn water_level_caps_only_loud_bands() {
+        let mut p = [1.0f64; BAND_COUNT];
+        p[10] = 100.0;
+        p[11] = 50.0;
+        // Ten quiet bands use 10 of a budget of 30, so the two loud ones share 20.
+        let c = water_level(&p, 30.0);
+        assert!((c - 10.0).abs() < 1e-9, "{c}");
+        let used: f64 = p.iter().map(|&v| v.min(c)).sum();
+        assert!((used - 30.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn water_level_when_budget_below_quiet_floor() {
+        let p = [4.0f64; BAND_COUNT];
+        let c = water_level(&p, 12.0);
+        assert!((c - 1.0).abs() < 1e-9, "{c}");
     }
 }
