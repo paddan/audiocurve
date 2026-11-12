@@ -1,6 +1,6 @@
 //! Lookahead peak limiter: the hearing-safety backstop (MPO).
 //!
-//! Output = delayed input * g, followed by a hard clamp to +-c, so the ceiling
+//! Output = delayed input * g (per channel, unlinked), followed by a hard clamp to +-c, so the ceiling
 //! is a guarantee. `g` follows the minimum of the needed gain over the
 //! lookahead window (attack tau 0.5 ms, release tau 50 ms).
 
@@ -25,9 +25,11 @@ pub struct Limiter {
     /// Ring length = latency + 1.
     dl: Vec<f32>,
     dr: Vec<f32>,
-    need: Vec<f32>,
+    need_l: Vec<f32>,
+    need_r: Vec<f32>,
     pos: usize,
-    g: f32,
+    g_l: f32,
+    g_r: f32,
     a_attack: f32,
     a_release: f32,
 }
@@ -41,9 +43,11 @@ impl Limiter {
             latency,
             dl: vec![0.0; latency + 1],
             dr: vec![0.0; latency + 1],
-            need: vec![1.0; latency + 1],
+            need_l: vec![1.0; latency + 1],
+            need_r: vec![1.0; latency + 1],
             pos: 0,
-            g: 1.0,
+            g_l: 1.0,
+            g_r: 1.0,
             a_attack: coef(ATTACK_S),
             a_release: coef(RELEASE_S),
         }
@@ -56,9 +60,11 @@ impl Limiter {
     pub fn reset(&mut self) {
         self.dl.fill(0.0);
         self.dr.fill(0.0);
-        self.need.fill(1.0);
+        self.need_l.fill(1.0);
+        self.need_r.fill(1.0);
         self.pos = 0;
-        self.g = 1.0;
+        self.g_l = 1.0;
+        self.g_r = 1.0;
     }
 
     /// Realtime-safe: no allocation, no locks.
@@ -72,15 +78,18 @@ impl Limiter {
             let (il, ir) = (finite_or_zero(*xl), finite_or_zero(*xr));
             self.dl[p] = il;
             self.dr[p] = ir;
-            let peak = il.abs().max(ir.abs());
-            self.need[p] = if peak > c { c / peak } else { 1.0 };
-            let target = self.need.iter().fold(1.0f32, |m, &v| m.min(v));
-            let a = if target < self.g { self.a_attack } else { self.a_release };
-            self.g = target + a * (self.g - target);
+            self.need_l[p] = if il.abs() > c { c / il.abs() } else { 1.0 };
+            self.need_r[p] = if ir.abs() > c { c / ir.abs() } else { 1.0 };
+            let tl = self.need_l.iter().fold(1.0f32, |m, &v| m.min(v));
+            let tr = self.need_r.iter().fold(1.0f32, |m, &v| m.min(v));
+            let al = if tl < self.g_l { self.a_attack } else { self.a_release };
+            let ar = if tr < self.g_r { self.a_attack } else { self.a_release };
+            self.g_l = tl + al * (self.g_l - tl);
+            self.g_r = tr + ar * (self.g_r - tr);
             // Oldest entry (input from `latency` samples ago).
             let o = if p + 1 == len { 0 } else { p + 1 };
-            *xl = safe_clamp(self.dl[o] * self.g, c);
-            *xr = safe_clamp(self.dr[o] * self.g, c);
+            *xl = safe_clamp(self.dl[o] * self.g_l, c);
+            *xr = safe_clamp(self.dr[o] * self.g_r, c);
             self.pos = o;
         }
     }

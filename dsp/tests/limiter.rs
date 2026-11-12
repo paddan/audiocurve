@@ -90,3 +90,13 @@ fn limiter_odd_block_sizes_and_empty() {
     }
     lim.reset();
 }
+
+#[test]
+fn limiter_channels_independent() {
+    let n = (1.0 * FS) as usize;
+    let mut l = noise(0.9, n, 3);
+    let mut r = sine(1000.0, -20.0, 1.0, FS);
+    run(&mut l, &mut r, -3.0, 512);
+    let lvl = level_dbfs(&r, 0.1, FS);
+    assert!((lvl - -20.0).abs() <= 0.1, "right level {lvl}");
+}

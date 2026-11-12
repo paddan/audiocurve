@@ -236,3 +236,20 @@ fn low_fs_strong_profile_is_finite_and_below_ceiling() {
         assert!(level_dbfs(&z, 0.5, fs) > -45.0, "fs={fs} went silent: {}", level_dbfs(&z, 0.5, fs));
     }
 }
+
+#[test]
+fn hf_bursts_do_not_pump_bass() {
+    let fs = FS;
+    let sig = pump_signal(fs, 4.0);
+    let mut p = Params::unity();
+    p.left = pump_fit(&PUMP_LEFT, 0.5);
+    p.right = pump_fit(&PUMP_RIGHT, 0.5);
+    p.attack_ms = 5.0;
+    p.release_ms = 50.0;
+    p.output_gain_db = 0.0;
+    p.mpo_dbfs = -3.0;
+    let (l, r) = run(&p, &sig, &sig, 512);
+    let (ml, mr) = (mod_200_db(&l, fs), mod_200_db(&r, fs));
+    println!("pump mod L {ml:.1} dB R {mr:.1} dB");
+    assert!(ml <= 3.0 && mr <= 3.0, "bass modulation L {ml:.1} dB, R {mr:.1} dB");
+}

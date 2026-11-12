@@ -17,7 +17,7 @@ fn steady_state_gain() {
         let x = sine(1000.0, level, 1.0, FS);
         let mut y = x.clone();
         let mut c = BandCompressor::new(FS);
-        c.process(&mut y, &b, 5.0, 50.0);
+        c.process(&mut y, &b, 5.0, 50.0, f64::INFINITY);
         let out = level_dbfs(&y, 0.5, FS);
         let expected = level + gain_db(&b, level);
         let err = (out - expected).abs();
@@ -41,7 +41,7 @@ fn recovery_ms(release_ms: f64) -> Option<f64> {
     }
     let mut y = x.clone();
     let mut c = BandCompressor::new(FS);
-    c.process(&mut y, &b, 5.0, release_ms);
+    c.process(&mut y, &b, 5.0, release_ms, f64::INFINITY);
 
     let win = (0.010 * FS) as usize;
     let mut start = step;
@@ -73,7 +73,28 @@ fn silence_stays_zero() {
     let b = BandFitting { gain_soft_db: 60., gain_loud_db: 25., compression_ratio: 4.5 };
     let mut x = vec![0.0f32; FS as usize];
     let mut c = BandCompressor::new(FS);
-    c.process(&mut x, &b, 5.0, 50.0);
+    c.process(&mut x, &b, 5.0, 50.0, f64::INFINITY);
     let peak = x.iter().fold(0.0f32, |m, v| m.max(v.abs()));
     assert_eq!(peak, 0.0);
+}
+
+#[test]
+fn band_ceiling_caps_output() {
+    let b = fitting();
+    let mut y = sine(1000.0, -15.0, 2.0, FS);
+    let mut c = BandCompressor::new(FS);
+    c.process(&mut y, &b, 5.0, 50.0, -12.0);
+    let out = level_dbfs(&y, 1.5, FS);
+    assert!(out <= -11.5 && out >= -13.5, "output {out} dBFS");
+}
+
+#[test]
+fn band_ceiling_infinite_is_noop() {
+    let b = fitting();
+    let mut y = sine(1000.0, -15.0, 2.0, FS);
+    let mut c = BandCompressor::new(FS);
+    c.process(&mut y, &b, 5.0, 50.0, f64::INFINITY);
+    let out = level_dbfs(&y, 1.0, FS);
+    let expected = -15.0 + gain_db(&b, -15.0);
+    assert!((out - expected).abs() <= 1.0, "output {out}, expected {expected}");
 }

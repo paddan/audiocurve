@@ -11,6 +11,8 @@ use std::cell::UnsafeCell;
 
 /// Output-gain smoothing time constant: 20/3 ms.
 const GAIN_TAU_S: f64 = 0.020 / 3.0;
+/// Band output ceiling sits this far below the MPO so summed bands stay under it.
+const BAND_CEILING_MARGIN_DB: f64 = 6.0;
 
 struct Ear {
     bank: Filterbank,
@@ -35,13 +37,13 @@ impl Ear {
     }
 
     /// Split, compress every band and sum back into `x` (len <= max_frames).
-    fn run(&mut self, x: &mut [f32], fits: &[crate::params::BandFitting; BAND_COUNT], attack: f64, release: f64) {
+    fn run(&mut self, x: &mut [f32], fits: &[crate::params::BandFitting; BAND_COUNT], attack: f64, release: f64, ceiling_dbfs: f64) {
         self.bank.split(x, &mut self.bufs);
         let n = x.len();
         x.fill(0.0);
         for (band, (comp, fit)) in self.bufs.bands.iter_mut().zip(self.comps.iter_mut().zip(fits)) {
             let b = &mut band[..n];
-            comp.process(b, fit, attack, release);
+            comp.process(b, fit, attack, release, ceiling_dbfs);
             for (o, v) in x.iter_mut().zip(b.iter()) {
                 *o += *v;
             }
@@ -100,6 +102,8 @@ impl Dsp {
     }
 
     fn process(&mut self, p: &Params, meters: &AtomicMeters, l: &mut [f32], r: &mut [f32]) {
+        // Output gain is applied after the bands, so it comes off the band ceiling.
+        let band_ceiling = p.mpo_dbfs.min(-1.0) - BAND_CEILING_MARGIN_DB - p.output_gain_db;
         let mut pos = 0;
         let total = l.len();
         while pos < total {
@@ -114,8 +118,8 @@ impl Dsp {
             let (rms, peak) = self.in_meter.update(cl, cr);
             meters.store_in(rms, peak);
             // pre_process: identity (reserved for v2)
-            self.ears[0].run(cl, &p.left, p.attack_ms, p.release_ms);
-            self.ears[1].run(cr, &p.right, p.attack_ms, p.release_ms);
+            self.ears[0].run(cl, &p.left, p.attack_ms, p.release_ms, band_ceiling);
+            self.ears[1].run(cr, &p.right, p.attack_ms, p.release_ms, band_ceiling);
             self.apply_output_gain(p.output_gain_db, cl, cr);
             // Defence in depth: never feed a non-finite value to the limiter. Drop the
             // chunk and restart every filter/envelope from a clean state.
