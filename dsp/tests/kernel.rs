@@ -256,3 +256,21 @@ fn hf_bursts_do_not_pump_bass() {
         assert!(ml <= max && mr <= max, "s={s} rel={rel}: bass modulation L {ml:.1} dB, R {mr:.1} dB > {max}");
     }
 }
+
+#[test]
+fn loud_tones_stay_clean_under_output_budget() {
+    // Loud enough that the cross-band output budget engages; the cap must not ripple
+    // with the waveform (that is audible as distortion).
+    for f in [50.0, 100.0, 200.0, 1000.0] {
+        let mut p = Params::unity();
+        p.left = pump_fit(&PUMP_LEFT, 0.5);
+        p.right = pump_fit(&PUMP_RIGHT, 0.5);
+        let x = sine(f, -6.0, 2.0, FS);
+        let (l, r) = run(&p, &x, &x, 512);
+        let start = l.len() / 2;
+        let len = (((l.len() - start) as f64 * f / FS).floor() * FS / f).round() as usize;
+        let (tl, tr) = (thd_n_db(&l[start..start + len], f, FS), thd_n_db(&r[start..start + len], f, FS));
+        println!("thd {f} Hz: L {tl:.1} dB R {tr:.1} dB");
+        assert!(tl <= -70.0 && tr <= -70.0, "{f} Hz: THD+N L {tl:.1} dB, R {tr:.1} dB");
+    }
+}

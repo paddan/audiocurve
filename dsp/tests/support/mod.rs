@@ -103,3 +103,25 @@ pub fn mod_200_db(x: &[f32], fs: f64) -> f64 {
     }
     hi - lo
 }
+
+/// THD+N of `x` around a sine at `f`: everything except the least-squares fitted sine,
+/// relative to it, in dB. Use a whole number of cycles.
+#[allow(dead_code)]
+pub fn thd_n_db(x: &[f32], f: f64, fs: f64) -> f64 {
+    let w = 2.0 * std::f64::consts::PI * f / fs;
+    let (mut a, mut b) = (0.0, 0.0);
+    for (k, v) in x.iter().enumerate() {
+        a += *v as f64 * (w * k as f64).sin();
+        b += *v as f64 * (w * k as f64).cos();
+    }
+    let n = x.len() as f64;
+    a *= 2.0 / n;
+    b *= 2.0 / n;
+    let (mut ps, mut pr) = (0.0, 0.0);
+    for (k, v) in x.iter().enumerate() {
+        let s = a * (w * k as f64).sin() + b * (w * k as f64).cos();
+        ps += s * s;
+        pr += (*v as f64 - s).powi(2);
+    }
+    10.0 * (pr / ps).log10()
+}

@@ -12,19 +12,23 @@ const POWER_TAU_S: f64 = 0.005;
 const GAIN_TAU_S: f64 = 0.020 / 3.0;
 /// Initial level in dB; low enough that silence stays silent.
 const LEVEL_FLOOR_DB: f64 = -120.0;
-/// Release time constant of the band-MPO level envelope (instant attack).
-const MPO_RELEASE_S: f64 = 0.100;
-/// Power-averaging time constant of the MPO detector (faster than the WDRC detector so
-/// onsets are caught before they reach the broadband limiter).
-const MPO_POWER_TAU_S: f64 = 0.0005;
+/// MPO detector: instantaneous band peak, held for `MPO_HOLD_S` so it does not ripple
+/// with the waveform (a ripple there modulates the gain and is heard as distortion),
+/// then released at a fixed rate. 25 ms covers half a period down to 20 Hz.
+const MPO_HOLD_S: f64 = 0.025;
+/// Release rate after the hold, dB per second.
+const MPO_RELEASE_DB_PER_S: f64 = 60.0;
+/// A new peak within this distance of the held level refreshes the hold.
+const MPO_REFRESH_DB: f64 = 1.0;
 
 pub struct BandCompressor {
     fs: f64,
     power: f64,
     level_db: f64,
     mpo_db: f64,
-    mpo_power: f64,
-    mpo_power_coef: f64,
+    mpo_hold_left: u32,
+    mpo_hold: u32,
+    mpo_release_step: f64,
     gain_db_smoothed: f64,
     attack_ms: f64,
     release_ms: f64,
@@ -32,7 +36,6 @@ pub struct BandCompressor {
     release_coef: f64,
     power_coef: f64,
     gain_coef: f64,
-    mpo_release_coef: f64,
 }
 
 fn one_pole(tau_s: f64, fs: f64) -> f64 {
@@ -54,9 +57,9 @@ impl BandCompressor {
             release_coef: 0.0,
             power_coef: one_pole(POWER_TAU_S, fs),
             gain_coef: one_pole(GAIN_TAU_S, fs),
-            mpo_release_coef: one_pole(MPO_RELEASE_S, fs),
-            mpo_power: 0.0,
-            mpo_power_coef: one_pole(MPO_POWER_TAU_S, fs),
+            mpo_hold_left: 0,
+            mpo_hold: (MPO_HOLD_S * fs).round() as u32,
+            mpo_release_step: MPO_RELEASE_DB_PER_S / fs,
         }
     }
 
@@ -72,7 +75,7 @@ impl BandCompressor {
     }
 
     /// Analysis pass: for every sample of `x` writes the smoothed WDRC gain (dB) to
-    /// `gain_out` and the MPO detector level (dB, instant attack / 100 ms release) to
+    /// `gain_out` and the MPO detector level (dB, held band peak) to
     /// `level_out`. Does not modify `x`. Does not allocate.
     pub fn analyze(&mut self, x: &[f32], b: &BandFitting, attack_ms: f64, release_ms: f64,
                    gain_out: &mut [f32], level_out: &mut [f32]) {
@@ -80,7 +83,7 @@ impl BandCompressor {
         let mut power = self.power;
         let mut level = self.level_db;
         let mut mpo = self.mpo_db;
-        let mut mp = self.mpo_power;
+        let mut hold = self.mpo_hold_left;
         let mut g = self.gain_db_smoothed;
         for ((s, go), lo) in x.iter().zip(gain_out.iter_mut()).zip(level_out.iter_mut()) {
             let p = (*s as f64) * (*s as f64);
@@ -88,12 +91,14 @@ impl BandCompressor {
             let l = 10.0 * (2.0 * power + 1e-20).log10();
             let coef = if l > level { self.attack_coef } else { self.release_coef };
             level += (l - level) * coef;
-            mp += (p - mp) * self.mpo_power_coef;
-            let lm = 10.0 * (2.0 * mp + 1e-20).log10();
-            if lm > mpo {
-                mpo = lm;
+            let pk = 20.0 * ((*s as f64).abs() + 1e-10).log10();
+            if pk >= mpo - MPO_REFRESH_DB {
+                mpo = mpo.max(pk);
+                hold = self.mpo_hold;
+            } else if hold > 0 {
+                hold -= 1;
             } else {
-                mpo += (lm - mpo) * self.mpo_release_coef;
+                mpo = (mpo - self.mpo_release_step).max(pk);
             }
             g += (gain_db(b, level) - g) * self.gain_coef;
             *go = g as f32;
@@ -102,7 +107,7 @@ impl BandCompressor {
         self.power = power;
         self.level_db = level;
         self.mpo_db = mpo;
-        self.mpo_power = mp;
+        self.mpo_hold_left = hold;
         self.gain_db_smoothed = g;
     }
 
@@ -127,7 +132,7 @@ impl BandCompressor {
         self.power = 0.0;
         self.level_db = LEVEL_FLOOR_DB;
         self.mpo_db = LEVEL_FLOOR_DB;
-        self.mpo_power = 0.0;
+        self.mpo_hold_left = 0;
         self.gain_db_smoothed = 0.0;
     }
 }
