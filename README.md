@@ -2,9 +2,25 @@
 
 Hearing compensation for everything your Mac plays. audiocurve is an Audio Unit (AUv3) effect that shapes sound to your own audiogram, much like the headphone accommodations on iPhone with AirPods, but for any app and any output device.
 
+**[⬇ Download the latest release](https://github.com/paddan/audiocurve/releases/latest)** · macOS 27 · Apple silicon
+
 ![Audiogram editor](docs/screenshots/audiogram.png)
 
 > **Not a medical device.** audiocurve is a personal hobby project. It is not a hearing aid, it is not clinically validated, and it does not replace advice from an audiologist. Keep the volume at a comfortable level.
+
+## Download
+
+Requires macOS 27 on Apple silicon. Older versions are on the [Releases page](https://github.com/paddan/audiocurve/releases).
+
+1. Download `audiocurve-<version>-macos-arm64.zip` and unzip it.
+2. Move `audiocurve.app` to `/Applications`.
+3. If the release notes say the build is ad hoc signed (not notarized), clear the download quarantine once:
+   ```bash
+   xattr -dr com.apple.quarantine /Applications/audiocurve.app
+   ```
+4. Open `audiocurve.app` once. This registers the Audio Unit with macOS.
+
+Releases are built by the [Release workflow](.github/workflows/release.yml) whenever a `v*` tag is pushed.
 
 ## Features
 
@@ -22,20 +38,6 @@ Hearing compensation for everything your Mac plays. audiocurve is an Audio Unit 
 | ![Gain view](docs/screenshots/gain.png) | ![Spectrum view](docs/screenshots/spectrum.png) |
 
 *The screenshots use a made-up, mildly sloping example audiogram.*
-
-## Download
-
-Prebuilt releases are on the [Releases page](https://github.com/paddan/audiocurve/releases). They need macOS 27 on Apple silicon.
-
-1. Download `audiocurve-<version>-macos-arm64.zip` and unzip it.
-2. Move `audiocurve.app` to `/Applications`.
-3. If the release notes say the build is ad hoc signed (not notarized), clear the download quarantine once:
-   ```bash
-   xattr -dr com.apple.quarantine /Applications/audiocurve.app
-   ```
-4. Open `audiocurve.app` once. This registers the Audio Unit with macOS.
-
-Releases are built by the [Release workflow](.github/workflows/release.yml) whenever a `v*` tag is pushed.
 
 ## Using it
 
