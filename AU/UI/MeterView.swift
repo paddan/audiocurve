@@ -5,16 +5,20 @@ import CAudioCurveDSP
 /// ear (blue), bottom row the right ear (red), as in the audiogram.
 struct MeterView: View {
     let title: String
+    let accessibilityName: String
     let rms: (Float, Float)
     let peak: (Float, Float)
 
     private static let floorDB: Float = -60
+    /// Label column shared with the reduction meter so all bars line up.
+    static let labelWidth: CGFloat = 48
 
     var body: some View {
         HStack(spacing: 8) {
             Text(title)
                 .font(Theme.label)
-                .frame(width: 24, alignment: .leading)
+                .frame(width: Self.labelWidth, alignment: .leading)
+                .lineLimit(1)
             Canvas { ctx, size in
                 let rowH = (size.height - 2) / 2
                 for (i, (r, p)) in [(rms.0, peak.0), (rms.1, peak.1)].enumerated() {
@@ -39,8 +43,8 @@ struct MeterView: View {
             .frame(height: 14)
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(title)-nivå")
-        .accessibilityValue("\(Int(max(rms.0, rms.1).rounded())) dBFS")
+        .accessibilityLabel(accessibilityName)
+        .accessibilityValue(Text(verbatim: "\(Int(max(rms.0, rms.1).rounded())) dBFS"))
     }
 
     private func fraction(_ db: Float) -> CGFloat {
@@ -60,9 +64,10 @@ struct ReductionMeterView: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            Text("Skydd")
+            Text("Safety", comment: "Short label for the safety-stage reduction meter")
                 .font(Theme.label)
-                .frame(width: 40, alignment: .leading)
+                .frame(width: MeterView.labelWidth, alignment: .leading)
+                .lineLimit(1)
             Canvas { ctx, size in
                 let rowH = (size.height - 2) / 2
                 for (i, r) in [reduction.0, reduction.1].enumerated() {
@@ -77,7 +82,7 @@ struct ReductionMeterView: View {
                 }
             }
             .frame(height: 14)
-            Text(enabled ? "\(Self.text(max(reduction.0, reduction.1))) dB" : "av")
+            Text(enabled ? "\(Self.text(max(reduction.0, reduction.1))) dB" : String(localized: "off", comment: "Reduction meter value when the limiter is off"))
                 .font(Theme.label.monospacedDigit())
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
@@ -85,10 +90,10 @@ struct ReductionMeterView: View {
                 .frame(width: 56, alignment: .trailing)
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Skydd, dämpning")
+        .accessibilityLabel(Text("Safety, reduction"))
         .accessibilityValue(enabled
-            ? "Vänster \(Self.text(reduction.0)) dB, höger \(Self.text(reduction.1)) dB"
-            : "Limiter av")
+            ? String(localized: "Left \(Self.text(reduction.0)) dB, right \(Self.text(reduction.1)) dB")
+            : String(localized: "Limiter off"))
     }
 
     private static func text(_ db: Float) -> String {

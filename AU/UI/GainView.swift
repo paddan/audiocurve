@@ -76,7 +76,7 @@ struct GainView: View {
                 .simultaneousGesture(
                     SpatialTapGesture(count: 2).onEnded { vm.resetTrim(at: $0.location, in: geo.size) }
                 )
-                .accessibilityLabel("Gain per band")
+                .accessibilityLabel(Text("Gain per band"))
                 .accessibilityChildren { barElements(geo.size) }
         }
         .focusable()
@@ -156,8 +156,8 @@ struct GainView: View {
                 .frame(width: g.barWidth, height: g.plot.height)
                 .position(x: r.midX, y: g.plot.midY)
                 .accessibilityElement()
-                .accessibilityLabel("\(Fmt.earName(item.sel.ear)) \(Fmt.freq(Bands.centers[item.sel.band])) trim")
-                .accessibilityValue("\(Fmt.signed(item.trim)) dB")
+                .accessibilityLabel(Text("\(Fmt.earName(item.sel.ear)) \(Fmt.freq(Bands.centers[item.sel.band])) trim", comment: "VoiceOver: ear, band frequency, trim"))
+                .accessibilityValue(Text(verbatim: "\(Fmt.signed(item.trim)) dB"))
                 .accessibilityAdjustableAction { direction in
                     switch direction {
                     case .increment: vm.accessibilityAdjustTrim(item.sel, up: true)

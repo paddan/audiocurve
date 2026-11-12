@@ -8,10 +8,10 @@ struct ControlsPanel: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Picker("Läge", selection: Binding(get: { vm.mode }, set: { vm.setMode($0) })) {
-                Text("Tal").tag(CompressionMode.speech)
-                Text("Musik").tag(CompressionMode.music)
-                Text("Auto").tag(CompressionMode.auto)
+            Picker("Mode", selection: Binding(get: { vm.mode }, set: { vm.setMode($0) })) {
+                Text("Speech").tag(CompressionMode.speech)
+                Text("Music").tag(CompressionMode.music)
+                Text("Auto", comment: "Compression mode: detect speech or music automatically").tag(CompressionMode.auto)
             }
             .pickerStyle(.segmented)
             .labelsHidden()
@@ -19,22 +19,22 @@ struct ControlsPanel: View {
                 AutoModeStatus(vm: vm)
             }
 
-            SliderRow(title: "Styrka", value: binding(.strength), range: 0...100, step: 1, defaultValue: 50) {
-                "\(Int($0.rounded())) %"
+            SliderRow(title: "Strength", value: binding(.strength), range: 0...100, step: 1, defaultValue: 50) {
+                Fmt.percent($0)
             }
-            SliderRow(title: "Innivå", value: binding(.inputGain), range: -30...12, step: 0.5, defaultValue: 0) {
+            SliderRow(title: "Input level", value: binding(.inputGain), range: -30...12, step: 0.5, defaultValue: 0) {
                 "\(Fmt.signed($0)) dB"
             }
-            .help("Sänker eller höjer ljudet innan det förstärks. Lägre innivå gör att kompressionen arbetar mindre.")
-            SliderRow(title: "Utnivå", value: binding(.outputGain), range: -48...12, step: 0.5, defaultValue: 0) {
+            .help(Text("Lowers or raises the sound before it is amplified. A lower input level makes the compression work less."))
+            SliderRow(title: "Output level", value: binding(.outputGain), range: -48...12, step: 0.5, defaultValue: 0) {
                 "\(Fmt.signed($0)) dB"
             }
-            SliderRow(title: "Tak (MPO)", value: binding(.mpo), range: -20 ... -1, step: 1, defaultValue: -3) {
+            SliderRow(title: "Ceiling (MPO)", value: binding(.mpo), range: -20 ... -1, step: 1, defaultValue: -3) {
                 "\(Fmt.db($0)) dBFS"
             }
 
             HStack(spacing: 16) {
-                Toggle("Kompression", isOn: Binding(get: { vm.compressionOn }, set: { vm.set(.compression, $0 ? 1 : 0) }))
+                Toggle("Compression", isOn: Binding(get: { vm.compressionOn }, set: { vm.set(.compression, $0 ? 1 : 0) }))
                 Toggle("Limiter", isOn: Binding(get: { vm.limiterOn }, set: { on in
                     // Turning the safety stage off needs a confirmation; turning it on never does.
                     if on { vm.set(.limiter, 1) } else { confirmLimiterOff = true }
@@ -43,20 +43,22 @@ struct ControlsPanel: View {
             .toggleStyle(.checkbox)
             .font(Theme.label)
             if !vm.limiterOn {
-                Text("Limiter av: ingen nivåspärr under 0 dBFS")
+                Text("Limiter off: no level ceiling below 0 dBFS")
                     .font(Theme.label)
                     .foregroundStyle(Color(nsColor: .systemOrange))
             }
 
             VStack(alignment: .leading, spacing: 4) {
                 Button { vm.startAutoLevel() } label: {
-                    Text("Auto-nivå").frame(maxWidth: .infinity)
+                    Text("Auto level").frame(maxWidth: .infinity)
                 }
                 .controlSize(.large)
                 .disabled(isMeasuring)
                 Text(autoLevelText)
                     .font(Theme.label)
                     .foregroundStyle(vm.autoLevelState == .tooQuiet ? Color(nsColor: .systemOrange) : .secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
                     .frame(height: 16, alignment: .leading)
             }
 
@@ -66,11 +68,11 @@ struct ControlsPanel: View {
         }
         .padding(16)
         .frame(maxHeight: .infinity, alignment: .top)
-        .alert("Stänga av limitern?", isPresented: $confirmLimiterOff) {
-            Button("Stäng av", role: .destructive) { vm.set(.limiter, 0) }
-            Button("Avbryt", role: .cancel) {}
+        .alert("Turn off the limiter?", isPresented: $confirmLimiterOff) {
+            Button("Turn Off", role: .destructive) { vm.set(.limiter, 0) }
+            Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Utan limiter finns ingen nivåspärr under 0 dBFS. Med stark förstärkning kan ljudet bli mycket högt och skada hörseln. Sänk volymen innan du stänger av.")
+            Text("Without the limiter there is no level ceiling below 0 dBFS. With strong amplification the sound can get very loud and damage your hearing. Lower the volume before turning it off.")
         }
         .background(RoundedRectangle(cornerRadius: Theme.corner).fill(Color.primary.opacity(0.04)))
         .overlay(RoundedRectangle(cornerRadius: Theme.corner).strokeBorder(Color.primary.opacity(0.08), lineWidth: 1))
@@ -99,9 +101,9 @@ struct ControlsPanel: View {
     private var autoLevelText: String {
         switch vm.autoLevelState {
         case .idle: ""
-        case .measuring(let s): "Mäter… \(s) s"
-        case .done(let g): "Utnivå satt till \(Fmt.signed(g)) dB"
-        case .tooQuiet: "För tyst – spela upp något"
+        case .measuring(let s): String(localized: "Measuring… \(s) s", comment: "Auto level countdown, seconds left")
+        case .done(let g): String(localized: "Output level set to \(Fmt.signed(g)) dB", comment: "Auto level result")
+        case .tooQuiet: String(localized: "Too quiet – play something", comment: "Auto level found no signal")
         }
     }
 }
@@ -113,7 +115,9 @@ private struct AutoModeStatus: View {
     var body: some View {
         let s = vm.meters.speech
         // Same hysteresis idea as the kernel: the label only names a side once it is clear.
-        let text = s > 0.7 ? "Auto: tal" : s < 0.3 ? "Auto: musik" : "Auto: lyssnar…"
+        let text = s > 0.7 ? String(localized: "Auto: speech", comment: "Auto mode status")
+            : s < 0.3 ? String(localized: "Auto: music", comment: "Auto mode status")
+            : String(localized: "Auto: listening…", comment: "Auto mode status: not yet decided")
         Text(text)
             .font(Theme.label)
             .foregroundStyle(.secondary)
@@ -129,23 +133,27 @@ private struct MetersBlock: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            MeterView(title: "In", rms: vm.meters.in_rms_db, peak: vm.meters.in_peak_db)
-            MeterView(title: "Ut", rms: vm.meters.out_rms_db, peak: vm.meters.out_peak_db)
+            MeterView(title: String(localized: "In", comment: "Short meter label: input"),
+                      accessibilityName: String(localized: "Input level"),
+                      rms: vm.meters.in_rms_db, peak: vm.meters.in_peak_db)
+            MeterView(title: String(localized: "Out", comment: "Short meter label: output"),
+                      accessibilityName: String(localized: "Output level"),
+                      rms: vm.meters.out_rms_db, peak: vm.meters.out_peak_db)
             HStack {
-                Text("\u{2212}60"); Spacer(); Text("\u{2212}30"); Spacer(); Text("0 dBFS")
+                Text(verbatim: "\u{2212}60"); Spacer(); Text(verbatim: "\u{2212}30"); Spacer(); Text(verbatim: "0 dBFS")
             }
             .font(.system(size: 11).monospacedDigit())
             .foregroundStyle(.secondary)
-            .padding(.leading, 32)
+            .padding(.leading, MeterView.labelWidth + 8)
             ReductionMeterView(reduction: vm.meters.reduction_db, enabled: vm.limiterOn)
                 .padding(.top, 4)
-                .help("Hur mycket limitern sänker ljudet just nu. Ligger den ofta över några dB: sänk Utnivå och höj volymen på datorn i stället.")
+                .help("How much the limiter is lowering the sound right now. If it often shows more than a few dB, lower Output level and turn up the computer volume instead.")
         }
     }
 }
 
 private struct SliderRow: View {
-    let title: String
+    let title: LocalizedStringKey
     @Binding var value: Double
     let range: ClosedRange<Double>
     let step: Double
@@ -165,7 +173,7 @@ private struct SliderRow: View {
             .onTapGesture(count: 2) { value = defaultValue }   // double click: back to default
             Slider(value: $value, in: range, step: step)
                 .labelsHidden()
-                .accessibilityLabel(title)
+                .accessibilityLabel(Text(title))
                 .accessibilityValue(format(value))
         }
     }

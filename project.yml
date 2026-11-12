@@ -1,6 +1,9 @@
 name: audiocurve
 options:
   bundleIdPrefix: se.lindefors
+  # English is the development language: code uses English keys, and locales without a
+  # translation fall back to it. Translations live in each target's Localizable.xcstrings.
+  developmentLanguage: en
   deploymentTarget:
     macOS: "27.0"
 settings:
@@ -11,6 +14,8 @@ settings:
     CODE_SIGN_IDENTITY: "-"
     MARKETING_VERSION: "1.0.0"
     CURRENT_PROJECT_VERSION: "1"
+    SWIFT_EMIT_LOC_STRINGS: YES
+    LOCALIZATION_PREFERS_STRING_CATALOGS: YES
 packages:
   AudioCurveCore:
     path: Packages/AudioCurveCore
