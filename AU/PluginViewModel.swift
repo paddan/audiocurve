@@ -54,6 +54,9 @@ final class PluginViewModel {
     @ObservationIgnored let audioUnit: AudioCurveAudioUnit
 
     var profile: HearingProfile?
+    var savedProfiles: [SavedProfile] = []
+    /// Mirrors `audioUnit.sourceID`: the saved version the profile belongs to.
+    var sourceID: UUID?
     var selection: PointSelection?
     var trimSelection: TrimSelection?
     var activeEar: Ear = .left
@@ -94,6 +97,8 @@ final class PluginViewModel {
     init(audioUnit: AudioCurveAudioUnit) {
         self.audioUnit = audioUnit
         profile = audioUnit.profile
+        sourceID = audioUnit.sourceID
+        savedProfiles = audioUnit.store.list()
         if let tree = audioUnit.parameterTree {
             func value(_ a: ParamAddress) -> Double? { tree.parameter(withAddress: a.rawValue).map { Double($0.value) } }
             strength = value(.strength) ?? strength
@@ -150,6 +155,81 @@ final class PluginViewModel {
     func addFlatProfile() {
         selection = nil; trimSelection = nil; typedBuffer = ""
         commit(.flat())
+    }
+
+    // MARK: Saved versions
+
+    var currentName: String? {
+        guard let id = sourceID else { return nil }
+        return savedProfiles.first { $0.id == id }?.name
+    }
+
+    var isDirty: Bool {
+        guard let p = profile else { return false }
+        guard let id = sourceID, let saved = savedProfiles.first(where: { $0.id == id }) else { return true }
+        return saved.profile != p
+    }
+
+    func refreshSaved() {
+        savedProfiles = audioUnit.store.list()
+        sourceID = audioUnit.sourceID
+    }
+
+    private func setSource(_ id: UUID?) {
+        audioUnit.setSource(id)
+        sourceID = id
+    }
+
+    func load(_ id: UUID) {
+        refreshSaved()
+        guard let saved = savedProfiles.first(where: { $0.id == id }) else { showError("Kunde inte spara profilen"); return }
+        selection = nil; trimSelection = nil; typedBuffer = ""
+        commit(saved.profile)
+        setSource(id)
+    }
+
+    /// Overwrites the current version. Returns false when there is none, so the UI can ask for a name.
+    @discardableResult
+    func save() -> Bool {
+        refreshSaved()
+        guard let id = sourceID, savedProfiles.contains(where: { $0.id == id }) else { return false }
+        guard let p = profile else { return true }
+        perform { () throws(ProfileStoreError) in try audioUnit.store.overwrite(id: id, profile: p) }
+        return true
+    }
+
+    func saveAs(_ name: String) {
+        guard let p = profile else { return }
+        perform { () throws(ProfileStoreError) in
+            let saved = try audioUnit.store.saveNew(name: name, profile: p)
+            setSource(saved.id)
+        }
+    }
+
+    func rename(_ id: UUID, to name: String) {
+        perform { () throws(ProfileStoreError) in try audioUnit.store.rename(id: id, to: name) }
+    }
+
+    func duplicate(_ id: UUID) {
+        perform { () throws(ProfileStoreError) in _ = try audioUnit.store.duplicate(id: id) }
+    }
+
+    func delete(_ id: UUID) {
+        perform { () throws(ProfileStoreError) in
+            try audioUnit.store.delete(id: id)
+            if sourceID == id { setSource(nil) }
+        }
+    }
+
+    private func perform(_ action: () throws(ProfileStoreError) -> Void) {
+        do { try action() } catch {
+            switch error {
+            case .emptyName: showError("Ange ett namn")
+            case .nameTaken: showError("Det finns redan en version med det namnet")
+            case .notFound, .io: showError("Kunde inte spara profilen")
+            }
+        }
+        refreshSaved()
     }
 
     private func commit(_ p: HearingProfile) {

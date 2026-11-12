@@ -40,6 +40,7 @@ struct PluginView: View {
             .pickerStyle(.segmented)
             .labelsHidden()
             .frame(width: 200)
+            if vm.profile != nil { ProfileMenu(vm: vm) }
             Spacer()
             if vm.profile != nil {
                 Text(vm.view == .audiogram ? "Hörtröskel, dB HL" : "Gain per band, dB")

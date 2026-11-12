@@ -26,3 +26,11 @@ public struct PluginState: Codable, Equatable, Sendable {
         return state
     }
 }
+
+extension PluginState {
+    /// Which profile an AU should hold after a host restores its state: a host-supplied profile wins,
+    /// but an empty or foreign state must not wipe the one we already have (e.g. the autosaved copy).
+    public static func resolve(hostProfile: HearingProfile?, current: HearingProfile?) -> HearingProfile? {
+        hostProfile ?? current
+    }
+}

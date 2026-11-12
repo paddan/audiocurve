@@ -35,6 +35,13 @@ public final class AudioCurveAudioUnit: AUAudioUnit {
     private var _profile: HearingProfile?
     private var latestParams = ac_params()
 
+    /// Saved profile versions and the autosaved working copy (shared on disk across plugin instances).
+    public let store = ProfileStore.standard()
+    /// The saved version the current profile was loaded from / last saved to. Main thread only.
+    public private(set) var sourceID: UUID?
+    private var pendingSave: DispatchWorkItem?
+    private static let autosaveDelay: TimeInterval = 0.5
+
     /// Called on the main queue after the profile changed (not called when the new value equals the current one).
     public var onProfileChange: (@MainActor (HearingProfile?) -> Void)?
 
@@ -56,6 +63,11 @@ public final class AudioCurveAudioUnit: AUAudioUnit {
         latestParams = FittingRule.params(profile: nil, strength: model.strength / 100, mpoDBFS: model.mpo,
                                           outputGainDB: model.outputGain, mode: .speech)
         installParameterTree()
+        if let copy = store.loadWorkingCopy() {
+            _profile = copy.profile
+            sourceID = copy.sourceID
+            recompute()
+        }
     }
 
     private func installParameterTree() {
@@ -85,10 +97,37 @@ public final class AudioCurveAudioUnit: AUAudioUnit {
             lock.unlock()
             Self.onMain { [self] in
                 recompute()
+                scheduleAutosave()
                 let cb = onProfileChange
                 MainActor.assumeIsolated { cb?(newValue) }
             }
         }
+    }
+
+    /// Records which saved version the profile belongs to and autosaves. Main thread only.
+    public func setSource(_ id: UUID?) {
+        guard sourceID != id else { return }
+        sourceID = id
+        scheduleAutosave()
+    }
+
+    /// Debounced write of the working copy; runs on the main queue. A nil profile is never written.
+    private func scheduleAutosave() {
+        pendingSave?.cancel()
+        pendingSave = nil
+        guard profile != nil else { return }
+        let item = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            self.pendingSave = nil
+            self.writeWorkingCopy()
+        }
+        pendingSave = item
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.autosaveDelay, execute: item)
+    }
+
+    private func writeWorkingCopy() {
+        guard let p = profile else { return }
+        store.saveWorkingCopy(WorkingCopy(profile: p, sourceID: sourceID))
     }
 
     /// Goes through the parameter tree so hosts see the change. Pass the UI's own observer token as
@@ -136,7 +175,8 @@ public final class AudioCurveAudioUnit: AUAudioUnit {
         set {
             super.fullState = newValue
             let st = PluginState.decode(newValue?[PluginState.key] as? Data)
-            profile = st.profile
+            // An empty or foreign host state must not wipe the profile we already have.
+            profile = PluginState.resolve(hostProfile: st.profile, current: profile)
         }
     }
 
@@ -145,6 +185,8 @@ public final class AudioCurveAudioUnit: AUAudioUnit {
     }
 
     deinit {
+        // Flush an autosave that was still waiting out its debounce (one small file write).
+        if let item = pendingSave, !item.isCancelled { item.cancel(); writeWorkingCopy() }
         // No KVO notifications during deinit; free the kernel directly.
         if let k = state.pointee.kernel { ac_kernel_free(k) }
         state.pointee.kernel = nil

@@ -28,3 +28,15 @@ import Testing
     let state = PluginState(version: PluginState.currentVersion, profile: p)
     #expect(PluginState.decode(state.encoded()).profile == nil)
 }
+
+@Test func resolveKeepsCurrentWhenHostHasNoProfile() {
+    let current = userProfile()
+    #expect(PluginState.resolve(hostProfile: nil, current: current) == current)
+    #expect(PluginState.resolve(hostProfile: nil, current: nil) == nil)
+}
+
+@Test func resolvePrefersHostProfile() {
+    let host = userProfile()
+    #expect(PluginState.resolve(hostProfile: host, current: .flat()) == host)
+    #expect(PluginState.resolve(hostProfile: host, current: nil) == host)
+}
