@@ -52,7 +52,7 @@ Three of these ideas (output gain with auto level, meters, and Speech/Music) com
   - **Rust** (`dsp/`, crate `audiocurve-dsp`): all realtime processing, exposed through a C ABI.
   - **Swift** (`Packages/AudioCurveCore`): profile model, validation, prescription rule and state serialization.
   - **Swift** (app and extension): the AUv3 shell, the UI and the host app.
-- AUv3 identity: type `aufx`, subtype `hcmp`, manufacturer `Lnds`, name `audiocurve: Hearing Compensation`.
+- AUv3 identity: type `aufx`, subtype `hcmp`, manufacturer `Lnds`, name `audiocurve: Hearing Compensation` (renamed `AudioCurve: AudioCurve` after v1.0.0).
 - Signing: Xcode's automatic signing with a personal team if available, otherwise "Sign to Run Locally". An AUv3 extension always runs in a sandbox.
 
 ## 4. Components
