@@ -1,3 +1,10 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/icon-dark.png">
+    <img src="docs/screenshots/icon-light.png" width="128" height="128" alt="AudioCurve icon">
+  </picture>
+</p>
+
 # audiocurve
 
 Hearing compensation for everything your Mac plays. audiocurve is an Audio Unit (AUv3) effect that shapes sound to your own audiogram, much like the headphone accommodations on iPhone with AirPods, but for any app and any output device.
@@ -85,6 +92,7 @@ Run `docs/manual-test.md` for the checks that need ears and a real host.
 | `AU/` | The AUv3 extension: parameters, state and the SwiftUI interface |
 | `App/` | Container and test-host app |
 | `docs/` | Design spec and manual test checklist |
+| `App/AppIcon.icon` | App icon (Icon Composer, light and dark); `assets/AppIcon.icns` is a dark fallback for builds without Xcode |
 
 ## License
 
