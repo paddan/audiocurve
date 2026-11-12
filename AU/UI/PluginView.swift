@@ -48,6 +48,8 @@ struct PluginView: View {
                      : vm.view == .gain ? LocalizedStringKey("Gain per band, dB") : LocalizedStringKey("Spectrum, dBFS"))
                     .font(Theme.label)
                     .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
             }
         }
     }
