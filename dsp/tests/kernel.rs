@@ -274,3 +274,68 @@ fn loud_tones_stay_clean_under_output_budget() {
         assert!(tl <= -70.0 && tr <= -70.0, "{f} Hz: THD+N L {tl:.1} dB, R {tr:.1} dB");
     }
 }
+
+/// Energy (sum of Goertzel bin powers) of `x` from `lo` to `hi` Hz in 4 Hz steps.
+fn band_energy(x: &[f32], lo: f64, hi: f64) -> f64 {
+    let mut e = 0.0;
+    let mut f = lo;
+    while f <= hi {
+        let c = 2.0 * (2.0 * std::f64::consts::PI * f / FS).cos();
+        let (mut s1, mut s2) = (0.0f64, 0.0f64);
+        for v in x {
+            let s0 = *v as f64 + c * s1 - s2;
+            s2 = s1;
+            s1 = s0;
+        }
+        e += s1 * s1 + s2 * s2 - c * s1 * s2;
+        f += 4.0;
+    }
+    e
+}
+
+#[test]
+fn dense_treble_bursts_stay_clean() {
+    // 80-tone 5-8 kHz bursts (sibilant / distorted-guitar-like treble). The kernel must not
+    // create much energy below the input band (products of fast gain changes or clipping).
+    let n = (FS * 3.0) as usize;
+    let tones: Vec<(f64, f64)> = (0..80).map(|i| (5003.0 + 37.0 * i as f64, i as f64 * 2.399)).collect();
+    for peak_db in [-12.0, -6.0] {
+        let norm = 10f64.powf(peak_db / 20.0) / (tones.len() as f64).sqrt() / 3.0;
+        let sig: Vec<f32> = (0..n)
+            .map(|k| {
+                let t = k as f64 / FS;
+                let ph = t % 0.25;
+                let env = if ph < 0.005 { ph / 0.005 } else if ph < 0.075 { 1.0 } else if ph < 0.080 { (0.080 - ph) / 0.005 } else { 0.0 };
+                let s: f64 = tones.iter().map(|(f, p)| (2.0 * std::f64::consts::PI * f * t + p).sin()).sum();
+                (norm * env * s) as f32
+            })
+            .collect();
+        for (atk, rel) in [(5.0, 50.0), (10.0, 200.0)] {
+            let mut p = Params::unity();
+            p.left = pump_fit(&PUMP_LEFT, 0.5);
+            p.right = pump_fit(&PUMP_RIGHT, 0.5);
+            p.attack_ms = atk;
+            p.release_ms = rel;
+            let (l, _) = run(&p, &sig, &sig, 512);
+            let w = &l[n / 3..];
+            let ratio = 10.0 * (band_energy(w, 200.0, 4000.0) / band_energy(w, 5000.0, 8000.0)).log10();
+            println!("treble bursts {peak_db} dBFS rel {rel}: products {ratio:.1} dB");
+            assert!(ratio <= -58.0, "{peak_db} dBFS, release {rel}: products {ratio:.1} dB");
+        }
+    }
+}
+
+#[test]
+fn reported_latency_matches_signal_delay() {
+    // A unity kernel should pass a click through delayed by exactly the reported latency
+    // (the filterbank adds phase shift but no bulk delay), so hosts can compensate.
+    let h = Handle::new(FS, 512).unwrap();
+    h.set_params(&Params::unity());
+    let mut x = vec![0f32; 4096];
+    x[100] = 0.5;
+    let (y, _) = run_on(&h, &x, &x, 512);
+    let peak = y.iter().enumerate().max_by(|a, b| a.1.abs().total_cmp(&b.1.abs())).unwrap().0;
+    let lat = h.latency_frames() as usize;
+    println!("latency {lat}, click peak at {}", peak - 100);
+    assert!((peak as i64 - 100 - lat as i64).abs() <= 8, "peak at +{}, latency {lat}", peak - 100);
+}

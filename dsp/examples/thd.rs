@@ -14,7 +14,7 @@ fn hl(pts: &[(f64, f64)], f: f64) -> f64 {
     unreachable!()
 }
 
-fn fit(pts: &[(f64, f64)], s: f64) -> [BandFitting; 12] {
+pub fn fit(pts: &[(f64, f64)], s: f64) -> [BandFitting; 12] {
     let mut out = [BandFitting::UNITY; 12];
     for (i, f) in CENTERS.iter().enumerate() {
         let h = hl(pts, *f);
@@ -50,10 +50,10 @@ fn main() {
     let (atk, rel) = if mode == "music" { (10.0, 200.0) } else { (5.0, 50.0) };
     println!("THD+N dB (L / R), mode {mode}, strength 50%");
     print!("{:>8}", "f \\ in");
-    let levels = [-40.0, -25.0, -10.0];
+    let levels = [-40.0, -30.0, -20.0, -10.0, -3.0];
     for l in levels { print!("{:>16}", format!("{l} dBFS")); }
     println!();
-    for &f in &[100.0, 200.0, 440.0, 1000.0, 2500.0, 5000.0] {
+    for &f in &[200.0, 1000.0, 2500.0, 4000.0, 6000.0, 8000.0, 10000.0, 14000.0] {
         print!("{:>8}", f);
         for &lv in &levels {
             let mut p = Params::unity();

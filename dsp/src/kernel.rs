@@ -15,8 +15,25 @@ const GAIN_TAU_S: f64 = 0.020 / 3.0;
 /// crest factor of real signals (the budget is a short-term power level), so the
 /// broadband limiter only catches brief peaks instead of ducking the whole mix.
 const BAND_CEILING_MARGIN_DB: f64 = 9.0;
+/// The bands are delayed by this much after analysis, so the budget attenuation has
+/// ramped in by the time a peak reaches the output (no overshoot for the broadband
+/// limiter to clamp, which is heard as distortion on dense treble).
+const BUDGET_LOOKAHEAD_S: f64 = 0.003;
+/// Smoothing of the per-band budget attenuation; the attack completes within the lookahead.
+const BUDGET_ATTACK_S: f64 = BUDGET_LOOKAHEAD_S / 3.0;
+const BUDGET_RELEASE_S: f64 = 0.050;
 
 struct Ear {
+    /// Budget attenuation per band (dB, >= 0), smoothed so it never steps from one sample
+    /// to the next: an instant per-sample cap modulates dense treble (distorted guitar,
+    /// sibilants) and is heard as distortion.
+    atten: [f64; BAND_COUNT],
+    atten_attack: f64,
+    atten_release: f64,
+    /// Lookahead delay lines for the band signal and its WDRC gain (one ring per band).
+    delay_band: Vec<Vec<f32>>,
+    delay_gain: Vec<Vec<f32>>,
+    delay_pos: usize,
     bank: Filterbank,
     bufs: BandBuffers,
     comps: Vec<BandCompressor>,
@@ -55,6 +72,12 @@ fn water_level(p: &[f64; BAND_COUNT], budget: f64) -> f64 {
 impl Ear {
     fn new(fs: f64, max_frames: usize) -> Self {
         Self {
+            atten: [0.0; BAND_COUNT],
+            atten_attack: 1.0 - (-1.0 / (BUDGET_ATTACK_S * fs)).exp(),
+            atten_release: 1.0 - (-1.0 / (BUDGET_RELEASE_S * fs)).exp(),
+            delay_band: (0..BAND_COUNT).map(|_| vec![0.0; Self::lookahead(fs)]).collect(),
+            delay_gain: (0..BAND_COUNT).map(|_| vec![0.0; Self::lookahead(fs)]).collect(),
+            delay_pos: 0,
             bank: Filterbank::new(fs),
             bufs: BandBuffers::new(max_frames),
             comps: (0..BAND_COUNT).map(|_| BandCompressor::new(fs)).collect(),
@@ -63,7 +86,17 @@ impl Ear {
         }
     }
 
+    /// Lookahead in frames (at least 1).
+    fn lookahead(fs: f64) -> usize {
+        ((BUDGET_LOOKAHEAD_S * fs).round() as usize).max(1)
+    }
+
     fn reset(&mut self) {
+        self.atten = [0.0; BAND_COUNT];
+        for d in self.delay_band.iter_mut().chain(self.delay_gain.iter_mut()) {
+            d.fill(0.0);
+        }
+        self.delay_pos = 0;
         self.bank.reset();
         for c in &mut self.comps {
             c.reset();
@@ -83,7 +116,10 @@ impl Ear {
         }
         let budget = 10f64.powf(ceiling_dbfs / 10.0);
         let mut p = [0f64; BAND_COUNT];
+        let (ca, cr) = (self.atten_attack, self.atten_release);
+        let dlen = self.delay_band[0].len();
         for t in 0..n {
+            let d = self.delay_pos;
             let mut total = 0.0;
             for i in 0..BAND_COUNT {
                 p[i] = 10f64.powf((self.levels[i][t] + self.gains[i][t]) as f64 / 10.0);
@@ -92,13 +128,18 @@ impl Ear {
             let cap = if total > budget { water_level(&p, budget) } else { f64::INFINITY };
             let mut y = 0.0f64;
             for i in 0..BAND_COUNT {
-                let mut g = self.gains[i][t] as f64;
-                if p[i] > cap {
-                    g -= 10.0 * (p[i] / cap).log10();
-                }
-                y += self.bufs.bands[i][t] as f64 * 10f64.powf(g / 20.0);
+                let target = if p[i] > cap { 10.0 * (p[i] / cap).log10() } else { 0.0 };
+                let a = &mut self.atten[i];
+                *a += (target - *a) * if target > *a { ca } else { cr };
+                // Apply to the delayed sample: the attenuation already saw what is coming.
+                let (xb, gb) = (self.delay_band[i][d], self.delay_gain[i][d]);
+                self.delay_band[i][d] = self.bufs.bands[i][t];
+                self.delay_gain[i][d] = self.gains[i][t];
+                let g = gb as f64 - *a;
+                y += xb as f64 * 10f64.powf(g / 20.0);
             }
             x[t] = y as f32;
+            self.delay_pos = if d + 1 == dlen { 0 } else { d + 1 };
         }
     }
 }
@@ -207,7 +248,7 @@ impl Handle {
             return None;
         }
         let dsp = Dsp::new(fs, max_frames);
-        let latency = dsp.limiter.latency_frames() as u32;
+        let latency = (dsp.limiter.latency_frames() + Ear::lookahead(fs)) as u32;
         Some(Box::new(Handle {
             params: TripleBuffer::new(Params::unity()),
             meters: AtomicMeters::new(),
