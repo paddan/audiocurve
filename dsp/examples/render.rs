@@ -1,5 +1,5 @@
 //! Diagnostic: render a float32 stereo WAV through the kernel with the user's audiogram.
-//! usage: render <in.wav> <out.wav> <strength 0..1> <full|linear> [gain_db]
+//! usage: render <in.wav> <out.wav> <strength 0..1> <full|linear> [gain_db] [output_gain_db] [limiter 1|0]
 use audiocurve_dsp::{BandFitting, Handle, Params};
 #[path = "thd.rs"] #[allow(dead_code)] mod thd;
 
@@ -56,6 +56,8 @@ fn main() {
     }
 
     p.attack_ms = 10.0; p.release_ms = 200.0; // Musik
+    p.output_gain_db = a.get(6).map(|v| v.parse().unwrap()).unwrap_or(0.0);
+    p.limiter_enabled = a.get(7).map(|v| v.parse().unwrap()).unwrap_or(1.0);
     let h = Handle::new(fs, 512).unwrap();
     h.set_params(&p);
     for (cl, cr) in l.chunks_mut(512).zip(r.chunks_mut(512)) { unsafe { h.process(cl, cr) }; }

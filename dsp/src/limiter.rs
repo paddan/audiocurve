@@ -2,12 +2,28 @@
 //!
 //! Output = delayed input * g (per channel, unlinked), followed by a hard clamp to +-c, so the ceiling
 //! is a guarantee. `g` follows the minimum of the needed gain over the
-//! lookahead window (attack tau 0.5 ms, release tau 50 ms).
+//! lookahead window (attack tau 0.5 ms, release tau 150 ms). The needed gain uses a
+//! soft knee: peaks from KNEE_DB/2 below the ceiling are eased down gradually.
 
 const LOOKAHEAD_S: f64 = 0.002;
 const ATTACK_S: f64 = 0.0005;
-const RELEASE_S: f64 = 0.050;
+const RELEASE_S: f64 = 0.150;
+const KNEE_DB: f64 = 3.0;
 const ABSOLUTE_CEILING_DBFS: f64 = -1.0;
+
+/// Ratio-infinity soft knee (all in dB): unchanged below `c - w/2`, equal to `c` above
+/// `c + w/2`, quadratic in between. Never exceeds `c`.
+#[inline]
+pub fn soft_knee_db(x: f64, c: f64, w: f64) -> f64 {
+    if w <= 0.0 || x >= c + w / 2.0 {
+        x.min(c)
+    } else if x <= c - w / 2.0 {
+        x
+    } else {
+        let d = x - c + w / 2.0;
+        x - d * d / (2.0 * w)
+    }
+}
 
 #[inline]
 fn finite_or_zero(x: f32) -> f32 {
@@ -32,6 +48,18 @@ pub struct Limiter {
     g_r: f32,
     a_attack: f32,
     a_release: f32,
+}
+
+/// Gain (linear, <= 1) that maps a peak `x` (linear, >= 0) onto the soft-knee curve
+/// below ceiling `c`; `k0` is the knee start `c * 10^(-KNEE_DB/40)`.
+#[inline]
+fn need_gain(x: f32, c: f32, k0: f32) -> f32 {
+    if x <= k0 {
+        return 1.0;
+    }
+    let (xd, cd) = (20.0 * (x as f64).log10(), 20.0 * (c as f64).log10());
+    let y = soft_knee_db(xd, cd, KNEE_DB);
+    (10f64.powf((y - xd) / 20.0) as f32).min(1.0)
 }
 
 impl Limiter {
@@ -90,6 +118,7 @@ impl Limiter {
     pub fn process(&mut self, l: &mut [f32], r: &mut [f32], ceiling_dbfs: f64) {
         debug_assert_eq!(l.len(), r.len());
         let c = 10f64.powf(ceiling_dbfs.min(ABSOLUTE_CEILING_DBFS) / 20.0) as f32;
+        let k0 = c * 10f32.powf(-(KNEE_DB as f32) / 40.0);
         let len = self.dl.len();
         for (xl, xr) in l.iter_mut().zip(r.iter_mut()) {
             let p = self.pos;
@@ -97,8 +126,8 @@ impl Limiter {
             let (il, ir) = (finite_or_zero(*xl), finite_or_zero(*xr));
             self.dl[p] = il;
             self.dr[p] = ir;
-            self.need_l[p] = if il.abs() > c { c / il.abs() } else { 1.0 };
-            self.need_r[p] = if ir.abs() > c { c / ir.abs() } else { 1.0 };
+            self.need_l[p] = need_gain(il.abs(), c, k0);
+            self.need_r[p] = need_gain(ir.abs(), c, k0);
             let tl = self.need_l.iter().fold(1.0f32, |m, &v| m.min(v));
             let tr = self.need_r.iter().fold(1.0f32, |m, &v| m.min(v));
             let al = if tl < self.g_l { self.a_attack } else { self.a_release };

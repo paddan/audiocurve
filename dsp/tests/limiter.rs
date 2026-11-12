@@ -100,3 +100,14 @@ fn limiter_channels_independent() {
     let lvl = level_dbfs(&r, 0.1, FS);
     assert!((lvl - -20.0).abs() <= 0.1, "right level {lvl}");
 }
+
+#[test]
+fn limiter_soft_knee_eases_just_below_ceiling() {
+    // Knee 3 dB around -3: a -3.5 dBFS sine is eased to about -3.67, a -6 dBFS one is untouched.
+    let mut l = sine(1000.0, -3.5, 1.0, FS);
+    let mut r = sine(1000.0, -6.0, 1.0, FS);
+    run(&mut l, &mut r, -3.0, 512);
+    let (a, b) = (level_dbfs(&l, 0.3, FS), level_dbfs(&r, 0.3, FS));
+    assert!((a - -3.667).abs() < 0.05, "knee level {a}");
+    assert!((b - -6.0).abs() < 0.05, "below knee {b}");
+}

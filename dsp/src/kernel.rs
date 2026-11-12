@@ -3,7 +3,7 @@
 use crate::bands::BAND_COUNT;
 use crate::compressor::BandCompressor;
 use crate::filterbank::{BandBuffers, Filterbank};
-use crate::limiter::Limiter;
+use crate::limiter::{soft_knee_db, Limiter};
 use crate::meters::{AtomicMeters, MeterState};
 use crate::params::{Meters, Params};
 use crate::spectrum::{Capture, Reader, Spectrum};
@@ -16,7 +16,7 @@ const GAIN_TAU_S: f64 = 0.020 / 3.0;
 /// The summed band-output budget sits this far below the MPO. It leaves room for the
 /// crest factor of real signals (the budget is a short-term power level), so the
 /// broadband limiter only catches brief peaks instead of ducking the whole mix.
-const BAND_CEILING_MARGIN_DB: f64 = 9.0;
+const BAND_CEILING_MARGIN_DB: f64 = 6.0;
 /// The bands are delayed by this much after analysis, so the budget attenuation has
 /// ramped in by the time a peak reaches the output (no overshoot for the broadband
 /// limiter to clamp, which is heard as distortion on dense treble).
@@ -24,6 +24,10 @@ const BUDGET_LOOKAHEAD_S: f64 = 0.003;
 /// Smoothing of the per-band budget attenuation; the attack completes within the lookahead.
 const BUDGET_ATTACK_S: f64 = BUDGET_LOOKAHEAD_S / 3.0;
 const BUDGET_RELEASE_S: f64 = 0.3;
+/// Width of the soft knee around the budget (dB): the summed band output is eased
+/// toward the budget from KNEE/2 below it instead of hitting a hard wall.
+const BUDGET_KNEE_DB: f64 = 6.0;
+
 
 struct Ear {
     /// Budget attenuation per band (dB, >= 0), smoothed so it never steps from one sample
@@ -116,7 +120,9 @@ impl Ear {
             self.comps[i].analyze(&self.bufs.bands[i][..n], &fits[i], attack, release,
                                   &mut self.gains[i][..n], &mut self.levels[i][..n]);
         }
-        let budget = 10f64.powf(ceiling_dbfs / 10.0);
+        let budget_db = ceiling_dbfs;
+        // Below the knee's start (budget - knee/2) nothing is touched: cheap test before any log.
+        let knee_floor = 10f64.powf((budget_db - BUDGET_KNEE_DB / 2.0) / 10.0);
         let mut p = [0f64; BAND_COUNT];
         let (ca, cr) = (self.atten_attack, self.atten_release);
         let dlen = self.delay_band[0].len();
@@ -127,7 +133,12 @@ impl Ear {
                 p[i] = 10f64.powf((self.levels[i][t] + self.gains[i][t]) as f64 / 10.0);
                 total += p[i];
             }
-            let cap = if total > budget { water_level(&p, budget) } else { f64::INFINITY };
+            let cap = if total > knee_floor {
+                let t = soft_knee_db(10.0 * total.log10(), budget_db, BUDGET_KNEE_DB);
+                water_level(&p, 10f64.powf(t / 10.0))
+            } else {
+                f64::INFINITY
+            };
             let mut y = 0.0f64;
             for i in 0..BAND_COUNT {
                 let target = if p[i] > cap { 10.0 * (p[i] / cap).log10() } else { 0.0 };
@@ -327,6 +338,22 @@ impl Handle {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn soft_knee_shape() {
+        assert_eq!(soft_knee_db(-20.0, -10.0, 6.0), -20.0);
+        assert_eq!(soft_knee_db(-13.0, -10.0, 6.0), -13.0);
+        assert!((soft_knee_db(-7.0, -10.0, 6.0) + 10.0).abs() < 1e-12);
+        assert_eq!(soft_knee_db(0.0, -10.0, 6.0), -10.0);
+        let mid = soft_knee_db(-10.0, -10.0, 6.0);
+        assert!((mid + 10.75).abs() < 1e-12, "{mid}");
+        let mut prev = f64::NEG_INFINITY;
+        for i in 0..200 {
+            let y = soft_knee_db(-20.0 + i as f64 * 0.1, -10.0, 6.0);
+            assert!(y >= prev && y <= -10.0);
+            prev = y;
+        }
+    }
 
     #[test]
     fn water_level_caps_only_loud_bands() {
