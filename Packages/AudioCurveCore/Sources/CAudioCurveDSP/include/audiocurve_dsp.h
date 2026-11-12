@@ -17,7 +17,7 @@ typedef struct {
     double limiter_enabled; // 1 = band budget + limiter on, 0 = off (hard clamp at 0 dBFS only)
 } ac_params;
 
-typedef struct { float in_rms_db[2], in_peak_db[2], out_rms_db[2], out_peak_db[2]; } ac_meters;
+typedef struct { float in_rms_db[2], in_peak_db[2], out_rms_db[2], out_peak_db[2]; float reduction_db[2]; } ac_meters; // reduction_db: safety stage (band budget + limiter), dB >= 0
 
 #define AC_SPECTRUM_POINTS 96
 typedef struct { float freq_hz[96]; float in_db[2][96]; float out_db[2][96]; } ac_spectrum; // [ear][point], ear 0 = left

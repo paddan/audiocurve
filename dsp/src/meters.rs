@@ -7,6 +7,8 @@ const RMS_TAU_S: f64 = 0.3;
 const PEAK_FALL_DB: f32 = 120.0;
 const PEAK_FALL_S: f64 = 1.5;
 const FLOOR_DB: f32 = -120.0;
+/// The reduction meter holds the deepest reduction and falls back at this rate.
+const REDUCTION_FALL_DB_PER_S: f64 = 15.0;
 
 pub struct MeterState {
     power: [f32; 2],
@@ -51,9 +53,35 @@ impl MeterState {
     }
 }
 
+/// Peak-hold reduction meter (audio thread): jumps to a deeper reduction, falls back slowly.
+pub struct ReductionMeter {
+    db: [f32; 2],
+    fall_per_sample: f32,
+}
+
+impl ReductionMeter {
+    pub fn new(fs: f64) -> Self {
+        Self { db: [0.0; 2], fall_per_sample: (REDUCTION_FALL_DB_PER_S / fs) as f32 }
+    }
+
+    /// `block_max` is the deepest reduction (dB) seen in a block of `n` frames.
+    pub fn update(&mut self, block_max: [f32; 2], n: usize) -> [f32; 2] {
+        for ch in 0..2 {
+            let held = self.db[ch] - self.fall_per_sample * n as f32;
+            let v = if block_max[ch].is_finite() { block_max[ch].max(0.0) } else { 0.0 };
+            self.db[ch] = v.max(held).max(0.0);
+        }
+        self.db
+    }
+
+    pub fn reset(&mut self) {
+        self.db = [0.0; 2];
+    }
+}
+
 /// Meter values shared across threads (f32 bits in relaxed atomics).
 pub struct AtomicMeters {
-    v: [AtomicU32; 8],
+    v: [AtomicU32; 10],
 }
 
 impl Default for AtomicMeters {
@@ -64,7 +92,7 @@ impl Default for AtomicMeters {
 
 impl AtomicMeters {
     pub fn new() -> Self {
-        Self { v: std::array::from_fn(|_| AtomicU32::new(FLOOR_DB.to_bits())) }
+        Self { v: std::array::from_fn(|i| AtomicU32::new(if i >= 8 { 0f32 } else { FLOOR_DB }.to_bits())) }
     }
 
     fn store4(&self, base: usize, rms: [f32; 2], peak: [f32; 2]) {
@@ -82,6 +110,11 @@ impl AtomicMeters {
         self.store4(4, rms, peak);
     }
 
+    pub fn store_reduction(&self, db: [f32; 2]) {
+        self.v[8].store(db[0].to_bits(), Ordering::Relaxed);
+        self.v[9].store(db[1].to_bits(), Ordering::Relaxed);
+    }
+
     pub fn load(&self) -> Meters {
         let g = |i: usize| f32::from_bits(self.v[i].load(Ordering::Relaxed));
         Meters {
@@ -89,6 +122,7 @@ impl AtomicMeters {
             in_peak_db: [g(2), g(3)],
             out_rms_db: [g(4), g(5)],
             out_peak_db: [g(6), g(7)],
+            reduction_db: [g(8), g(9)],
         }
     }
 }

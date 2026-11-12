@@ -4,6 +4,7 @@ import AudioCurveCore
 
 struct ControlsPanel: View {
     @Bindable var vm: PluginViewModel
+    @State private var confirmLimiterOff = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -26,7 +27,10 @@ struct ControlsPanel: View {
 
             HStack(spacing: 16) {
                 Toggle("Kompression", isOn: Binding(get: { vm.compressionOn }, set: { vm.set(.compression, $0 ? 1 : 0) }))
-                Toggle("Limiter", isOn: Binding(get: { vm.limiterOn }, set: { vm.set(.limiter, $0 ? 1 : 0) }))
+                Toggle("Limiter", isOn: Binding(get: { vm.limiterOn }, set: { on in
+                    // Turning the safety stage off needs a confirmation; turning it on never does.
+                    if on { vm.set(.limiter, 1) } else { confirmLimiterOff = true }
+                }))
             }
             .toggleStyle(.checkbox)
             .font(Theme.label)
@@ -50,19 +54,16 @@ struct ControlsPanel: View {
 
             Spacer(minLength: 0)
 
-            VStack(alignment: .leading, spacing: 6) {
-                MeterView(title: "In", rms: vm.meters.in_rms_db, peak: vm.meters.in_peak_db)
-                MeterView(title: "Ut", rms: vm.meters.out_rms_db, peak: vm.meters.out_peak_db)
-                HStack {
-                    Text("\u{2212}60"); Spacer(); Text("\u{2212}30"); Spacer(); Text("0 dBFS")
-                }
-                .font(.system(size: 11).monospacedDigit())
-                .foregroundStyle(.secondary)
-                .padding(.leading, 32)
-            }
+            MetersBlock(vm: vm)
         }
         .padding(16)
         .frame(maxHeight: .infinity, alignment: .top)
+        .alert("Stänga av limitern?", isPresented: $confirmLimiterOff) {
+            Button("Stäng av", role: .destructive) { vm.set(.limiter, 0) }
+            Button("Avbryt", role: .cancel) {}
+        } message: {
+            Text("Utan limiter finns ingen nivåspärr under 0 dBFS. Med stark förstärkning kan ljudet bli mycket högt och skada hörseln. Sänk volymen innan du stänger av.")
+        }
         .background(RoundedRectangle(cornerRadius: Theme.corner).fill(Color.primary.opacity(0.04)))
         .overlay(RoundedRectangle(cornerRadius: Theme.corner).strokeBorder(Color.primary.opacity(0.08), lineWidth: 1))
     }
@@ -92,6 +93,28 @@ struct ControlsPanel: View {
         case .measuring(let s): "Mäter… \(s) s"
         case .done(let g): "Utnivå satt till \(Fmt.signed(g)) dB"
         case .tooQuiet: "För tyst – spela upp något"
+        }
+    }
+}
+
+/// Level and reduction meters. Its own view so the 20 Hz meter refresh only redraws this
+/// part of the panel, not the sliders and toggles above it.
+private struct MetersBlock: View {
+    let vm: PluginViewModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            MeterView(title: "In", rms: vm.meters.in_rms_db, peak: vm.meters.in_peak_db)
+            MeterView(title: "Ut", rms: vm.meters.out_rms_db, peak: vm.meters.out_peak_db)
+            HStack {
+                Text("\u{2212}60"); Spacer(); Text("\u{2212}30"); Spacer(); Text("0 dBFS")
+            }
+            .font(.system(size: 11).monospacedDigit())
+            .foregroundStyle(.secondary)
+            .padding(.leading, 32)
+            ReductionMeterView(reduction: vm.meters.reduction_db, enabled: vm.limiterOn)
+                .padding(.top, 4)
+                .help("Hur mycket limitern sänker ljudet just nu. Ligger den ofta över några dB: sänk Utnivå och höj volymen på datorn i stället.")
         }
     }
 }

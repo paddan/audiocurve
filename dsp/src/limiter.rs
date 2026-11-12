@@ -48,6 +48,8 @@ pub struct Limiter {
     g_r: f32,
     a_attack: f32,
     a_release: f32,
+    /// Smallest gain applied per channel during the last `process` call.
+    min_g: [f32; 2],
 }
 
 /// Gain (linear, <= 1) that maps a peak `x` (linear, >= 0) onto the soft-knee curve
@@ -78,7 +80,13 @@ impl Limiter {
             g_r: 1.0,
             a_attack: coef(ATTACK_S),
             a_release: coef(RELEASE_S),
+            min_g: [1.0; 2],
         }
+    }
+
+    /// Deepest gain reduction (dB, >= 0) per channel during the last `process`/`process_bypass`.
+    pub fn last_reduction_db(&self) -> [f32; 2] {
+        self.min_g.map(|g| -20.0 * g.max(1e-6).log10())
     }
 
     pub fn latency_frames(&self) -> usize {
@@ -103,6 +111,7 @@ impl Limiter {
         self.need_r.fill(1.0);
         self.g_l = 1.0;
         self.g_r = 1.0;
+        self.min_g = [1.0; 2];
         for (xl, xr) in l.iter_mut().zip(r.iter_mut()) {
             let p = self.pos;
             self.dl[p] = finite_or_zero(*xl);
@@ -120,6 +129,7 @@ impl Limiter {
         let c = 10f64.powf(ceiling_dbfs.min(ABSOLUTE_CEILING_DBFS) / 20.0) as f32;
         let k0 = c * 10f32.powf(-(KNEE_DB as f32) / 40.0);
         let len = self.dl.len();
+        let mut min_g = [1.0f32; 2];
         for (xl, xr) in l.iter_mut().zip(r.iter_mut()) {
             let p = self.pos;
             // Non-finite input is replaced by silence so it cannot poison state.
@@ -134,11 +144,14 @@ impl Limiter {
             let ar = if tr < self.g_r { self.a_attack } else { self.a_release };
             self.g_l = tl + al * (self.g_l - tl);
             self.g_r = tr + ar * (self.g_r - tr);
+            min_g[0] = min_g[0].min(self.g_l);
+            min_g[1] = min_g[1].min(self.g_r);
             // Oldest entry (input from `latency` samples ago).
             let o = if p + 1 == len { 0 } else { p + 1 };
             *xl = safe_clamp(self.dl[o] * self.g_l, c);
             *xr = safe_clamp(self.dr[o] * self.g_r, c);
             self.pos = o;
         }
+        self.min_g = min_g;
     }
 }

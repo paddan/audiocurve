@@ -390,3 +390,25 @@ fn limiter_toggle_keeps_latency() {
     let peak = y.iter().enumerate().max_by(|a, b| a.1.abs().total_cmp(&b.1.abs())).unwrap().0;
     assert!((peak as i64 - 100 - lat as i64).abs() <= 8, "peak at +{}, latency {lat}", peak - 100);
 }
+
+#[test]
+fn reduction_meter_reports_safety_stage() {
+    let mut p = Params::unity();
+    p.left = [fit(20.0, 20.0, 1.0); 12];
+    p.right = [fit(0.0, 0.0, 1.0); 12];
+    p.mpo_dbfs = -10.0;
+    // Left: -12 dBFS + 20 dB wants +8 dBFS, ~18 dB above the -10 MPO. Right: -30 dBFS, untouched.
+    let h = Handle::new(FS, 512).unwrap();
+    h.set_params(&p);
+    run_on(&h, &sine(1000.0, -12.0, 2.0, FS), &sine(1000.0, -30.0, 2.0, FS), 512);
+    let m = h.meters();
+    println!("reduction {:?}", m.reduction_db);
+    assert!(m.reduction_db[0] > 15.0 && m.reduction_db[0] < 21.0, "left {}", m.reduction_db[0]);
+    assert!(m.reduction_db[1] < 0.5, "right {}", m.reduction_db[1]);
+    // Limiter off: nothing is reduced by the safety stage (only the 0 dBFS clamp remains).
+    p.limiter_enabled = 0.0;
+    h.set_params(&p);
+    run_on(&h, &sine(1000.0, -12.0, 2.0, FS), &sine(1000.0, -30.0, 2.0, FS), 512);
+    let m = h.meters();
+    assert!(m.reduction_db[0] < 0.1 && m.reduction_db[1] < 0.1, "off {:?}", m.reduction_db);
+}

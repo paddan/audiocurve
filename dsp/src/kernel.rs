@@ -4,7 +4,7 @@ use crate::bands::BAND_COUNT;
 use crate::compressor::BandCompressor;
 use crate::filterbank::{BandBuffers, Filterbank};
 use crate::limiter::{soft_knee_db, Limiter};
-use crate::meters::{AtomicMeters, MeterState};
+use crate::meters::{AtomicMeters, MeterState, ReductionMeter};
 use crate::params::{Meters, Params};
 use crate::spectrum::{Capture, Reader, Spectrum};
 use crate::triple::TripleBuffer;
@@ -113,7 +113,8 @@ impl Ear {
     /// `ceiling_dbfs` is the total output budget of all bands together (same dB scale
     /// as the band detectors); when the bands' predicted output exceeds it, the loudest
     /// bands are capped (water-filling) and the rest pass unchanged.
-    fn run(&mut self, x: &mut [f32], fits: &[crate::params::BandFitting; BAND_COUNT], attack: f64, release: f64, ceiling_dbfs: f64) {
+    /// Returns the deepest broadband-equivalent budget reduction in this block (dB, >= 0).
+    fn run(&mut self, x: &mut [f32], fits: &[crate::params::BandFitting; BAND_COUNT], attack: f64, release: f64, ceiling_dbfs: f64) -> f32 {
         self.bank.split(x, &mut self.bufs);
         let n = x.len();
         for i in 0..BAND_COUNT {
@@ -126,6 +127,7 @@ impl Ear {
         let mut p = [0f64; BAND_COUNT];
         let (ca, cr) = (self.atten_attack, self.atten_release);
         let dlen = self.delay_band[0].len();
+        let mut max_red = 0.0f64;
         for t in 0..n {
             let d = self.delay_pos;
             let mut total = 0.0;
@@ -152,8 +154,17 @@ impl Ear {
                 y += xb as f64 * 10f64.powf(g / 20.0);
             }
             x[t] = y as f32;
+            // Metering only: total predicted power before vs after the attenuation, sampled
+            // every 16th frame to keep the extra exp() calls cheap.
+            if t % 16 == 0 && total > 0.0 {
+                let after: f64 = (0..BAND_COUNT).map(|i| p[i] * 10f64.powf(-self.atten[i] / 10.0)).sum();
+                if after > 0.0 {
+                    max_red = max_red.max(10.0 * (total / after).log10());
+                }
+            }
             self.delay_pos = if d + 1 == dlen { 0 } else { d + 1 };
         }
+        max_red as f32
     }
 }
 
@@ -163,6 +174,7 @@ struct Dsp {
     limiter: Limiter,
     in_meter: MeterState,
     out_meter: MeterState,
+    reduction: ReductionMeter,
     gain_db: f64,
     gain_init: bool,
     gain_alpha: f64,
@@ -176,6 +188,7 @@ impl Dsp {
             limiter: Limiter::new(fs, max_frames),
             in_meter: MeterState::new(fs),
             out_meter: MeterState::new(fs),
+            reduction: ReductionMeter::new(fs),
             gain_db: 0.0,
             gain_init: false,
             gain_alpha: 1.0 - (-1.0 / (GAIN_TAU_S * fs)).exp(),
@@ -183,6 +196,7 @@ impl Dsp {
     }
 
     fn reset(&mut self) {
+        self.reduction.reset();
         for e in &mut self.ears {
             e.reset();
         }
@@ -232,8 +246,8 @@ impl Dsp {
             let (rms, peak) = self.in_meter.update(cl, cr);
             meters.store_in(rms, peak);
             // pre_process: identity (reserved for v2)
-            self.ears[0].run(cl, &p.left, p.attack_ms, p.release_ms, band_ceiling);
-            self.ears[1].run(cr, &p.right, p.attack_ms, p.release_ms, band_ceiling);
+            let red_l = self.ears[0].run(cl, &p.left, p.attack_ms, p.release_ms, band_ceiling);
+            let red_r = self.ears[1].run(cr, &p.right, p.attack_ms, p.release_ms, band_ceiling);
             self.apply_output_gain(p.output_gain_db, cl, cr);
             // Defence in depth: never feed a non-finite value to the limiter. Drop the
             // chunk and restart every filter/envelope from a clean state.
@@ -249,6 +263,9 @@ impl Dsp {
             }
             let (rms, peak) = self.out_meter.update(cl, cr);
             meters.store_out(rms, peak);
+            let lim = self.limiter.last_reduction_db();
+            let red = self.reduction.update([red_l + lim[0], red_r + lim[1]], cl.len());
+            meters.store_reduction(red);
             capture.put_out(base, cl, cr);
             capture.publish(base, cl.len());
         }

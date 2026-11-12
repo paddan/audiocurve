@@ -49,6 +49,8 @@ pub struct Meters {
     pub in_peak_db: [f32; 2],
     pub out_rms_db: [f32; 2],
     pub out_peak_db: [f32; 2],
+    /// How much the safety stage (band budget + limiter) currently lowers each ear (dB, >= 0).
+    pub reduction_db: [f32; 2],
 }
 
 /// Static gain curve (dB) for an input level in dBFS.
