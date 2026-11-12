@@ -8,6 +8,7 @@ pub mod kernel;
 pub mod limiter;
 pub mod meters;
 pub mod params;
+pub mod spectrum;
 pub mod triple;
 
 pub use bands::{BAND_COUNT, CENTERS, crossovers};
@@ -15,6 +16,7 @@ pub use biquad::Biquad;
 pub use filterbank::{BandBuffers, Filterbank};
 pub use params::{BandFitting, Meters, Params, gain_db};
 pub use kernel::Handle;
+pub use spectrum::{SPECTRUM_FFT, SPECTRUM_POINTS, Spectrum};
 
 /// Opaque C type `ac_kernel`.
 pub type Kernel = Handle;
@@ -87,5 +89,16 @@ pub unsafe extern "C" fn ac_kernel_reset(k: *mut Kernel) {
 pub unsafe extern "C" fn ac_kernel_read_meters(k: *const Kernel, out: *mut Meters) {
     if let (Some(k), false) = (unsafe { k.as_ref() }, out.is_null()) {
         unsafe { *out = k.meters() };
+    }
+}
+
+/// Fills `*out` with the current input/output spectrum. UI thread; not realtime.
+///
+/// # Safety
+/// `k` must be null or valid; `out` null or point to a writable `Spectrum`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ac_kernel_read_spectrum(k: *const Kernel, out: *mut Spectrum) {
+    if let (Some(k), false) = (unsafe { k.as_ref() }, out.is_null()) {
+        k.read_spectrum(unsafe { &mut *out });
     }
 }

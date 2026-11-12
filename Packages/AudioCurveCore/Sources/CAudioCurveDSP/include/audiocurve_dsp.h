@@ -18,6 +18,9 @@ typedef struct {
 
 typedef struct { float in_rms_db[2], in_peak_db[2], out_rms_db[2], out_peak_db[2]; } ac_meters;
 
+#define AC_SPECTRUM_POINTS 96
+typedef struct { float freq_hz[96]; float in_db[2][96]; float out_db[2][96]; } ac_spectrum; // [ear][point], ear 0 = left
+
 typedef struct ac_kernel ac_kernel;
 
 ac_kernel* ac_kernel_new(double sample_rate, uint32_t max_frames); // NULL on invalid arguments
@@ -27,6 +30,7 @@ void ac_kernel_process(ac_kernel*, float* left, float* right, uint32_t frames); 
 uint32_t ac_kernel_latency_frames(const ac_kernel*);
 void ac_kernel_reset(ac_kernel*);
 void ac_kernel_read_meters(const ac_kernel*, ac_meters* out); // any thread, reads atomics
+void ac_kernel_read_spectrum(const ac_kernel*, ac_spectrum* out); // UI thread; not realtime; null-safe
 
 #ifdef __cplusplus
 }

@@ -10,3 +10,10 @@ use audiocurve_dsp::*;
     assert_eq!(gain_db(&b, -90.), 45.); assert_eq!(gain_db(&b, -70.), 60.);
     assert_eq!(gain_db(&b, -60.), 60.); assert!((gain_db(&b, -15.) - 25.).abs() < 1e-9);
 }
+#[test] fn spectrum_layout() {
+    assert_eq!(std::mem::size_of::<Spectrum>(), 1920);
+    assert_eq!(std::mem::offset_of!(Spectrum, freq_hz), 0);
+    assert_eq!(std::mem::offset_of!(Spectrum, in_db), 384);
+    assert_eq!(std::mem::offset_of!(Spectrum, out_db), 1152);
+    assert_eq!(SPECTRUM_POINTS, 96);
+}

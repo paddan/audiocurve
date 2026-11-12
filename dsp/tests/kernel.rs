@@ -195,6 +195,22 @@ fn no_alloc_in_process() {
 }
 
 #[test]
+fn capture_does_not_allocate() {
+    // Capture is always on; process must not allocate even while the spectrum is being read.
+    let h = Handle::new(FS, 512).unwrap();
+    h.set_params(&Params::unity());
+    let mut l = noise(0.1, 512, 1);
+    let mut r = noise(0.1, 512, 2);
+    assert_no_alloc(|| {
+        for _ in 0..20 {
+            unsafe { h.process(&mut l, &mut r) };
+        }
+    });
+    let s = h.spectrum();
+    assert!(s.in_db[0].iter().any(|&v| v > -100.0), "capture should have data");
+}
+
+#[test]
 fn meters_report_in_and_out() {
     let mut p = Params::unity();
     p.output_gain_db = -10.0;

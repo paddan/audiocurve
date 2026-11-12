@@ -19,7 +19,7 @@ struct PluginView: View {
             VStack(spacing: 12) {
                 header
                 chart
-                EarLegend(vm: vm)
+                if vm.view == .spectrum { SpectrumLegend() } else { EarLegend(vm: vm) }
             }
             ControlsPanel(vm: vm)
                 .frame(width: 232)
@@ -36,14 +36,15 @@ struct PluginView: View {
             Picker("Vy", selection: $vm.view) {
                 Text("Audiogram").tag(Pane.audiogram)
                 Text("Gain").tag(Pane.gain)
+                Text("Spektrum").tag(Pane.spectrum)
             }
             .pickerStyle(.segmented)
             .labelsHidden()
-            .frame(width: 200)
+            .frame(width: 280)
             if vm.profile != nil { ProfileMenu(vm: vm) }
             Spacer()
-            if vm.profile != nil {
-                Text(vm.view == .audiogram ? "Hörtröskel, dB HL" : "Gain per band, dB")
+            if vm.profile != nil || vm.view == .spectrum {
+                Text(vm.view == .audiogram ? "Hörtröskel, dB HL" : vm.view == .gain ? "Gain per band, dB" : "Spektrum, dBFS")
                     .font(Theme.label)
                     .foregroundStyle(.secondary)
             }
@@ -56,7 +57,9 @@ struct PluginView: View {
                 .fill(Color(nsColor: .textBackgroundColor))
             RoundedRectangle(cornerRadius: Theme.corner)
                 .strokeBorder(Color.primary.opacity(0.12), lineWidth: 1)
-            if vm.profile == nil {
+            if vm.view == .spectrum {
+                SpectrumView(vm: vm)
+            } else if vm.profile == nil {
                 EmptyState(vm: vm)
             } else if vm.view == .audiogram {
                 AudiogramEditorView(vm: vm)
@@ -92,6 +95,20 @@ private struct EmptyState: View {
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
         }
+    }
+}
+
+/// "▒ In   — Ut": key for the spectrum pane.
+private struct SpectrumLegend: View {
+    var body: some View {
+        HStack {
+            Text("▒ In   — Ut")
+                .font(Theme.label)
+                .foregroundStyle(.secondary)
+            Spacer()
+        }
+        .frame(height: 26)
+        .accessibilityLabel("In är grå yta, Ut är linje")
     }
 }
 

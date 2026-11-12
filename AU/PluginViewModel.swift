@@ -4,9 +4,11 @@ import AudioCurveCore
 import CAudioCurveDSP
 
 enum Pane: String, CaseIterable, Identifiable {
-    case audiogram, gain
+    case audiogram, gain, spectrum
     var id: String { rawValue }
 }
+
+enum SpectrumEars { case left, right, both }
 
 enum AutoLevelUIState: Equatable {
     case idle
@@ -66,6 +68,8 @@ final class PluginViewModel {
     var outputGain: Double = 0
     var mode: CompressionMode = .speech
     var meters: ac_meters = PluginViewModel.silentMeters
+    var spectrum: ac_spectrum?
+    var spectrumEars: SpectrumEars = .both
     var autoLevelState: AutoLevelUIState = .idle
     var errorMessage: String?
     /// Digits typed for the selected point, shown in its label until Enter or Esc.
@@ -120,7 +124,11 @@ final class PluginViewModel {
 
     func startMeters() {
         ticker.start(interval: 0.05) { [weak self] in
-            MainActor.assumeIsolated { self?.meters = self?.audioUnit.readMeters() ?? PluginViewModel.silentMeters }
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                self.meters = self.audioUnit.readMeters()
+                if self.view == .spectrum { self.spectrum = self.audioUnit.readSpectrum() }
+            }
         }
     }
 
@@ -313,7 +321,7 @@ final class PluginViewModel {
     }
 
     func handleKey(_ key: KeyPress) -> KeyPress.Result {
-        guard profile != nil else { return .ignored }
+        guard profile != nil, view != .spectrum else { return .ignored }
         if key.modifiers.contains(.command) || key.modifiers.contains(.control) { return .ignored }
         return view == .audiogram ? handleAudiogramKey(key) : handleGainKey(key)
     }

@@ -146,6 +146,14 @@ public final class AudioCurveAudioUnit: AUAudioUnit {
         return m
     }
 
+    public func readSpectrum() -> ac_spectrum? {
+        lock.lock(); defer { lock.unlock() }
+        guard let k = state.pointee.kernel else { return nil }
+        var s = ac_spectrum()
+        ac_kernel_read_spectrum(k, &s)
+        return s
+    }
+
     private struct MainBox: @unchecked Sendable { let f: () -> Void }
     private static func onMain(_ f: @escaping () -> Void) {
         if Thread.isMainThread { f() } else {

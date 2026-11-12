@@ -6,8 +6,10 @@ use crate::filterbank::{BandBuffers, Filterbank};
 use crate::limiter::Limiter;
 use crate::meters::{AtomicMeters, MeterState};
 use crate::params::{Meters, Params};
+use crate::spectrum::{Capture, Reader, Spectrum};
 use crate::triple::TripleBuffer;
 use std::cell::UnsafeCell;
+use std::sync::Mutex;
 
 /// Output-gain smoothing time constant: 20/3 ms.
 const GAIN_TAU_S: f64 = 0.020 / 3.0;
@@ -194,7 +196,7 @@ impl Dsp {
         }
     }
 
-    fn process(&mut self, p: &Params, meters: &AtomicMeters, l: &mut [f32], r: &mut [f32]) {
+    fn process(&mut self, p: &Params, meters: &AtomicMeters, capture: &Capture, l: &mut [f32], r: &mut [f32]) {
         // Output gain is applied after the bands, so it comes off the band ceiling.
         let band_ceiling = p.mpo_dbfs.min(-1.0) - BAND_CEILING_MARGIN_DB - p.output_gain_db;
         let mut pos = 0;
@@ -208,6 +210,8 @@ impl Dsp {
                     *s = 0.0;
                 }
             }
+            let base = capture.position();
+            capture.put_in(base, cl, cr);
             let (rms, peak) = self.in_meter.update(cl, cr);
             meters.store_in(rms, peak);
             // pre_process: identity (reserved for v2)
@@ -224,6 +228,8 @@ impl Dsp {
             self.limiter.process(cl, cr, p.mpo_dbfs);
             let (rms, peak) = self.out_meter.update(cl, cr);
             meters.store_out(rms, peak);
+            capture.put_out(base, cl, cr);
+            capture.publish(base, cl.len());
         }
     }
 }
@@ -232,6 +238,8 @@ impl Dsp {
 pub struct Handle {
     params: TripleBuffer<Params>,
     meters: AtomicMeters,
+    capture: Capture,
+    reader: Mutex<Reader>,
     dsp: UnsafeCell<Dsp>,
     latency: u32,
 }
@@ -252,6 +260,8 @@ impl Handle {
         Some(Box::new(Handle {
             params: TripleBuffer::new(Params::unity()),
             meters: AtomicMeters::new(),
+            capture: Capture::new(),
+            reader: Mutex::new(Reader::new(fs)),
             dsp: UnsafeCell::new(dsp),
             latency,
         }))
@@ -272,7 +282,7 @@ impl Handle {
         let p = self.params.read();
         // SAFETY: exclusive access guaranteed by the caller contract.
         let dsp = unsafe { &mut *self.dsp.get() };
-        dsp.process(&p, &self.meters, &mut l[..n], &mut r[..n]);
+        dsp.process(&p, &self.meters, &self.capture, &mut l[..n], &mut r[..n]);
     }
 
     pub fn latency_frames(&self) -> u32 {
@@ -281,6 +291,19 @@ impl Handle {
 
     pub fn meters(&self) -> Meters {
         self.meters.load()
+    }
+
+    /// Latest input/output spectrum (UI thread; allocation-free after construction, but it
+    /// takes a mutex and runs four FFTs, so never call it from the audio thread).
+    pub fn read_spectrum(&self, out: &mut Spectrum) {
+        let mut r = self.reader.lock().unwrap_or_else(|e| e.into_inner());
+        r.read(&self.capture, out);
+    }
+
+    pub fn spectrum(&self) -> Spectrum {
+        let mut s = Spectrum::default();
+        self.read_spectrum(&mut s);
+        s
     }
 
     /// # Safety
