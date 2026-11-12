@@ -75,6 +75,11 @@ final class PluginViewModel {
     var spectrumEars: SpectrumEars = .both
     var autoLevelState: AutoLevelUIState = .idle
     var errorMessage: String?
+    /// System output device right now, all output devices, and where processing is enabled.
+    var currentOutput: OutputDevice?
+    var availableOutputs: [OutputDevice] = []
+    var activeOutputs = ActiveOutputs()
+    var processingActive = true
     /// Digits typed for the selected point, shown in its label until Enter or Esc.
     var typedBuffer: String = ""
 
@@ -125,12 +130,33 @@ final class PluginViewModel {
                 Task { @MainActor in self?.applyHostParameter(address, Double(value)) }
             }
         }
+        refreshOutputs()
+        audioUnit.onOutputsChange = { [weak self] in self?.refreshOutputs() }
         audioUnit.onProfileChange = { [weak self] newProfile in
             guard let self, !self.isPushing else { return }
             self.profile = newProfile
             self.reconcileSelection()
         }
     }
+
+    // MARK: Outputs
+
+    /// Re-reads the devices and the shared selection (another plugin instance may have changed it).
+    func refreshOutputs() {
+        audioUnit.reloadActiveOutputs()
+        currentOutput = audioUnit.outputs.current
+        availableOutputs = audioUnit.outputs.available
+        activeOutputs = audioUnit.activeOutputs
+        processingActive = audioUnit.isProcessingActive
+    }
+
+    func toggleOutput(_ d: OutputDevice) {
+        var a = activeOutputs
+        a.toggle(d)
+        audioUnit.setActiveOutputs(a)
+    }
+
+    func activateOnAllOutputs() { audioUnit.setActiveOutputs(ActiveOutputs()) }
 
     // MARK: Meters
 

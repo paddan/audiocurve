@@ -65,6 +65,14 @@ UI names below are the English ones; in other languages, use the matching transl
 - [ ] SoundSource passthrough load (§8): the effect on system audio over a longer period gives no disturbing CPU load and no dropouts.
 - [ ] The host app loops the file until Stop, and errors at start-up show in the status line.
 
+## Active outputs
+
+- [ ] With "Active on: all outputs" (default), processing works on every output device.
+- [ ] Tick only the AirPods: with the AirPods as output, processing is on; switch the output to the hearing aids (or turn the AirPods off) and the sound passes through unchanged, with "Paused – <device> is the output" shown.
+- [ ] The switch is a smooth fade, without a click or a gap.
+- [ ] A remembered device that is not connected shows "(not connected)" in the menu.
+- [ ] The selection is shared by every instance (host app and SoundSource) and survives a restart.
+
 ## Profiles
 
 - [ ] The audiogram is still there after restarting the host app.

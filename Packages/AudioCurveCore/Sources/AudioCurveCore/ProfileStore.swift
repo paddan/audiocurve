@@ -43,6 +43,7 @@ public final class ProfileStore: @unchecked Sendable {
     private let root: URL
     private var profilesDir: URL { root.appendingPathComponent("profiles", isDirectory: true) }
     private var workingCopyURL: URL { root.appendingPathComponent("current.json") }
+    private var activeOutputsURL: URL { root.appendingPathComponent("outputs.json") }
 
     public init(root: URL) { self.root = root }
 
@@ -130,6 +131,18 @@ public final class ProfileStore: @unchecked Sendable {
     }
 
     // MARK: Helpers
+
+    // MARK: Active outputs
+
+    /// Missing or corrupt file → all outputs (the default).
+    public func loadActiveOutputs() -> ActiveOutputs {
+        read(ActiveOutputs.self, from: activeOutputsURL) ?? ActiveOutputs()
+    }
+
+    /// Best effort, never throws.
+    public func saveActiveOutputs(_ a: ActiveOutputs) {
+        try? write(a, to: activeOutputsURL)
+    }
 
     private func url(for id: UUID) -> URL {
         profilesDir.appendingPathComponent("\(id.uuidString).json")

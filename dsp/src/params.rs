@@ -32,6 +32,9 @@ pub struct Params {
     /// 1.0 = Auto: attack/release glide between Music (`attack_ms`/`release_ms`) and Speech
     /// (5/50 ms) following the speech/music classifier; 0.0 = use `attack_ms`/`release_ms`.
     pub auto_mode: f64,
+    /// 1.0 = processing on; 0.0 = pass the input through unchanged (same latency), e.g.
+    /// while an output device the user did not enable is in use. Changes crossfade over 50 ms.
+    pub active: f64,
 }
 
 impl Params {
@@ -46,6 +49,7 @@ impl Params {
             limiter_enabled: 1.0,
             input_gain_db: 0.0,
             auto_mode: 0.0,
+            active: 1.0,
         }
     }
 }

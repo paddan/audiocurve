@@ -457,3 +457,45 @@ fn auto_mode_reports_speech_value_and_stays_bounded() {
     assert!(m.speech < 0.1, "speech {}", m.speech);
     assert!(l.iter().all(|v| v.is_finite()));
 }
+
+#[test]
+fn inactive_passes_input_through_delayed() {
+    let mut p = Params::unity();
+    p.left = [fit(20.0, 20.0, 1.0); 12];
+    p.right = p.left;
+    p.active = 0.0;
+    let h = Handle::new(FS, 512).unwrap();
+    h.set_params(&p);
+    let x = sine(1000.0, -20.0, 0.5, FS);
+    let (l, r) = run_on(&h, &x, &x, 512);
+    let lat = h.latency_frames() as usize;
+    for i in lat..x.len() {
+        assert!((l[i] - x[i - lat]).abs() < 1e-6 && (r[i] - x[i - lat]).abs() < 1e-6, "sample {i}");
+    }
+}
+
+#[test]
+fn activity_switch_is_a_smooth_crossfade() {
+    // +20 dB when active, 0 dB when inactive: the switch must glide, not jump.
+    let mut p = Params::unity();
+    p.left = [fit(20.0, 20.0, 1.0); 12];
+    p.right = p.left;
+    p.mpo_dbfs = -1.0;
+    let h = Handle::new(FS, 512).unwrap();
+    h.set_params(&p);
+    let x = sine(200.0, -30.0, 1.0, FS);
+    let (a, _) = run_on(&h, &x, &x, 512);
+    p.active = 0.0;
+    h.set_params(&p);
+    let (b, _) = run_on(&h, &x, &x, 512);
+    let lat = h.latency_frames();
+    assert_eq!(lat, Handle::new(FS, 512).unwrap().latency_frames());
+    // Steady states: about -10 dBFS active, -30 dBFS inactive.
+    assert!((level_dbfs(&a, 0.5, FS) + 10.0).abs() < 1.0, "active {}", level_dbfs(&a, 0.5, FS));
+    assert!((level_dbfs(&b, 0.5, FS) + 30.0).abs() < 1.0, "inactive {}", level_dbfs(&b, 0.5, FS));
+    // No click: the largest sample step across the switch stays near a 200 Hz sine's own.
+    let joined: Vec<f32> = a.iter().chain(b.iter()).copied().collect();
+    let max_step = joined.windows(2).map(|w| (w[1] - w[0]).abs()).fold(0f32, f32::max);
+    let sine_step = 2.0 * std::f32::consts::PI * 200.0 / FS as f32 * 10f32.powf(-10.0 / 20.0);
+    assert!(max_step < 1.2 * sine_step, "step {max_step} vs {sine_step}");
+}

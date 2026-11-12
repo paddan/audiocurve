@@ -215,6 +215,72 @@ impl SmoothGain {
     }
 }
 
+/// Crossfade between the processed signal and the input delayed by the kernel latency,
+/// so turning processing on or off never clicks and never changes the timing.
+struct Activity {
+    ring: [Vec<f32>; 2],
+    pos: usize,
+    dry: [Vec<f32>; 2],
+    g: f32,
+    step: f32,
+    init: bool,
+}
+
+impl Activity {
+    const FADE_S: f64 = 0.050;
+
+    fn new(fs: f64, max_frames: usize, latency: usize) -> Self {
+        Self {
+            ring: [vec![0.0; latency + 1], vec![0.0; latency + 1]],
+            pos: 0,
+            dry: [vec![0.0; max_frames], vec![0.0; max_frames]],
+            g: 1.0,
+            step: (1.0 / (Self::FADE_S * fs)) as f32,
+            init: false,
+        }
+    }
+
+    fn reset(&mut self) {
+        for r in &mut self.ring {
+            r.fill(0.0);
+        }
+        self.pos = 0;
+        self.init = false;
+    }
+
+    /// Keep a copy of the (sanitized) input before processing.
+    fn capture(&mut self, l: &[f32], r: &[f32]) {
+        self.dry[0][..l.len()].copy_from_slice(l);
+        self.dry[1][..r.len()].copy_from_slice(r);
+    }
+
+    /// Mix the processed `l`/`r` with the delayed dry input.
+    fn mix(&mut self, active: bool, l: &mut [f32], r: &mut [f32]) {
+        let target = if active { 1.0 } else { 0.0 };
+        if !self.init {
+            self.g = target;
+            self.init = true;
+        }
+        let len = self.ring[0].len();
+        for i in 0..l.len() {
+            let p = self.pos;
+            self.ring[0][p] = self.dry[0][i];
+            self.ring[1][p] = self.dry[1][i];
+            let o = if p + 1 == len { 0 } else { p + 1 };
+            let (dl, dr) = (self.ring[0][o], self.ring[1][o]);
+            self.pos = o;
+            if self.g != target {
+                self.g = if self.g < target { (self.g + self.step).min(target) } else { (self.g - self.step).max(target) };
+            }
+            let g = self.g;
+            if g < 1.0 {
+                l[i] = g * l[i] + (1.0 - g) * dl;
+                r[i] = g * r[i] + (1.0 - g) * dr;
+            }
+        }
+    }
+}
+
 struct Dsp {
     max_frames: usize,
     ears: [Ear; 2],
@@ -225,25 +291,30 @@ struct Dsp {
     classifier: Classifier,
     input_gain: SmoothGain,
     output_gain: SmoothGain,
+    activity: Activity,
 }
 
 impl Dsp {
     fn new(fs: f64, max_frames: usize) -> Self {
+        let limiter = Limiter::new(fs, max_frames);
+        let latency = limiter.latency_frames() + Ear::lookahead(fs);
         Self {
             max_frames,
             ears: [Ear::new(fs, max_frames), Ear::new(fs, max_frames)],
-            limiter: Limiter::new(fs, max_frames),
+            limiter,
             in_meter: MeterState::new(fs),
             out_meter: MeterState::new(fs),
             reduction: ReductionMeter::new(fs),
             classifier: Classifier::new(fs),
             input_gain: SmoothGain::new(fs),
             output_gain: SmoothGain::new(fs),
+            activity: Activity::new(fs, max_frames, latency),
         }
     }
 
     fn reset(&mut self) {
         self.reduction.reset();
+        self.activity.reset();
         self.classifier.reset();
         for e in &mut self.ears {
             e.reset();
@@ -273,6 +344,7 @@ impl Dsp {
                     *s = 0.0;
                 }
             }
+            self.activity.capture(cl, cr);
             // Input level first: the In meter and spectrum show what the bands actually get.
             self.input_gain.apply(p.input_gain_db, cl, cr);
             let base = capture.position();
@@ -303,6 +375,7 @@ impl Dsp {
             } else {
                 self.limiter.process_bypass(cl, cr);
             }
+            self.activity.mix(p.active >= 0.5, cl, cr);
             let (rms, peak) = self.out_meter.update(cl, cr);
             meters.store_out(rms, peak);
             let lim = self.limiter.last_reduction_db();

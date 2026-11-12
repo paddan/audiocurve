@@ -17,6 +17,7 @@ typedef struct {
     double limiter_enabled; // 1 = band budget + limiter on, 0 = off (hard clamp at 0 dBFS only)
     double input_gain_db; // before the bands and the In meter/spectrum; drives the compressors
     double auto_mode; // 1 = Auto: attack/release glide from attack_ms/release_ms (Music) to 5/50 ms (Speech) by the classifier
+    double active; // 1 = processing on, 0 = input passes through unchanged (same latency); 50 ms crossfade
 } ac_params;
 
 typedef struct { float in_rms_db[2], in_peak_db[2], out_rms_db[2], out_peak_db[2]; float reduction_db[2]; float speech; } ac_meters; // reduction_db: safety stage (band budget + limiter), dB >= 0; speech: classifier 0 = music … 1 = speech

@@ -78,7 +78,7 @@ public enum FittingRule {
     public static func params(profile: HearingProfile?, strength: Double, mpoDBFS: Double,
                               outputGainDB: Double, mode: CompressionMode,
                               compression: Bool = true, limiter: Bool = true,
-                              inputGainDB: Double = 0) -> ac_params {
+                              inputGainDB: Double = 0, active: Bool = true) -> ac_params {
         var p = ac_params()
         let s = clampStrength(strength)
         let unity = BandFitting(gainSoftDB: 0, gainLoudDB: 0, compressionRatio: 1)
@@ -108,6 +108,7 @@ public enum FittingRule {
         p.limiter_enabled = limiter ? 1 : 0
         p.input_gain_db = inputGainDB.isNaN ? 0 : min(max(inputGainDB, -30), 12)
         p.auto_mode = mode == .auto ? 1 : 0
+        p.active = active ? 1 : 0
         return p
     }
 

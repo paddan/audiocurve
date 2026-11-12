@@ -42,6 +42,13 @@ public final class AudioCurveAudioUnit: AUAudioUnit {
     private var pendingSave: DispatchWorkItem?
     private static let autosaveDelay: TimeInterval = 0.5
 
+    /// Watches the system output device. Processing is on only for the outputs in `activeOutputs`.
+    public let outputs = OutputDeviceMonitor()
+    /// Output devices processing is enabled for (empty = all). Main thread only; shared on disk.
+    public private(set) var activeOutputs = ActiveOutputs()
+    /// Called on the main queue after the output device or the active-output selection changed.
+    public var onOutputsChange: (@MainActor () -> Void)?
+
     /// Called on the main queue after the profile changed (not called when the new value equals the current one).
     public var onProfileChange: (@MainActor (HearingProfile?) -> Void)?
 
@@ -63,6 +70,13 @@ public final class AudioCurveAudioUnit: AUAudioUnit {
         latestParams = FittingRule.params(profile: nil, strength: model.strength / 100, mpoDBFS: model.mpo,
                                           outputGainDB: model.outputGain, mode: .auto)
         installParameterTree()
+        activeOutputs = store.loadActiveOutputs()
+        outputs.onChange = { [weak self] in
+            guard let self else { return }
+            self.recompute()
+            let cb = self.onOutputsChange
+            MainActor.assumeIsolated { cb?() }
+        }
         if let copy = store.loadWorkingCopy() {
             _profile = copy.profile
             sourceID = copy.sourceID
@@ -164,14 +178,35 @@ public final class AudioCurveAudioUnit: AUAudioUnit {
 
     private func recomputeOnMain() { Self.onMain { [self] in recompute() } }
 
+    /// Is processing on for the current output device? Main thread only.
+    public var isProcessingActive: Bool { activeOutputs.isActive(currentUID: outputs.current?.uid) }
+
+    /// Changes which outputs processing is enabled for, saves it and applies it. Main thread only.
+    public func setActiveOutputs(_ a: ActiveOutputs) {
+        activeOutputs = a
+        store.saveActiveOutputs(a)
+        recompute()
+        let cb = onOutputsChange
+        MainActor.assumeIsolated { cb?() }
+    }
+
+    /// Picks up a selection another plugin instance saved. Main thread only.
+    public func reloadActiveOutputs() {
+        let a = store.loadActiveOutputs()
+        guard a != activeOutputs else { return }
+        activeOutputs = a
+        recompute()
+    }
+
     /// Always runs on the main queue, so `ac_kernel_set_params` has a single writer thread.
     private func recompute() {
+        let active = isProcessingActive
         lock.lock(); defer { lock.unlock() }
         let p = FittingRule.params(profile: _profile, strength: model.strength / 100, mpoDBFS: model.mpo,
                                    outputGainDB: model.outputGain,
                                    mode: CompressionMode(rawValue: model.mode) ?? .auto,
                                    compression: model.compression != 0, limiter: model.limiter != 0,
-                                   inputGainDB: model.inputGain)
+                                   inputGainDB: model.inputGain, active: active)
         latestParams = p
         if let k = state.pointee.kernel { withUnsafePointer(to: p) { ac_kernel_set_params(k, $0) } }
     }
