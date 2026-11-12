@@ -61,7 +61,7 @@ public final class AudioCurveAudioUnit: AUAudioUnit {
         outputBusArray = AUAudioUnitBusArray(audioUnit: self, busType: .output, busses: [outputBus])
         maximumFramesToRender = 4096
         latestParams = FittingRule.params(profile: nil, strength: model.strength / 100, mpoDBFS: model.mpo,
-                                          outputGainDB: model.outputGain, mode: .speech)
+                                          outputGainDB: model.outputGain, mode: .auto)
         installParameterTree()
         if let copy = store.loadWorkingCopy() {
             _profile = copy.profile
@@ -169,7 +169,7 @@ public final class AudioCurveAudioUnit: AUAudioUnit {
         lock.lock(); defer { lock.unlock() }
         let p = FittingRule.params(profile: _profile, strength: model.strength / 100, mpoDBFS: model.mpo,
                                    outputGainDB: model.outputGain,
-                                   mode: CompressionMode(rawValue: model.mode) ?? .speech,
+                                   mode: CompressionMode(rawValue: model.mode) ?? .auto,
                                    compression: model.compression != 0, limiter: model.limiter != 0,
                                    inputGainDB: model.inputGain)
         latestParams = p

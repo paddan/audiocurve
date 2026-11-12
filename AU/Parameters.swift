@@ -22,7 +22,7 @@ struct ParamValues: Sendable {
     var strength: Double = 50
     var mpo: Double = -3
     var outputGain: Double = 0
-    var mode: Int = 0
+    var mode: Int = 2 // Auto
     /// 1 = on, 0 = off (lab switches).
     var compression: Int = 1
     var limiter: Int = 1

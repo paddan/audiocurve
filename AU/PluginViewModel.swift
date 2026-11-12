@@ -67,7 +67,7 @@ final class PluginViewModel {
     var mpo: Double = -3
     var outputGain: Double = 0
     var inputGain: Double = 0
-    var mode: CompressionMode = .speech
+    var mode: CompressionMode = .auto
     var compressionOn = true
     var limiterOn = true
     var meters: ac_meters = PluginViewModel.silentMeters
@@ -114,7 +114,7 @@ final class PluginViewModel {
             mpo = value(.mpo) ?? mpo
             outputGain = value(.outputGain) ?? outputGain
             inputGain = value(.inputGain) ?? inputGain
-            mode = CompressionMode(rawValue: Int((value(.mode) ?? 0).rounded())) ?? .speech
+            mode = CompressionMode(rawValue: Int((value(.mode) ?? 2).rounded())) ?? .auto
             compressionOn = (value(.compression) ?? 1) >= 0.5
             limiterOn = (value(.limiter) ?? 1) >= 0.5
             paramObserver = ParamObserverBox(tree: tree) { [weak self] address, value in
@@ -150,7 +150,7 @@ final class PluginViewModel {
         case .strength: strength = value
         case .mpo: mpo = value
         case .outputGain: outputGain = value
-        case .mode: mode = CompressionMode(rawValue: Int(value.rounded())) ?? .speech
+        case .mode: mode = CompressionMode(rawValue: Int(value.rounded())) ?? .auto
         case .compression: compressionOn = value >= 0.5
         case .limiter: limiterOn = value >= 0.5
         case .inputGain: inputGain = value
@@ -162,7 +162,7 @@ final class PluginViewModel {
         case .strength: strength = value
         case .mpo: mpo = value
         case .outputGain: outputGain = value
-        case .mode: mode = CompressionMode(rawValue: Int(value.rounded())) ?? .speech
+        case .mode: mode = CompressionMode(rawValue: Int(value.rounded())) ?? .auto
         case .compression: compressionOn = value >= 0.5
         case .limiter: limiterOn = value >= 0.5
         case .inputGain: inputGain = value
