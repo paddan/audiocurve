@@ -4,8 +4,8 @@ UI names below are the English ones; in other languages, use the matching transl
 
 ## Task 2 – passthrough
 
-- [ ] An audio file plays in the host app (audiocurve.app), and A/B (bypass) makes no audible difference.
-- [ ] SoundSource: add the "audiocurve" effect to system audio; sound passes through without crackles.
+- [ ] An audio file plays in the host app (AudioCurve.app), and A/B (bypass) makes no audible difference.
+- [ ] SoundSource: add the "AudioCurve" effect to system audio; sound passes through without crackles.
 - [ ] SoundSource: add the effect to a single app; sound passes through without crackles.
 - [ ] If the plugin does not show up or refuses to load: note SoundSource's error message.
 
@@ -77,7 +77,7 @@ UI names below are the English ones; in other languages, use the matching transl
 The plugin and the host app are available in English, Swedish, German, Spanish, French, Finnish, Norwegian (Bokmål) and Danish. Other languages fall back to English. To start the host app in a given language:
 
 ```bash
-open -n build/dd/Build/Products/Debug/audiocurve.app --args -AppleLanguages '(de)'
+open -n build/dd/Build/Products/Debug/AudioCurve.app --args -AppleLanguages '(de)'
 ```
 
 Replace `de` with `en`, `sv`, `es`, `fr`, `fi`, `nb` or `da`.

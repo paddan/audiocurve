@@ -1,6 +1,6 @@
 name: Release
 
-# Builds audiocurve.app (with the AUv3 extension inside), runs the tests and publishes a
+# Builds AudioCurve.app (with the AUv3 extension inside), runs the tests and publishes a
 # downloadable zip as a GitHub release.
 # - Push a tag like `v1.2.0` to publish a release for it.
 # - Run the workflow manually to get the zip as a build artifact without publishing.
@@ -58,7 +58,7 @@ jobs:
             CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
             build
           mkdir -p build/out
-          ditto build/dd/Build/Products/Release/audiocurve.app build/out/audiocurve.app
+          ditto build/dd/Build/Products/Release/AudioCurve.app build/out/AudioCurve.app
 
       - name: Sign with Developer ID and notarize
         if: env.HAS_DEVELOPER_ID == 'true'
@@ -78,7 +78,7 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple: -s -k "$KC_PW" "$KC"
           security list-keychains -d user -s "$KC" $(security list-keychains -d user | tr -d '"')
           ID=$(security find-identity -v -p codesigning "$KC" | awk -F'"' '/Developer ID Application/{print $2; exit}')
-          APP=build/out/audiocurve.app
+          APP=build/out/AudioCurve.app
           # Inside out: the extension (sandboxed, with its entitlements) first, then the app.
           codesign --force --options runtime --timestamp --sign "$ID" \
             --entitlements AU/AudioCurveAU.entitlements "$APP/Contents/PlugIns/AudioCurveAU.appex"
@@ -92,9 +92,9 @@ jobs:
       - name: Package
         id: package
         run: |
-          NAME="audiocurve-${{ steps.version.outputs.version }}-macos-arm64.zip"
-          codesign --verify --deep --strict build/out/audiocurve.app
-          (cd build/out && ditto -c -k --keepParent audiocurve.app "$NAME" && shasum -a 256 "$NAME" > "$NAME.sha256")
+          NAME="AudioCurve-${{ steps.version.outputs.version }}-macos-arm64.zip"
+          codesign --verify --deep --strict build/out/AudioCurve.app
+          (cd build/out && ditto -c -k --keepParent AudioCurve.app "$NAME" && shasum -a 256 "$NAME" > "$NAME.sha256")
           echo "name=$NAME" >> "$GITHUB_OUTPUT"
 
       - uses: actions/upload-artifact@v4
@@ -112,9 +112,9 @@ jobs:
           if [ "$HAS_DEVELOPER_ID" = "true" ]; then
             NOTE="Signed with Developer ID and notarized."
           else
-            NOTE="Ad hoc signed (not notarized). After unzipping, run: xattr -dr com.apple.quarantine audiocurve.app"
+            NOTE="Ad hoc signed (not notarized). After unzipping, run: xattr -dr com.apple.quarantine AudioCurve.app"
           fi
           gh release create "$GITHUB_REF_NAME" \
             "build/out/${{ steps.package.outputs.name }}" "build/out/${{ steps.package.outputs.name }}.sha256" \
-            --title "audiocurve ${{ steps.version.outputs.version }}" \
+            --title "AudioCurve ${{ steps.version.outputs.version }}" \
             --notes "Requires macOS 27 on Apple silicon. $NOTE See the README for setup."

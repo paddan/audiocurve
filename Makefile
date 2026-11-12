@@ -1,10 +1,10 @@
-# Build audiocurve.app (with the embedded AudioCurveAU.appex) without Xcode.
+# Build AudioCurve.app (with the embedded AudioCurveAU.appex) without Xcode.
 #
 # Needs only the Command Line Tools (`xcode-select --install`) and Rust via rustup.
 # The Xcode project generated from project.yml keeps working; this Makefile mirrors
 # its settings (bundle IDs, versions, deployment target, Swift 6 language mode).
 #
-#   make release                     build build/release/audiocurve.app (ad hoc signed)
+#   make release                     build build/release/AudioCurve.app (ad hoc signed)
 #   make release ARCHS="arm64 x86_64"  universal build
 #   make release SIGN_IDENTITY="Developer ID Application: ..."
 #   make install                     copy to /Applications and register the extension
@@ -13,7 +13,7 @@
 #   make test                        run the Rust and Swift package tests
 #   make clean                       remove build/
 
-APP_NAME      := audiocurve
+APP_NAME      := AudioCurve
 AU_NAME       := AudioCurveAU
 APP_ID        := se.lindefors.audiocurve
 AU_ID         := $(APP_ID).$(AU_NAME)

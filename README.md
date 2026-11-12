@@ -5,27 +5,27 @@
   </picture>
 </p>
 
-# audiocurve
+# AudioCurve
 
-Hearing compensation for everything your Mac plays. audiocurve is an Audio Unit (AUv3) effect that shapes sound to your own audiogram, much like the headphone accommodations on iPhone with AirPods, but for any app and any output device.
+Hearing compensation for everything your Mac plays. AudioCurve is an Audio Unit (AUv3) effect that shapes sound to your own audiogram, much like the headphone accommodations on iPhone with AirPods, but for any app and any output device.
 
 **[⬇ Download the latest release](https://github.com/paddan/audiocurve/releases/latest)** · macOS 27 · Apple silicon
 
 ![Audiogram editor](docs/screenshots/audiogram.png)
 
-> **Not a medical device.** audiocurve is a personal hobby project. It is not a hearing aid, it is not clinically validated, and it does not replace advice from an audiologist. Keep the volume at a comfortable level.
+> **Not a medical device.** AudioCurve is a personal hobby project. It is not a hearing aid, it is not clinically validated, and it does not replace advice from an audiologist. Keep the volume at a comfortable level.
 
 ## Download
 
 Requires macOS 27 on Apple silicon. Older versions are on the [Releases page](https://github.com/paddan/audiocurve/releases).
 
-1. Download `audiocurve-<version>-macos-arm64.zip` and unzip it.
-2. Move `audiocurve.app` to `/Applications`.
+1. Download `AudioCurve-<version>-macos-arm64.zip` and unzip it.
+2. Move `AudioCurve.app` to `/Applications`.
 3. If the release notes say the build is ad hoc signed (not notarized), clear the download quarantine once:
    ```bash
-   xattr -dr com.apple.quarantine /Applications/audiocurve.app
+   xattr -dr com.apple.quarantine /Applications/AudioCurve.app
    ```
-4. Open `audiocurve.app` once. This registers the Audio Unit with macOS.
+4. Open `AudioCurve.app` once. This registers the Audio Unit with macOS.
 
 Releases are built by the [Release workflow](.github/workflows/release.yml) whenever a `v*` tag is pushed.
 
@@ -48,10 +48,10 @@ Releases are built by the [Release workflow](.github/workflows/release.yml) when
 
 ## Using it
 
-audiocurve is an AUv3 *effect* extension, so it runs inside an audio host:
+AudioCurve is an AUv3 *effect* extension, so it runs inside an audio host:
 
 - **System-wide:** load it in an app that can insert Audio Units on system output, such as SoundSource or Audio Hijack.
-- **Bundled test host:** `audiocurve.app` opens an audio file, loops it through the plugin and has an A/B bypass. Running the app once also registers the extension with macOS.
+- **Bundled test host:** `AudioCurve.app` opens an audio file, loops it through the plugin and has an A/B bypass. Running the app once also registers the extension with macOS.
 
 A typical setup:
 
@@ -95,7 +95,7 @@ curl https://sh.rustup.rs -sSf | sh    # Rust via rustup; the needed targets are
 ```
 
 ```bash
-make release                           # build/release/audiocurve.app with the embedded AudioCurveAU.appex
+make release                           # build/release/AudioCurve.app with the embedded AudioCurveAU.appex
 make install                           # copy to /Applications and register the extension
 ```
 
