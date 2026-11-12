@@ -37,19 +37,28 @@ struct HostView: View {
             }
             Text(status).font(.caption).foregroundStyle(.secondary)
             if let pluginVC {
-                PluginViewHost(controller: pluginVC).frame(minWidth: 640, minHeight: 380)
+                PluginViewHost(controller: pluginVC).frame(minWidth: 640, minHeight: 540)
             } else {
                 Spacer()
             }
         }
         .padding()
-        .frame(minWidth: 680, minHeight: 540)
+        .frame(minWidth: 680, minHeight: 700)
         .onReceive(ticker) { _ in peak = engine.outputPeakDB }
         .task {
             do {
                 try await engine.loadPlugin()
                 pluginVC = await engine.pluginViewController()
                 status = "Plugin laddat"
+                #if DEBUG
+                // Screenshot/demo hook: AUDIOCURVE_DEMO_FILE=<audio file> opens and loops it.
+                if let path = ProcessInfo.processInfo.environment["AUDIOCURVE_DEMO_FILE"] {
+                    try engine.open(file: URL(fileURLWithPath: path))
+                    try engine.play()
+                    playing = engine.isPlaying
+                    status = "Spelar (slinga)"
+                }
+                #endif
             } catch {
                 status = "Kunde inte ladda plugin: \(error.localizedDescription)"
             }

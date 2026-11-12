@@ -105,6 +105,10 @@ final class PluginViewModel {
 
     init(audioUnit: AudioCurveAudioUnit) {
         self.audioUnit = audioUnit
+        #if DEBUG
+        // Screenshot/demo hook: `defaults write <extension prefs> demoPane spectrum`.
+        if let raw = UserDefaults.standard.string(forKey: "demoPane"), let pane = Pane(rawValue: raw) { view = pane }
+        #endif
         profile = audioUnit.profile
         sourceID = audioUnit.sourceID
         savedProfiles = audioUnit.store.list()

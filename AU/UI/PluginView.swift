@@ -25,7 +25,7 @@ struct PluginView: View {
                 .frame(width: 232)
         }
         .padding(16)
-        .frame(minWidth: 640, minHeight: 380)
+        .frame(minWidth: 640, minHeight: 540)
         .background(Color(nsColor: .windowBackgroundColor))
         .onAppear { vm.startMeters() }
         .onDisappear { vm.stopMeters() }

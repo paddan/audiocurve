@@ -9,7 +9,7 @@ public final class AudioCurveViewController: AUViewController, AUAudioUnitFactor
 
     public override func loadView() {
         view = NSView(frame: NSRect(x: 0, y: 0, width: 720, height: 420))
-        preferredContentSize = NSSize(width: 720, height: 420)
+        preferredContentSize = NSSize(width: 720, height: 560)
     }
 
     public override func viewDidLoad() {
