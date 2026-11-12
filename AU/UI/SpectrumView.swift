@@ -79,10 +79,10 @@ private struct SpectrumEarPicker: View {
     @Binding var selection: SpectrumEars
 
     var body: some View {
-        Picker("Öra", selection: $selection) {
-            Text("V").tag(SpectrumEars.left)
-            Text("H").tag(SpectrumEars.right)
-            Text("Båda").tag(SpectrumEars.both)
+        Picker("Ear", selection: $selection) {
+            Text(Fmt.earInitial(.left)).tag(SpectrumEars.left)
+            Text(Fmt.earInitial(.right)).tag(SpectrumEars.right)
+            Text("Both", comment: "Spectrum: show both ears").tag(SpectrumEars.both)
         }
         .pickerStyle(.segmented)
         .labelsHidden()
@@ -111,8 +111,8 @@ private struct SpectrumChart: View {
         let snap = Snapshot(data: vm.spectrum.map(SpectrumData.init), ears: vm.spectrumEars, mpo: vm.mpo)
         Canvas { ctx, size in draw(ctx, size, snap) }
             .accessibilityElement()
-            .accessibilityLabel("Spektrum")
-            .accessibilityValue(describe(snap))
+            .accessibilityLabel(Text("Spectrum"))
+            .accessibilityValue(Text(describe(snap)))
     }
 
     private func draw(_ ctx: GraphicsContext, _ size: CGSize, _ snap: Snapshot) {
@@ -182,7 +182,7 @@ private struct SpectrumChart: View {
         tak.move(to: CGPoint(x: g.plot.minX, y: tY))
         tak.addLine(to: CGPoint(x: g.plot.maxX, y: tY))
         ctx.stroke(tak, with: .color(Color(nsColor: .systemRed).opacity(0.7)), style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
-        ctx.draw(Text("Tak").font(Theme.tick).foregroundStyle(Color(nsColor: .systemRed).opacity(0.8)),
+        ctx.draw(Text("Ceiling", comment: "Spectrum: label on the MPO line").font(Theme.tick).foregroundStyle(Color(nsColor: .systemRed).opacity(0.8)),
                  at: CGPoint(x: g.plot.maxX - 6, y: tY + 3), anchor: .topTrailing)
     }
 
@@ -211,7 +211,7 @@ private struct SpectrumChart: View {
     }
 
     private func describe(_ snap: Snapshot) -> String {
-        guard let data = snap.data else { return "Ingen signal" }
+        guard let data = snap.data else { return String(localized: "No signal") }
         return snap.shownEars.map { ear in
             let row = data.output[ear == .left ? 0 : 1]
             let parts = [125.0, 1000, 4000].map { "\(Fmt.freq($0)) \(Fmt.db(data.level(row, near: $0))) dBFS" }

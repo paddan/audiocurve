@@ -20,7 +20,7 @@ struct ProfileMenu: View {
     @State private var name = ""
     @State private var confirmDelete = false
 
-    private var label: String { (vm.currentName ?? "Osparad profil") + (vm.isDirty ? " •" : "") }
+    private var label: String { (vm.currentName ?? String(localized: "Unsaved profile")) + (vm.isDirty ? " •" : "") }
     private var hasSource: Bool { vm.currentName != nil }
 
     var body: some View {
@@ -37,23 +37,23 @@ struct ProfileMenu: View {
                 }
             }
             Divider()
-            Button("Spara") {
+            Button("Save") {
                 if !vm.save() { startSaveAs() }
             }
             .keyboardShortcut("s", modifiers: .command)
             .disabled(hasSource && !vm.isDirty)
-            Button("Spara som…") { startSaveAs() }
-            Button("Byt namn…") {
+            Button("Save As…") { startSaveAs() }
+            Button("Rename…") {
                 guard let id = vm.sourceID else { return }
                 name = vm.currentName ?? ""
                 prompt = .rename(id); promptShown = true
             }
             .disabled(!hasSource)
-            Button("Duplicera") {
+            Button("Duplicate") {
                 if let id = vm.sourceID { vm.duplicate(id) }
             }
             .disabled(!hasSource)
-            Button("Ta bort…") { confirmDelete = true }
+            Button("Delete…") { confirmDelete = true }
                 .disabled(!hasSource)
         } label: {
             Text(label).lineLimit(1)
@@ -61,17 +61,17 @@ struct ProfileMenu: View {
         .menuStyle(.button)
         .fixedSize()
         .frame(maxWidth: 220)
-        .accessibilityLabel("Profil")
+        .accessibilityLabel(Text("Profile"))
         .alert(promptTitle, isPresented: $promptShown, presenting: prompt) { p in
-            TextField("Namn", text: $name)
+            TextField("Name", text: $name)
             Button(promptButton(p)) { submit(p) }
-            Button("Avbryt", role: .cancel) {}
+            Button("Cancel", role: .cancel) {}
         }
-        .confirmationDialog("Ta bort ”\(vm.currentName ?? "")”?", isPresented: $confirmDelete) {
-            Button("Ta bort", role: .destructive) {
+        .confirmationDialog("Delete “\(vm.currentName ?? "")”?", isPresented: $confirmDelete) {
+            Button("Delete", role: .destructive) {
                 if let id = vm.sourceID { vm.delete(id) }
             }
-            Button("Avbryt", role: .cancel) {}
+            Button("Cancel", role: .cancel) {}
         }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             vm.refreshSaved()
@@ -79,18 +79,19 @@ struct ProfileMenu: View {
     }
 
     private var promptTitle: String {
-        if case .rename = prompt { return "Byt namn" }
-        return "Spara som"
+        if case .rename = prompt { return String(localized: "Rename") }
+        return String(localized: "Save As")
     }
 
     private func promptButton(_ p: Prompt) -> String {
-        if case .rename = p { return "Byt namn" }
-        return "Spara"
+        if case .rename = p { return String(localized: "Rename") }
+        return String(localized: "Save")
     }
 
     private func startSaveAs() {
         // Suggest a fresh name: re-using the current one would be rejected as taken.
-        name = vm.currentName.map { "\($0) ny" } ?? "Min profil"
+        name = vm.currentName.map { String(localized: "\($0) new", comment: "Suggested name for Save As: <current name> new") }
+            ?? String(localized: "My profile", comment: "Default name for the first saved profile")
         prompt = .saveAs; promptShown = true
     }
 

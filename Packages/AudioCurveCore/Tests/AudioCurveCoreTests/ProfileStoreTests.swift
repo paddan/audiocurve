@@ -89,6 +89,15 @@ private func profileFile(_ dir: URL, _ id: UUID) -> URL {
     #expect(throws: ProfileStoreError.notFound) { try store.duplicate(id: UUID()) }
 }
 
+@Test func duplicateUsesInjectedCopyName() throws {
+    let (store, dir) = tempStore(); defer { try? FileManager.default.removeItem(at: dir) }
+    let x = try store.saveNew(name: "X", profile: .flat())
+    let name: (String, Int) -> String = { $1 == 1 ? "\($0) copy" : "\($0) copy \($1)" }
+    #expect(try store.duplicate(id: x.id, copyName: name).name == "X copy")
+    #expect(try store.duplicate(id: x.id, copyName: name).name == "X copy 2")
+    #expect(try store.duplicate(id: x.id).name == "X kopia")
+}
+
 @Test func deleteRemoves() throws {
     let (store, dir) = tempStore(); defer { try? FileManager.default.removeItem(at: dir) }
     let x = try store.saveNew(name: "X", profile: .flat())

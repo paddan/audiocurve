@@ -33,10 +33,10 @@ struct PluginView: View {
 
     private var header: some View {
         HStack {
-            Picker("Vy", selection: $vm.view) {
+            Picker("View", selection: $vm.view) {
                 Text("Audiogram").tag(Pane.audiogram)
                 Text("Gain").tag(Pane.gain)
-                Text("Spektrum").tag(Pane.spectrum)
+                Text("Spectrum").tag(Pane.spectrum)
             }
             .pickerStyle(.segmented)
             .labelsHidden()
@@ -44,7 +44,8 @@ struct PluginView: View {
             if vm.profile != nil { ProfileMenu(vm: vm) }
             Spacer()
             if vm.profile != nil || vm.view == .spectrum {
-                Text(vm.view == .audiogram ? "Hörtröskel, dB HL" : vm.view == .gain ? "Gain per band, dB" : "Spektrum, dBFS")
+                Text(vm.view == .audiogram ? LocalizedStringKey("Hearing threshold, dB HL")
+                     : vm.view == .gain ? LocalizedStringKey("Gain per band, dB") : LocalizedStringKey("Spectrum, dBFS"))
                     .font(Theme.label)
                     .foregroundStyle(.secondary)
             }
@@ -88,10 +89,10 @@ private struct EmptyState: View {
 
     var body: some View {
         VStack(spacing: 12) {
-            Text("Inget audiogram")
+            Text("No audiogram")
                 .font(.system(size: 15, weight: .medium))
                 .foregroundStyle(.secondary)
-            Button("Lägg till audiogram") { vm.addFlatProfile() }
+            Button("Add audiogram") { vm.addFlatProfile() }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
         }
@@ -104,19 +105,19 @@ private struct SpectrumLegend: View {
         HStack(spacing: 16) {
             HStack(spacing: 6) {
                 RoundedRectangle(cornerRadius: 2).fill(Color.secondary.opacity(0.3)).frame(width: 14, height: 10)
-                Text("In")
+                Text("In", comment: "Short meter label: input")
             }
             HStack(spacing: 6) {
                 Capsule().fill(Theme.color(.left)).frame(width: 14, height: 2.5)
                 Capsule().fill(Theme.color(.right)).frame(width: 14, height: 2.5)
-                Text("Ut")
+                Text("Out", comment: "Short meter label: output")
             }
             Spacer()
         }
         .font(Theme.label)
         .foregroundStyle(.secondary)
         .frame(height: 26)
-        .accessibilityLabel("In är grå yta, Ut är linje")
+        .accessibilityLabel(Text("Input is the grey area, output is the line"))
     }
 }
 
@@ -132,7 +133,7 @@ private struct EarLegend: View {
                     vm.activeEar = ear
                 } label: {
                     HStack(spacing: 6) {
-                        Text(ear == .left ? "✕" : "○")
+                        Text(verbatim: ear == .left ? "✕" : "○")
                             .font(.system(size: 14, weight: .bold))
                             .foregroundStyle(Theme.color(ear))
                         Text(Fmt.earName(ear))
@@ -146,12 +147,12 @@ private struct EarLegend: View {
                 }
                 .buttonStyle(.plain)
                 .fixedSize()
-                .accessibilityLabel("\(Fmt.earName(ear)) öra")
+                .accessibilityLabel(ear == .left ? Text("Left ear") : Text("Right ear"))
                 .accessibilityAddTraits(active ? .isSelected : [])
             }
             Spacer()
             if vm.profile != nil && vm.view == .gain {
-                Text("Stapel: svag · streckad: stark")
+                Text("Bar: soft · dashed: loud")
                     .font(Theme.label)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)

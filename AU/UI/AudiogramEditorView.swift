@@ -51,7 +51,7 @@ struct AudiogramEditorView: View {
                         }
                         .onEnded { _ in dragging = false; vm.endDrag() }
                 )
-                .accessibilityLabel("Audiogram")
+                .accessibilityLabel(Text("Audiogram"))
                 .accessibilityChildren { pointElements(geo.size) }
         }
         .focusable()
@@ -152,8 +152,8 @@ struct AudiogramEditorView: View {
                 .frame(width: 24, height: 24)
                 .position(x: g.x(item.sel.frequencyHz), y: g.y(item.dbHL))
                 .accessibilityElement()
-                .accessibilityLabel("\(Fmt.earName(item.sel.ear)) \(Fmt.freq(item.sel.frequencyHz))")
-                .accessibilityValue("\(Fmt.db(item.dbHL)) dB HL")
+                .accessibilityLabel(Text(verbatim: "\(Fmt.earName(item.sel.ear)) \(Fmt.freq(item.sel.frequencyHz))"))
+                .accessibilityValue(Text(verbatim: "\(Fmt.db(item.dbHL)) dB HL"))
                 .accessibilityAdjustableAction { direction in
                     switch direction {
                     case .increment: vm.accessibilityAdjust(item.sel, up: true)     // up = −5 dB HL

@@ -199,7 +199,7 @@ final class PluginViewModel {
 
     func load(_ id: UUID) {
         refreshSaved()
-        guard let saved = savedProfiles.first(where: { $0.id == id }) else { showError("Kunde inte spara profilen"); return }
+        guard let saved = savedProfiles.first(where: { $0.id == id }) else { showError(String(localized: "Could not load the profile")); return }
         selection = nil; trimSelection = nil; typedBuffer = ""
         commit(saved.profile)
         setSource(id)
@@ -228,7 +228,7 @@ final class PluginViewModel {
     }
 
     func duplicate(_ id: UUID) {
-        perform { () throws(ProfileStoreError) in _ = try audioUnit.store.duplicate(id: id) }
+        perform { () throws(ProfileStoreError) in _ = try audioUnit.store.duplicate(id: id, copyName: Fmt.copyName) }
     }
 
     func delete(_ id: UUID) {
@@ -241,9 +241,9 @@ final class PluginViewModel {
     private func perform(_ action: () throws(ProfileStoreError) -> Void) {
         do { try action() } catch {
             switch error {
-            case .emptyName: showError("Ange ett namn")
-            case .nameTaken: showError("Det finns redan en version med det namnet")
-            case .notFound, .io: showError("Kunde inte spara profilen")
+            case .emptyName: showError(String(localized: "Enter a name"))
+            case .nameTaken: showError(String(localized: "A version with that name already exists"))
+            case .notFound, .io: showError(String(localized: "Could not save the profile"))
             }
         }
         refreshSaved()
@@ -251,7 +251,7 @@ final class PluginViewModel {
 
     private func commit(_ p: HearingProfile) {
         guard p != profile else { return }
-        guard (try? p.validate()) != nil else { showError("Ogiltig profil"); return }
+        guard (try? p.validate()) != nil else { showError(String(localized: "Invalid profile")); return }
         profile = p
         isPushing = true
         audioUnit.profile = p
@@ -299,14 +299,15 @@ final class PluginViewModel {
         guard let p = profile, let pt = p.audiogram(s.ear).points.first(where: { $0.frequencyHz == s.frequencyHz })
         else { return "" }
         let value = typedBuffer.isEmpty ? Fmt.db(pt.thresholdDBHL) : typedBuffer + "_"
-        return "\(Fmt.earInitial(s.ear)) \(Fmt.freq(s.frequencyHz)) · \(value) dB HL"
+        return "\(Fmt.earInitial(s.ear)) \(Fmt.freq(s.frequencyHz)) · \(value) dB HL"   // units only, nothing to translate
     }
 
     func label(for t: TrimSelection) -> String {
         guard let p = profile else { return "" }
         let trim = p.trim(t.ear)[t.band]
         let gain = fitting(t.ear)[t.band].gainSoftDB
-        return "\(Fmt.earInitial(t.ear)) \(Fmt.freq(Bands.centers[t.band])) · trim \(Fmt.signed(trim)) dB · gain \(Fmt.db(gain)) dB"
+        return String(localized: "\(Fmt.earInitial(t.ear)) \(Fmt.freq(Bands.centers[t.band])) · trim \(Fmt.signed(trim)) dB · gain \(Fmt.db(gain)) dB",
+                      comment: "Gain bar label: ear initial, band frequency, trim, resulting gain")
     }
 
     func accessibilityAdjust(_ s: PointSelection, up: Bool) {
@@ -376,7 +377,7 @@ final class PluginViewModel {
                 selection = next
                 commit(p)
             } else {
-                showError("Minst \(AudiogramEditing.minPoints) punkter per öra")
+                showError(String(localized: "At least \(AudiogramEditing.minPoints) points per ear"))
             }
             return .handled
         case .return:
@@ -399,7 +400,7 @@ final class PluginViewModel {
             AudiogramEditing.setValue(&p, s, dbHL: v, fine: true)
             commit(p)
         } else {
-            showError("Ange ett värde mellan −10 och 120 dB HL")
+            showError(String(localized: "Enter a value between −10 and 120 dB HL"))
         }
         typedBuffer = ""
         return .handled
@@ -562,24 +563,27 @@ final class PluginViewModel {
 // MARK: - Formatting
 
 enum Fmt {
+    /// Decimal separator of the user's region (comma in most of the supported locales).
+    private static var decimal: String { Locale.current.decimalSeparator ?? "." }
+
     static func freq(_ hz: Double) -> String {
         if hz < 1000 { return "\(Int(hz)) Hz" }
         let k = hz / 1000
         if k == k.rounded() { return String(format: "%.0f kHz", k) }
-        return String(format: "%.1f kHz", k).replacingOccurrences(of: ".", with: ",")
+        return String(format: "%.1f kHz", k).replacingOccurrences(of: ".", with: decimal)
     }
 
     static func axisFreq(_ hz: Double) -> String {
         if hz < 1000 { return "\(Int(hz))" }
         let k = hz / 1000
         return (k == k.rounded() ? String(format: "%.0fk", k) : String(format: "%.1fk", k))
-            .replacingOccurrences(of: ".", with: ",")
+            .replacingOccurrences(of: ".", with: decimal)
     }
 
-    /// Whole numbers without decimals, otherwise one decimal; decimal comma and true minus sign.
+    /// Whole numbers without decimals, otherwise one decimal; regional decimal separator and true minus sign.
     static func db(_ v: Double) -> String {
         let r = (v * 10).rounded() / 10
-        let s = r == r.rounded() ? String(format: "%.0f", abs(r)) : String(format: "%.1f", abs(r)).replacingOccurrences(of: ".", with: ",")
+        let s = r == r.rounded() ? String(format: "%.0f", abs(r)) : String(format: "%.1f", abs(r)).replacingOccurrences(of: ".", with: decimal)
         return r < 0 ? "\u{2212}" + s : s
     }
 
@@ -588,6 +592,22 @@ enum Fmt {
         return v > 0 ? "+" + s : s
     }
 
-    static func earInitial(_ e: Ear) -> String { e == .left ? "V" : "H" }
-    static func earName(_ e: Ear) -> String { e == .left ? "Vänster" : "Höger" }
+    /// "50 %" or "50%" depending on the language.
+    static func percent(_ v: Double) -> String {
+        String(localized: "\(Int(v.rounded())) %", comment: "Percentage; keep or drop the space per language")
+    }
+
+    static func earInitial(_ e: Ear) -> String {
+        e == .left ? String(localized: "L", comment: "Initial of the left ear") : String(localized: "R", comment: "Initial of the right ear")
+    }
+
+    static func earName(_ e: Ear) -> String {
+        e == .left ? String(localized: "Left", comment: "Left ear") : String(localized: "Right", comment: "Right ear")
+    }
+
+    /// Name for a duplicated profile: "<name> copy", then "<name> copy 2", …
+    static func copyName(_ base: String, _ n: Int) -> String {
+        n == 1 ? String(localized: "\(base) copy", comment: "Name of a duplicated profile")
+               : String(localized: "\(base) copy \(n)", comment: "Name of the nth duplicate of a profile")
+    }
 }
