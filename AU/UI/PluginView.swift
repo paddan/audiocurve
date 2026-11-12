@@ -101,12 +101,20 @@ private struct EmptyState: View {
 /// "▒ In   — Ut": key for the spectrum pane.
 private struct SpectrumLegend: View {
     var body: some View {
-        HStack {
-            Text("▒ In   — Ut")
-                .font(Theme.label)
-                .foregroundStyle(.secondary)
+        HStack(spacing: 16) {
+            HStack(spacing: 6) {
+                RoundedRectangle(cornerRadius: 2).fill(Color.secondary.opacity(0.3)).frame(width: 14, height: 10)
+                Text("In")
+            }
+            HStack(spacing: 6) {
+                Capsule().fill(Theme.color(.left)).frame(width: 14, height: 2.5)
+                Capsule().fill(Theme.color(.right)).frame(width: 14, height: 2.5)
+                Text("Ut")
+            }
             Spacer()
         }
+        .font(Theme.label)
+        .foregroundStyle(.secondary)
         .frame(height: 26)
         .accessibilityLabel("In är grå yta, Ut är linje")
     }
