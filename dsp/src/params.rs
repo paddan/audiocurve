@@ -23,6 +23,9 @@ pub struct Params {
     pub output_gain_db: f64,
     pub attack_ms: f64,
     pub release_ms: f64,
+    /// 1.0 = band budget and lookahead limiter on; 0.0 = both off (output only
+    /// hard-clamped at 0 dBFS). For listening experiments.
+    pub limiter_enabled: f64,
 }
 
 impl Params {
@@ -34,6 +37,7 @@ impl Params {
             output_gain_db: 0.0,
             attack_ms: 5.0,
             release_ms: 50.0,
+            limiter_enabled: 1.0,
         }
     }
 }

@@ -2,7 +2,7 @@ import AudioToolbox
 import AudioCurveCore
 
 public enum ParamAddress: AUParameterAddress {
-    case strength = 0, mpo = 1, outputGain = 2, mode = 3
+    case strength = 0, mpo = 1, outputGain = 2, mode = 3, compression = 4, limiter = 5
 
     var identifier: String {
         switch self {
@@ -10,6 +10,8 @@ public enum ParamAddress: AUParameterAddress {
         case .mpo: "mpo"
         case .outputGain: "outputGain"
         case .mode: "mode"
+        case .compression: "compression"
+        case .limiter: "limiter"
         }
     }
 }
@@ -20,6 +22,9 @@ struct ParamValues: Sendable {
     var mpo: Double = -3
     var outputGain: Double = 0
     var mode: Int = 0
+    /// 1 = on, 0 = off (lab switches).
+    var compression: Int = 1
+    var limiter: Int = 1
 
     subscript(a: ParamAddress) -> Double {
         get {
@@ -28,6 +33,8 @@ struct ParamValues: Sendable {
             case .mpo: mpo
             case .outputGain: outputGain
             case .mode: Double(mode)
+            case .compression: Double(compression)
+            case .limiter: Double(limiter)
             }
         }
         set {
@@ -36,6 +43,8 @@ struct ParamValues: Sendable {
             case .mpo: mpo = newValue
             case .outputGain: outputGain = newValue
             case .mode: mode = Int(newValue.rounded())
+            case .compression: compression = newValue >= 0.5 ? 1 : 0
+            case .limiter: limiter = newValue >= 0.5 ? 1 : 0
             }
         }
     }
@@ -68,6 +77,18 @@ enum Parameters {
             unitName: nil, flags: [.flag_IsReadable, .flag_IsWritable],
             valueStrings: ["Tal", "Musik"], dependentParameters: nil)
         mode.value = AUValue(d.mode)
-        return AUParameterTree.createTree(withChildren: [strength, mpo, gain, mode])
+        let compression = AUParameterTree.createParameter(
+            withIdentifier: ParamAddress.compression.identifier, name: "Kompression",
+            address: ParamAddress.compression.rawValue, min: 0, max: 1, unit: .boolean,
+            unitName: nil, flags: [.flag_IsReadable, .flag_IsWritable], valueStrings: nil,
+            dependentParameters: nil)
+        compression.value = AUValue(d.compression)
+        let limiter = AUParameterTree.createParameter(
+            withIdentifier: ParamAddress.limiter.identifier, name: "Limiter",
+            address: ParamAddress.limiter.rawValue, min: 0, max: 1, unit: .boolean,
+            unitName: nil, flags: [.flag_IsReadable, .flag_IsWritable], valueStrings: nil,
+            dependentParameters: nil)
+        limiter.value = AUValue(d.limiter)
+        return AUParameterTree.createTree(withChildren: [strength, mpo, gain, mode, compression, limiter])
     }
 }

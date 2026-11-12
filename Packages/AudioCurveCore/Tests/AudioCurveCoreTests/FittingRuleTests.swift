@@ -153,3 +153,23 @@ private func expectFitting(_ b: BandFitting, _ soft: Double, _ loud: Double, _ c
     #expect(p(.infinity, -.infinity).mpo_dbfs == -1)
     #expect(p(.infinity, -.infinity).output_gain_db == -48)
 }
+
+@Test func compressionOffGivesFixedLoudGain() {
+    let p = FittingRule.params(profile: userProfile(), strength: 0.5, mpoDBFS: -3, outputGainDB: 0,
+                               mode: .speech, compression: false)
+    let expected = FittingRule.bands(for: userProfile(), ear: .left, strength: 0.5)
+    withUnsafeBytes(of: p.left) { raw in
+        let b = raw.bindMemory(to: ac_band_fitting.self)
+        for i in 0..<Bands.count {
+            #expect(b[i].compression_ratio == 1)
+            #expect(b[i].gain_soft_db == expected[i].gainLoudDB)
+            #expect(b[i].gain_loud_db == expected[i].gainLoudDB)
+        }
+    }
+    #expect(p.limiter_enabled == 1)
+}
+
+@Test func limiterFlagPassesThrough() {
+    let p = FittingRule.params(profile: nil, strength: 0.5, mpoDBFS: -3, outputGainDB: 0, mode: .music, limiter: false)
+    #expect(p.limiter_enabled == 0)
+}

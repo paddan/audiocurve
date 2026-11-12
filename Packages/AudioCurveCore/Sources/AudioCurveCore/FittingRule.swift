@@ -71,13 +71,19 @@ public enum FittingRule {
     }
 
     /// Builds the C parameter block. A nil profile yields unity fitting on all bands.
+    /// `compression: false` gives every band a fixed gain (its loud-level gain, ratio 1:1);
+    /// `limiter: false` turns off the band budget and the lookahead limiter in the kernel.
     public static func params(profile: HearingProfile?, strength: Double, mpoDBFS: Double,
-                              outputGainDB: Double, mode: CompressionMode) -> ac_params {
+                              outputGainDB: Double, mode: CompressionMode,
+                              compression: Bool = true, limiter: Bool = true) -> ac_params {
         var p = ac_params()
         let s = clampStrength(strength)
         let unity = BandFitting(gainSoftDB: 0, gainLoudDB: 0, compressionRatio: 1)
-        let left = profile.map { bands(for: $0, ear: .left, strength: s) } ?? Array(repeating: unity, count: Bands.count)
-        let right = profile.map { bands(for: $0, ear: .right, strength: s) } ?? Array(repeating: unity, count: Bands.count)
+        func linear(_ b: [BandFitting]) -> [BandFitting] {
+            compression ? b : b.map { BandFitting(gainSoftDB: $0.gainLoudDB, gainLoudDB: $0.gainLoudDB, compressionRatio: 1) }
+        }
+        let left = linear(profile.map { bands(for: $0, ear: .left, strength: s) } ?? Array(repeating: unity, count: Bands.count))
+        let right = linear(profile.map { bands(for: $0, ear: .right, strength: s) } ?? Array(repeating: unity, count: Bands.count))
         withUnsafeMutableBytes(of: &p.left) { raw in
             let dst = raw.bindMemory(to: ac_band_fitting.self)
             for i in 0..<Bands.count {
@@ -96,6 +102,7 @@ public enum FittingRule {
         p.output_gain_db = outputGainDB.isNaN ? 0 : min(max(outputGainDB, -48), 12)
         p.attack_ms = mode.attackMS
         p.release_ms = mode.releaseMS
+        p.limiter_enabled = limiter ? 1 : 0
         return p
     }
 

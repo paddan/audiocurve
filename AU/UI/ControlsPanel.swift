@@ -24,6 +24,18 @@ struct ControlsPanel: View {
                 "\(Fmt.db($0)) dBFS"
             }
 
+            HStack(spacing: 16) {
+                Toggle("Kompression", isOn: Binding(get: { vm.compressionOn }, set: { vm.set(.compression, $0 ? 1 : 0) }))
+                Toggle("Limiter", isOn: Binding(get: { vm.limiterOn }, set: { vm.set(.limiter, $0 ? 1 : 0) }))
+            }
+            .toggleStyle(.checkbox)
+            .font(Theme.label)
+            if !vm.limiterOn {
+                Text("Limiter av: ingen nivåspärr under 0 dBFS")
+                    .font(Theme.label)
+                    .foregroundStyle(Color(nsColor: .systemOrange))
+            }
+
             VStack(alignment: .leading, spacing: 4) {
                 Button { vm.startAutoLevel() } label: {
                     Text("Auto-nivå").frame(maxWidth: .infinity)
@@ -63,6 +75,8 @@ struct ControlsPanel: View {
                 case .mpo: vm.mpo
                 case .outputGain: vm.outputGain
                 case .mode: Double(vm.mode.rawValue)
+                case .compression: vm.compressionOn ? 1 : 0
+                case .limiter: vm.limiterOn ? 1 : 0
                 }
             },
             set: { vm.set(a, $0) })

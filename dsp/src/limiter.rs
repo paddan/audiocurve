@@ -67,6 +67,25 @@ impl Limiter {
         self.g_r = 1.0;
     }
 
+    /// Bypass that keeps the same latency: delays the input and only hard-clamps at
+    /// 0 dBFS (NaN-safe). Gain state is reset so re-enabling starts clean.
+    pub fn process_bypass(&mut self, l: &mut [f32], r: &mut [f32]) {
+        let len = self.dl.len();
+        self.need_l.fill(1.0);
+        self.need_r.fill(1.0);
+        self.g_l = 1.0;
+        self.g_r = 1.0;
+        for (xl, xr) in l.iter_mut().zip(r.iter_mut()) {
+            let p = self.pos;
+            self.dl[p] = finite_or_zero(*xl);
+            self.dr[p] = finite_or_zero(*xr);
+            let o = if p + 1 == len { 0 } else { p + 1 };
+            *xl = safe_clamp(self.dl[o], 1.0);
+            *xr = safe_clamp(self.dr[o], 1.0);
+            self.pos = o;
+        }
+    }
+
     /// Realtime-safe: no allocation, no locks.
     pub fn process(&mut self, l: &mut [f32], r: &mut [f32], ceiling_dbfs: f64) {
         debug_assert_eq!(l.len(), r.len());

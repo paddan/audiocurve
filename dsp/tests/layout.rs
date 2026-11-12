@@ -1,5 +1,5 @@
 use audiocurve_dsp::*;
-#[test] fn params_is_608_bytes() { assert_eq!(std::mem::size_of::<Params>(), 608); }
+#[test] fn params_is_616_bytes() { assert_eq!(std::mem::size_of::<Params>(), 616); }
 #[test] fn meters_is_32_bytes() { assert_eq!(std::mem::size_of::<Meters>(), 32); }
 #[test] fn centers_and_crossovers() {
     assert_eq!(CENTERS, [125.,250.,500.,750.,1000.,1500.,2000.,3000.,4000.,6000.,8000.,12000.]);

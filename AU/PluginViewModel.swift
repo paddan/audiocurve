@@ -67,6 +67,8 @@ final class PluginViewModel {
     var mpo: Double = -3
     var outputGain: Double = 0
     var mode: CompressionMode = .speech
+    var compressionOn = true
+    var limiterOn = true
     var meters: ac_meters = PluginViewModel.silentMeters
     var spectrum: ac_spectrum?
     var spectrumEars: SpectrumEars = .both
@@ -109,6 +111,8 @@ final class PluginViewModel {
             mpo = value(.mpo) ?? mpo
             outputGain = value(.outputGain) ?? outputGain
             mode = CompressionMode(rawValue: Int((value(.mode) ?? 0).rounded())) ?? .speech
+            compressionOn = (value(.compression) ?? 1) >= 0.5
+            limiterOn = (value(.limiter) ?? 1) >= 0.5
             paramObserver = ParamObserverBox(tree: tree) { [weak self] address, value in
                 Task { @MainActor in self?.applyHostParameter(address, Double(value)) }
             }
@@ -143,6 +147,8 @@ final class PluginViewModel {
         case .mpo: mpo = value
         case .outputGain: outputGain = value
         case .mode: mode = CompressionMode(rawValue: Int(value.rounded())) ?? .speech
+        case .compression: compressionOn = value >= 0.5
+        case .limiter: limiterOn = value >= 0.5
         }
     }
 
@@ -152,6 +158,8 @@ final class PluginViewModel {
         case .mpo: mpo = value
         case .outputGain: outputGain = value
         case .mode: mode = CompressionMode(rawValue: Int(value.rounded())) ?? .speech
+        case .compression: compressionOn = value >= 0.5
+        case .limiter: limiterOn = value >= 0.5
         }
         audioUnit.setParameter(a, AUValue(value), originator: paramObserver?.token)
     }

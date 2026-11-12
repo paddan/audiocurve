@@ -356,3 +356,37 @@ fn reported_latency_matches_signal_delay() {
     println!("latency {lat}, click peak at {}", peak - 100);
     assert!((peak as i64 - 100 - lat as i64).abs() <= 8, "peak at +{}, latency {lat}", peak - 100);
 }
+
+#[test]
+fn limiter_off_passes_above_mpo_but_clamps_full_scale() {
+    let mut p = Params::unity();
+    p.left = [fit(20.0, 20.0, 1.0); 12];
+    p.right = p.left;
+    p.mpo_dbfs = -10.0;
+    p.limiter_enabled = 0.0;
+    // -12 dBFS + 20 dB = +8 dBFS wanted: above the MPO, clamped at full scale.
+    let x = sine(1000.0, -12.0, 1.0, FS);
+    let (l, _) = run(&p, &x, &x, 512);
+    let m = max_abs(&l);
+    println!("limiter off: max {m}");
+    assert!(m > 10f32.powf(-10.0 / 20.0) * 1.5 && m <= 1.0, "max {m}");
+    // A quieter tone passes linearly, well above the -10 dBFS MPO.
+    let x = sine(1000.0, -26.0, 1.0, FS);
+    let (l, _) = run(&p, &x, &x, 512);
+    let lv = level_dbfs(&l, 0.3, FS);
+    assert!((lv + 6.0).abs() <= 1.0, "level {lv}");
+}
+
+#[test]
+fn limiter_toggle_keeps_latency() {
+    let h = Handle::new(FS, 512).unwrap();
+    let lat = h.latency_frames();
+    let mut p = Params::unity();
+    p.limiter_enabled = 0.0;
+    h.set_params(&p);
+    let mut x = vec![0f32; 4096];
+    x[100] = 0.5;
+    let (y, _) = run_on(&h, &x, &x, 512);
+    let peak = y.iter().enumerate().max_by(|a, b| a.1.abs().total_cmp(&b.1.abs())).unwrap().0;
+    assert!((peak as i64 - 100 - lat as i64).abs() <= 8, "peak at +{}, latency {lat}", peak - 100);
+}

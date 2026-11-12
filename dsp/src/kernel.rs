@@ -198,7 +198,13 @@ impl Dsp {
 
     fn process(&mut self, p: &Params, meters: &AtomicMeters, capture: &Capture, l: &mut [f32], r: &mut [f32]) {
         // Output gain is applied after the bands, so it comes off the band ceiling.
-        let band_ceiling = p.mpo_dbfs.min(-1.0) - BAND_CEILING_MARGIN_DB - p.output_gain_db;
+        let limiter_on = p.limiter_enabled >= 0.5;
+        // With the limiter off the band budget is off too (an infinite ceiling never engages).
+        let band_ceiling = if limiter_on {
+            p.mpo_dbfs.min(-1.0) - BAND_CEILING_MARGIN_DB - p.output_gain_db
+        } else {
+            f64::INFINITY
+        };
         let mut pos = 0;
         let total = l.len();
         while pos < total {
@@ -225,7 +231,11 @@ impl Dsp {
                 cl.fill(0.0);
                 cr.fill(0.0);
             }
-            self.limiter.process(cl, cr, p.mpo_dbfs);
+            if limiter_on {
+                self.limiter.process(cl, cr, p.mpo_dbfs);
+            } else {
+                self.limiter.process_bypass(cl, cr);
+            }
             let (rms, peak) = self.out_meter.update(cl, cr);
             meters.store_out(rms, peak);
             capture.put_out(base, cl, cr);
