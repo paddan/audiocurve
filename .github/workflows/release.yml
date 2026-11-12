@@ -1,0 +1,120 @@
+name: Release
+
+# Builds audiocurve.app (with the AUv3 extension inside), runs the tests and publishes a
+# downloadable zip as a GitHub release.
+# - Push a tag like `v1.2.0` to publish a release for it.
+# - Run the workflow manually to get the zip as a build artifact without publishing.
+#
+# Signing: ad hoc by default. If the Developer ID secrets below are set, the app is signed
+# with Developer ID and the hardened runtime, notarized and stapled instead.
+#   DEVELOPER_ID_P12           base64 of the "Developer ID Application" certificate (.p12)
+#   DEVELOPER_ID_P12_PASSWORD  password of that .p12
+#   NOTARY_APPLE_ID            Apple ID used for notarization
+#   NOTARY_TEAM_ID             the 10-character team ID
+#   NOTARY_PASSWORD            an app-specific password for that Apple ID
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    # macOS 27 SDK and Rust are preinstalled on this image.
+    runs-on: xcode-27
+    timeout-minutes: 45
+    env:
+      HAS_DEVELOPER_ID: ${{ secrets.DEVELOPER_ID_P12 != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode 27.2
+        run: sudo xcode-select -s /Applications/Xcode_27.2.app
+
+      - name: Toolchain
+        run: |
+          rustup target add aarch64-apple-darwin
+          brew install xcodegen
+
+      - name: Version
+        id: version
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then v="${GITHUB_REF_NAME#v}"; else v="0.0.0-${GITHUB_SHA::7}"; fi
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+
+      - name: Test
+        run: |
+          (cd dsp && cargo test)
+          (cd Packages/AudioCurveCore && swift test)
+
+      - name: Build
+        run: |
+          xcodegen generate
+          xcodebuild -scheme audiocurve -configuration Release -derivedDataPath build/dd \
+            MARKETING_VERSION="${{ steps.version.outputs.version }}" \
+            CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
+            build
+          mkdir -p build/out
+          ditto build/dd/Build/Products/Release/audiocurve.app build/out/audiocurve.app
+
+      - name: Sign with Developer ID and notarize
+        if: env.HAS_DEVELOPER_ID == 'true'
+        env:
+          P12: ${{ secrets.DEVELOPER_ID_P12 }}
+          P12_PASSWORD: ${{ secrets.DEVELOPER_ID_P12_PASSWORD }}
+          APPLE_ID: ${{ secrets.NOTARY_APPLE_ID }}
+          TEAM_ID: ${{ secrets.NOTARY_TEAM_ID }}
+          APP_PASSWORD: ${{ secrets.NOTARY_PASSWORD }}
+        run: |
+          KC="$RUNNER_TEMP/signing.keychain-db"; KC_PW="$(uuidgen)"
+          security create-keychain -p "$KC_PW" "$KC"
+          security set-keychain-settings -lut 3600 "$KC"
+          security unlock-keychain -p "$KC_PW" "$KC"
+          echo "$P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KC" -P "$P12_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KC_PW" "$KC"
+          security list-keychains -d user -s "$KC" $(security list-keychains -d user | tr -d '"')
+          ID=$(security find-identity -v -p codesigning "$KC" | awk -F'"' '/Developer ID Application/{print $2; exit}')
+          APP=build/out/audiocurve.app
+          # Inside out: the extension (sandboxed, with its entitlements) first, then the app.
+          codesign --force --options runtime --timestamp --sign "$ID" \
+            --entitlements AU/AudioCurveAU.entitlements "$APP/Contents/PlugIns/AudioCurveAU.appex"
+          codesign --force --options runtime --timestamp --sign "$ID" "$APP"
+          codesign --verify --deep --strict --verbose=2 "$APP"
+          ditto -c -k --keepParent "$APP" "$RUNNER_TEMP/notarize.zip"
+          xcrun notarytool submit "$RUNNER_TEMP/notarize.zip" --apple-id "$APPLE_ID" \
+            --team-id "$TEAM_ID" --password "$APP_PASSWORD" --wait
+          xcrun stapler staple "$APP"
+
+      - name: Package
+        id: package
+        run: |
+          NAME="audiocurve-${{ steps.version.outputs.version }}-macos-arm64.zip"
+          codesign --verify --deep --strict build/out/audiocurve.app
+          (cd build/out && ditto -c -k --keepParent audiocurve.app "$NAME" && shasum -a 256 "$NAME" > "$NAME.sha256")
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.package.outputs.name }}
+          path: |
+            build/out/${{ steps.package.outputs.name }}
+            build/out/${{ steps.package.outputs.name }}.sha256
+
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "$HAS_DEVELOPER_ID" = "true" ]; then
+            NOTE="Signed with Developer ID and notarized."
+          else
+            NOTE="Ad hoc signed (not notarized). After unzipping, run: xattr -dr com.apple.quarantine audiocurve.app"
+          fi
+          gh release create "$GITHUB_REF_NAME" \
+            "build/out/${{ steps.package.outputs.name }}" "build/out/${{ steps.package.outputs.name }}.sha256" \
+            --title "audiocurve ${{ steps.version.outputs.version }}" \
+            --notes "Requires macOS 27 on Apple silicon. $NOTE See the README for setup."

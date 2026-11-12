@@ -23,6 +23,20 @@ Hearing compensation for everything your Mac plays. audiocurve is an Audio Unit 
 
 *The screenshots use a made-up, mildly sloping example audiogram.*
 
+## Download
+
+Prebuilt releases are on the [Releases page](https://github.com/paddan/audiocurve/releases). They need macOS 27 on Apple silicon.
+
+1. Download `audiocurve-<version>-macos-arm64.zip` and unzip it.
+2. Move `audiocurve.app` to `/Applications`.
+3. If the release notes say the build is ad hoc signed (not notarized), clear the download quarantine once:
+   ```bash
+   xattr -dr com.apple.quarantine /Applications/audiocurve.app
+   ```
+4. Open `audiocurve.app` once. This registers the Audio Unit with macOS.
+
+Releases are built by the [Release workflow](.github/workflows/release.yml) whenever a `v*` tag is pushed.
+
 ## Using it
 
 audiocurve is an AUv3 *effect* extension, so it runs inside an audio host:
