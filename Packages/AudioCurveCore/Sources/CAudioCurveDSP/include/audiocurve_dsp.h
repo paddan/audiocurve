@@ -15,7 +15,7 @@ typedef struct {
     double output_gain_db;  // -48..+12, applied before the limiter
     double attack_ms, release_ms; // Speech 5/50, Music 10/200
     double limiter_enabled; // 1 = band budget + limiter on, 0 = off (hard clamp at 0 dBFS only)
-    double input_gain_db; // before the bands (after the In meter/spectrum); drives the compressors
+    double input_gain_db; // before the bands and the In meter/spectrum; drives the compressors
 } ac_params;
 
 typedef struct { float in_rms_db[2], in_peak_db[2], out_rms_db[2], out_peak_db[2]; float reduction_db[2]; } ac_meters; // reduction_db: safety stage (band budget + limiter), dB >= 0

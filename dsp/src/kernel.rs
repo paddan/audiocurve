@@ -260,11 +260,12 @@ impl Dsp {
                     *s = 0.0;
                 }
             }
+            // Innivå first: the In meter and spectrum show what the bands actually get.
+            self.input_gain.apply(p.input_gain_db, cl, cr);
             let base = capture.position();
             capture.put_in(base, cl, cr);
             let (rms, peak) = self.in_meter.update(cl, cr);
             meters.store_in(rms, peak);
-            self.input_gain.apply(p.input_gain_db, cl, cr);
             // pre_process: identity (reserved for v2)
             let red_l = self.ears[0].run(cl, &p.left, p.attack_ms, p.release_ms, band_ceiling);
             let red_r = self.ears[1].run(cr, &p.right, p.attack_ms, p.release_ms, band_ceiling);

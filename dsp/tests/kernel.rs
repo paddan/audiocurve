@@ -414,7 +414,7 @@ fn reduction_meter_reports_safety_stage() {
 }
 
 #[test]
-fn input_gain_applies_before_bands_and_after_in_meter() {
+fn input_gain_applies_before_bands_and_in_meter() {
     let mut p = Params::unity();
     p.input_gain_db = -10.0;
     let x = sine(1000.0, -20.0, 2.0, FS);
@@ -422,8 +422,8 @@ fn input_gain_applies_before_bands_and_after_in_meter() {
     h.set_params(&p);
     let (l, _) = run_on(&h, &x, &x, 512);
     let m = h.meters();
-    // In meter and spectrum show what the host sends; the bands see 10 dB less.
-    assert!((m.in_rms_db[0] + 20.0).abs() <= 0.5, "in {}", m.in_rms_db[0]);
+    // The In meter follows Innivå: it shows what the bands get.
+    assert!((m.in_rms_db[0] + 30.0).abs() <= 0.5, "in {}", m.in_rms_db[0]);
     let lv = level_dbfs(&l, 0.5, FS);
     assert!((lv + 30.0).abs() <= 0.3, "out {lv}");
 }

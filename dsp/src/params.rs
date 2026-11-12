@@ -26,8 +26,8 @@ pub struct Params {
     /// 1.0 = band budget and lookahead limiter on; 0.0 = both off (output only
     /// hard-clamped at 0 dBFS). For listening experiments.
     pub limiter_enabled: f64,
-    /// Gain (dB) before the bands: how hard the input drives the compressors. Applied after
-    /// the In meter and spectrum, so those show what the host sends.
+    /// Gain (dB) before the bands: how hard the input drives the compressors. Applied before
+    /// the In meter and spectrum, so those show what the bands get.
     pub input_gain_db: f64,
 }
 
