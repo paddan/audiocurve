@@ -240,7 +240,7 @@ fn low_fs_strong_profile_is_finite_and_below_ceiling() {
 #[test]
 fn hf_bursts_do_not_pump_bass() {
     let fs = FS;
-    let sig = pump_signal(fs, 4.0);
+    let sig = pump_signal(fs, 10.0);
     // (strength, attack ms, release ms, max allowed bass modulation dB)
     for (s, atk, rel, max) in [(0.5, 5.0, 50.0, 3.0), (0.5, 10.0, 200.0, 3.0), (1.0, 5.0, 50.0, 4.5), (1.0, 10.0, 200.0, 4.5)] {
         let mut p = Params::unity();
@@ -265,9 +265,10 @@ fn loud_tones_stay_clean_under_output_budget() {
         let mut p = Params::unity();
         p.left = pump_fit(&PUMP_LEFT, 0.5);
         p.right = pump_fit(&PUMP_RIGHT, 0.5);
-        let x = sine(f, -6.0, 2.0, FS);
+        let x = sine(f, -6.0, 6.0, FS);
         let (l, r) = run(&p, &x, &x, 512);
-        let start = l.len() / 2;
+        // Last second only, after the headroom AGC has settled.
+        let start = l.len() - FS as usize;
         let len = (((l.len() - start) as f64 * f / FS).floor() * FS / f).round() as usize;
         let (tl, tr) = (thd_n_db(&l[start..start + len], f, FS), thd_n_db(&r[start..start + len], f, FS));
         println!("thd {f} Hz: L {tl:.1} dB R {tr:.1} dB");

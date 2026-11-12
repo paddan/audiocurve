@@ -21,7 +21,7 @@ const BAND_CEILING_MARGIN_DB: f64 = 9.0;
 const BUDGET_LOOKAHEAD_S: f64 = 0.003;
 /// Smoothing of the per-band budget attenuation; the attack completes within the lookahead.
 const BUDGET_ATTACK_S: f64 = BUDGET_LOOKAHEAD_S / 3.0;
-const BUDGET_RELEASE_S: f64 = 0.050;
+const BUDGET_RELEASE_S: f64 = 0.3;
 
 struct Ear {
     /// Budget attenuation per band (dB, >= 0), smoothed so it never steps from one sample

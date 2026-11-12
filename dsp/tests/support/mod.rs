@@ -95,7 +95,8 @@ pub fn mod_200_db(x: &[f32], fs: f64) -> f64 {
         let ph = 2.0 * std::f64::consts::PI * 200.0 * k as f64 / fs;
         i_ += (*v as f64 * ph.sin() - i_) * a;
         q += (*v as f64 * ph.cos() - q) * a;
-        if k > x.len() / 2 {
+        // Last 2 s only, so slow level controls have settled.
+        if k + (2.0 * fs) as usize > x.len() {
             let e = 20.0 * i_.hypot(q).log10();
             lo = lo.min(e);
             hi = hi.max(e);
