@@ -547,7 +547,7 @@ final class PluginViewModel {
                 try? await Task.sleep(for: .milliseconds(50))
             }
             guard let self, !Task.isCancelled else { return }
-            switch m.result(currentOutputGainDB: self.outputGain) {
+            switch m.result(currentOutputGainDB: self.outputGain, mpoDBFS: self.mpo) {
             case .tooQuiet:
                 self.autoLevelState = .tooQuiet
             case .gain(let g):
