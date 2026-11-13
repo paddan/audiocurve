@@ -186,3 +186,36 @@ fn timing_blend_ends() {
     assert_eq!(blend_timing(0.0), MUSIC_TIMING);
     assert_eq!(blend_timing(1.0), SPEECH_TIMING);
 }
+
+/// Gain 250 ms after a 10 ms burst `up` dB above a -50 dBFS tone, relative to the gain just
+/// before the burst (dB, negative = still lower).
+fn gain_after_burst(t: &Timing, up: f64) -> f64 {
+    let b = cr3();
+    let start = (2.0 * FS) as usize;
+    let mut x = sine(1000.0, -50.0, 3.0, FS);
+    let k = 10f64.powf(up / 20.0) as f32;
+    for v in &mut x[start..start + (0.010 * FS) as usize] {
+        *v *= k;
+    }
+    let g = run_gain(&x, &b, t);
+    g[start + (0.250 * FS) as usize] as f64 - g[start - 1] as f64
+}
+
+/// A consonant-like burst (plosive, onset of /s/) jumps far above the slow level in the treble
+/// bands. The fast path may follow it down, but it must not hold the gain down for the slow
+/// release afterwards: 250 ms later (five fast-release time constants, well inside the 400 ms
+/// and 1.5 s slow releases) the gain is within 1 dB of what the slow detector alone (fast path
+/// disabled by an endless fast attack) leaves.
+#[test]
+fn burst_does_not_hold_the_gain_down() {
+    for t in [SPEECH_TIMING, MUSIC_TIMING] {
+        let slow_only = Timing { fast_attack_ms: 1.0e9, ..t };
+        for up in [12.0, 20.0, 30.0] {
+            let (with_fast, without) = (gain_after_burst(&t, up), gain_after_burst(&slow_only, up));
+            assert!(
+                with_fast >= without - 1.0,
+                "{t:?} +{up} dB: gain {with_fast:.2} dB at 250 ms, slow detector alone {without:.2} dB"
+            );
+        }
+    }
+}

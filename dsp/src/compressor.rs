@@ -3,9 +3,11 @@
 //!
 //! Detector: symmetric power average (5 ms), level in dB, then two attack/release
 //! smoothers of the dB level. The slow one sets the gain, so syllables and transients
-//! do not modulate it. When the fast one jumps more than `FAST_JUMP_DB` above it, the
-//! slow level snaps up to the fast one and follows it while it rises, then returns with
-//! the slow release. Applied gain is smoothed in dB with 20/3 ms.
+//! do not modulate it. When the fast one jumps more than `FAST_JUMP_DB` above it, a
+//! separate peak level latches onto the fast one while it rises and then falls back to the
+//! slow level with the fast release; the gain follows the higher of the two. The slow level
+//! itself is never moved by the jump, so a short burst (a plosive, the onset of an /s/) does
+//! not hold the gain down for the slow release. Applied gain is smoothed in dB with 20/3 ms.
 
 use crate::params::{BandFitting, gain_db};
 
@@ -60,7 +62,10 @@ pub struct BandCompressor {
     power: f64,
     fast_db: f64,
     slow_db: f64,
-    /// Set while the slow level follows a jump of the fast level.
+    /// Fast-path level: latched to the fast level during a jump, then back to `slow_db` with
+    /// the fast release. The gain is set by `max(slow_db, peak_db)`.
+    peak_db: f64,
+    /// Set while the peak level follows a jump of the fast level.
     jump: bool,
     mpo_db: f64,
     mpo_hold_left: u32,
@@ -87,6 +92,7 @@ impl BandCompressor {
             power: 0.0,
             fast_db: LEVEL_FLOOR_DB,
             slow_db: LEVEL_FLOOR_DB,
+            peak_db: LEVEL_FLOOR_DB,
             jump: false,
             mpo_db: LEVEL_FLOOR_DB,
             gain_db_smoothed: 0.0,
@@ -126,11 +132,11 @@ impl BandCompressor {
     /// `gain_out` and the MPO detector level (dB, held band peak) to
     /// `level_out`. The static gain is `weight * speech + (1 - weight) * music`. Does not modify `x`. Does not allocate.
     ///
-    /// Detector per sample: power level `l` (5 ms), fast level `lf` and slow level `ls`.
-    /// When `lf > ls + FAST_JUMP_DB` the slow level snaps to the fast one and stays latched
-    /// to it while `lf` keeps rising, so the gain follows a sudden loud sound down at the
-    /// fast attack; once `lf` falls below `ls` the latch ends and `ls` returns with the
-    /// slow attack/release. The static gain is taken from `ls`.
+    /// Detector per sample: power level `l` (5 ms), fast level `lf`, slow level `ls` and peak
+    /// level `lp`. When `lf > ls + FAST_JUMP_DB` the peak level latches to the fast one while
+    /// `lf` keeps rising, so the gain follows a sudden loud sound down at the fast attack; once
+    /// `lf` stops rising, `lp` falls back to `ls` with the fast release. `ls` only follows `l`
+    /// with the slow attack/release. The static gain is taken from `max(ls, lp)`.
     pub fn analyze(&mut self, x: &[f32], speech: &BandFitting, music: &BandFitting, weight: f64,
                    timing: &Timing, gain_out: &mut [f32], level_out: &mut [f32]) {
         self.update_coefs(timing);
@@ -138,6 +144,7 @@ impl BandCompressor {
         let mut power = self.power;
         let mut fast = self.fast_db;
         let mut slow = self.slow_db;
+        let mut peak = self.peak_db;
         let mut jump = self.jump;
         let mut mpo = self.mpo_db;
         let mut hold = self.mpo_hold_left;
@@ -147,18 +154,19 @@ impl BandCompressor {
             power += (p - power) * self.power_coef;
             let l = 10.0 * (2.0 * power + 1e-20).log10();
             fast += (l - fast) * if l > fast { self.fast_attack_coef } else { self.fast_release_coef };
-            // A jump of the fast level above the slow one snaps the slow level up to it,
-            // and the slow level keeps following the fast one while it rises.
+            slow += (l - slow) * if l > slow { self.slow_attack_coef } else { self.slow_release_coef };
+            // A jump of the fast level above the slow one: the peak level follows the fast one
+            // while it rises, then returns to the slow level with the fast release.
             if fast > slow + FAST_JUMP_DB {
                 jump = true;
             }
-            if jump && fast >= slow {
-                slow = fast;
+            if jump && fast >= peak {
+                peak = fast;
             } else {
                 jump = false;
-                slow += (l - slow) * if l > slow { self.slow_attack_coef } else { self.slow_release_coef };
+                peak += (slow - peak) * self.fast_release_coef;
             }
-            let level = slow;
+            let level = slow.max(peak);
             let pk = 20.0 * ((*s as f64).abs() + 1e-10).log10();
             if pk >= mpo - MPO_REFRESH_DB {
                 mpo = mpo.max(pk);
@@ -183,6 +191,7 @@ impl BandCompressor {
         self.power = power;
         self.fast_db = fast;
         self.slow_db = slow;
+        self.peak_db = peak;
         self.jump = jump;
         self.mpo_db = mpo;
         self.mpo_hold_left = hold;
@@ -210,6 +219,7 @@ impl BandCompressor {
         self.power = 0.0;
         self.fast_db = LEVEL_FLOOR_DB;
         self.slow_db = LEVEL_FLOOR_DB;
+        self.peak_db = LEVEL_FLOOR_DB;
         self.jump = false;
         self.mpo_db = LEVEL_FLOOR_DB;
         self.mpo_hold_left = 0;
