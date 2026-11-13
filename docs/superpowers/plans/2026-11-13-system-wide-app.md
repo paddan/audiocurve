@@ -29,7 +29,7 @@
 2. Several device notifications in a burst (Bluetooth connect fires default-device and device-list changes): exactly one rebuild. → Task 4 test `burstOfChangesCoalescesIntoOneBuild`.
 3. The plugin process dies twice in a row: no rebuild loop, ends in `failed(.plugin)` with the tap gone. → Task 4 test `secondPluginDeathWithinTenSecondsFails`.
 4. A stale heartbeat from a crashed SoundSource instance must not warn about double processing forever. → Task 3 test `staleAndInactiveBeatsAreIgnored`.
-5. A message from an older or newer plugin with an unknown op must not crash the app. → Task 5 test `unknownOpDecodesToNil`.
+5. A status or command from an older or newer plugin that does not decode must not crash either side. → Task 5 test `unknownOrBadCommandIsNil`.
 
 ---
 
@@ -229,51 +229,70 @@ Behavior:
 - [ ] **Step 4:** Run `swift test`. Expected: all pass.
 - [ ] **Step 5:** Commit: `feat(core): route controller`.
 
-### Task 5: Plugin side — message channel and heartbeat
+### Task 5: Plugin side — status/command channel over `fullState`, and heartbeat
+
+(Revised after the spike: `AUMessageChannel` returns empty replies across processes; `fullState` works both ways. See `docs/superpowers/plans/2026-11-13-spike-notes.md`.)
 
 **Files:**
-- Create: `Packages/AudioCurveCore/Sources/AudioCurveCore/PluginMessage.swift`
-- Test: `Packages/AudioCurveCore/Tests/AudioCurveCoreTests/PluginMessageTests.swift`
-- Create: `AU/MessageChannel.swift`
-- Modify: `AU/AudioCurveAudioUnit.swift` (channel, heartbeat timer, `loadSaved(id:)`)
+- Create: `Packages/AudioCurveCore/Sources/AudioCurveCore/PluginChannel.swift`
+- Test: `Packages/AudioCurveCore/Tests/AudioCurveCoreTests/PluginChannelTests.swift`
+- Modify: `AU/AudioCurveAudioUnit.swift` (status in the `fullState` getter, command handling in the setter, heartbeat timer, `loadSaved(id:)`)
 - Modify: `AU/PluginViewModel.swift` (`load(_:)` uses `audioUnit.loadSaved(id:)`)
 
 **Interfaces:**
-- Consumes: `InstanceHeartbeat`, `ProfileStore` heartbeat I/O (Task 3); spike notes (Task 1).
+- Consumes: `InstanceHeartbeat`, `ProfileStore` heartbeat I/O (Task 3).
 - Produces:
 
 ```swift
 public struct ProfileSummary: Codable, Sendable, Equatable { public var id: UUID; public var name: String }
-public enum PluginRequest: Sendable, Equatable {
-    case profiles, loadProfile(UUID), activeOutputs, setActiveOutputs(ActiveOutputs), otherHosts
-    public static let channelName = "audiocurve"
-    public func encoded() -> [String: Any]            // ["op": String, "data": Data(JSON)?]
-    public init?(_ message: [AnyHashable: Any])       // nil for an unknown op or bad data
+public struct PluginStatus: Codable, Sendable, Equatable {
+    public var profiles: [ProfileSummary]
+    public var activeProfileID: UUID?
+    public var activeOutputs: ActiveOutputs
+    public var otherHosts: [String]          // host bundle IDs processing right now
 }
-public enum PluginReply: Sendable, Equatable {
-    case profiles([ProfileSummary], activeID: UUID?), activeOutputs(ActiveOutputs), otherHosts([String]), ok, error(String)
-    public func encoded() -> [String: Any]
-    public init?(_ message: [AnyHashable: Any])
+public enum PluginCommand: Codable, Sendable, Equatable {
+    case loadProfile(UUID)
+    case setActiveOutputs(ActiveOutputs)
+    case identifyHost(String)
+}
+public enum PluginChannel {
+    public static let statusKey = "audiocurve.status"
+    public static let commandKey = "audiocurve.command"
+    public static func encode(_ status: PluginStatus) -> Data
+    public static func status(from fullState: [String: Any]?) -> PluginStatus?   // nil if missing or undecodable
+    public static func commandState(_ command: PluginCommand) -> [String: Any]   // [commandKey: Data]
+    public static func command(from fullState: [String: Any]?) -> PluginCommand? // nil if missing, unknown or undecodable
 }
 ```
 
-Plugin: `AudioCurveAudioUnit.messageChannel(for:)` returns a `PluginMessageChannel` for `PluginRequest.channelName`, which hops to the main queue synchronously only if not already on it, and answers from the plugin's state (`otherHosts` = host bundle IDs of `InstanceHeartbeat.live(store.readHeartbeats(), now:, excludingPID: getpid())`). `loadSaved(id:)` moves the existing load logic from `PluginViewModel.load(_:)` into the audio unit and notifies the view model via the existing change callback. The heartbeat: a main-queue timer every `InstanceHeartbeat.interval` writes `InstanceHeartbeat(pid: getpid(), hostBundleID: <host bundle ID from the extension's host process>, active: isProcessingActive, time: Date())`; `deinit` and `deallocateRenderResources` remove it. The host bundle ID comes from `NSRunningApplication(processIdentifier: getppid())?.bundleIdentifier`, falling back to `"unknown"` (record in the spike notes if this gives the wrong process).
+Plugin: the `fullState` getter adds `[PluginChannel.statusKey: PluginChannel.encode(status)]`, where `otherHosts` = host bundle IDs of `InstanceHeartbeat.live(store.readHeartbeats(), now: Date(), excludingPID: getpid())`. The setter first checks `PluginChannel.command(from:)`: if it is non-nil, run it on the main queue (`loadSaved(id:)` or `setActiveOutputs(_:)`) and return without calling `super.fullState` or touching the profile. A dictionary with `commandKey` that does not decode is ignored entirely (also returns early). `loadSaved(id:)` moves the existing load logic from `PluginViewModel.load(_:)` into the audio unit and notifies the view model via `onProfileChange`. Heartbeat: a main-queue timer every `InstanceHeartbeat.interval` writes `InstanceHeartbeat(pid: getpid(), hostBundleID: <host>, active: isProcessingActive, time: Date())`; `deinit` removes it. A plugin cannot see which app hosts it, so `hostBundleID` is `"unknown"` until the host sends `.identifyHost(bundleID)`; the AudioCurve app sends it right after loading the plugin. The panel shows an unknown host as "another app".
 
-If the spike notes say the channel does not work across processes: skip `MessageChannel.swift`, add a read-only parameter `activeProfileIndex` instead, and record the ruling in the ledger.
-
-- [ ] **Step 1: Write the failing codec tests**
+- [ ] **Step 1: Write the failing tests**
 
 ```swift
-@Test func requestsRoundTrip() { for r: PluginRequest in [.profiles, .loadProfile(UUID()), .activeOutputs, .setActiveOutputs(ActiveOutputs(devices: [OutputDevice(uid: "a", name: "A")])), .otherHosts] { #expect(PluginRequest(r.encoded()) == r) } }
-@Test func repliesRoundTrip() { … same for every PluginReply case … }
-@Test func unknownOpDecodesToNil() { #expect(PluginRequest(["op": "launchMissiles"]) == nil); #expect(PluginReply(["op": "x"]) == nil) }
-@Test func badDataDecodesToNil() { #expect(PluginRequest(["op": "loadProfile", "data": Data("nope".utf8)]) == nil) }
+@Test func statusRoundTrips() {
+    let s = PluginStatus(profiles: [ProfileSummary(id: UUID(), name: "Example")], activeProfileID: nil,
+                         activeOutputs: ActiveOutputs(devices: [OutputDevice(uid: "a", name: "A")]), otherHosts: ["com.example.host"])
+    #expect(PluginChannel.status(from: [PluginChannel.statusKey: PluginChannel.encode(s), "other": 1]) == s)
+}
+@Test func commandsRoundTrip() {
+    for c: PluginCommand in [.loadProfile(UUID()), .setActiveOutputs(ActiveOutputs()), .identifyHost("se.lindefors.audiocurve")] {
+        #expect(PluginChannel.command(from: PluginChannel.commandState(c)) == c)
+    }
+}
+@Test func unknownOrBadCommandIsNil() {
+    #expect(PluginChannel.command(from: nil) == nil)
+    #expect(PluginChannel.command(from: ["data": 1]) == nil)
+    #expect(PluginChannel.command(from: [PluginChannel.commandKey: Data("{\"launchMissiles\":{}}".utf8)]) == nil)
+    #expect(PluginChannel.status(from: [PluginChannel.statusKey: "nope"]) == nil)
+}
 ```
 
-- [ ] **Step 2:** Run `swift test --filter PluginMessage`. Expected: FAIL.
-- [ ] **Step 3:** Implement the codec, then the plugin side.
-- [ ] **Step 4:** `swift test` passes; `xcodegen generate && xcodebuild … build` succeeds. Manual check in the current host app: loading a profile from the plugin UI still works, and `ls ~/Library/Containers/se.lindefors.audiocurve.AudioCurveAU/Data/Library/Application\ Support/audiocurve/instances/` shows one file while the app runs and none a few seconds after it quits.
-- [ ] **Step 5:** Commit: `feat(au): message channel and instance heartbeat`.
+- [ ] **Step 2:** Run `swift test --filter PluginChannel`. Expected: FAIL.
+- [ ] **Step 3:** Implement the codec (JSON), then the plugin side.
+- [ ] **Step 4:** `swift test` passes; the build succeeds. Manual (following the developer note in the spike notes): loading a profile in the plugin UI still works; the `instances/` folder in the plugin container has one file while the host app runs and none a few seconds after it quits.
+- [ ] **Step 5:** Commit: `feat(au): status and commands over fullState, instance heartbeat`.
 
 ### Task 6: Core Audio route (tap, aggregate device, render loop)
 
@@ -314,7 +333,7 @@ Values from the spec: tap is a stereo global tap excluding the app's own pid, `m
 - Delete: `App/PlayerEngine.swift`
 
 **Interfaces:**
-- Consumes: `RouteController`, `RouteInputs` (Tasks 2, 4), `CoreAudioRouteBuilder` (Task 6), `PluginRequest`/`PluginReply` (Task 5), `OutputDeviceMonitor` (existing: `current`, `available`, `onChange`).
+- Consumes: `RouteController`, `RouteInputs` (Tasks 2, 4), `CoreAudioRouteBuilder` (Task 6), `PluginChannel`/`PluginStatus`/`PluginCommand` (Task 5), `OutputDeviceMonitor` (existing: `current`, `available`, `onChange`).
 - Produces:
 
 ```swift
@@ -328,11 +347,8 @@ Values from the spec: tap is a stereo global tap excluding the app's own pid, `m
 }
 @MainActor final class PluginClient {
     init(host: PluginHost)
-    func profiles() -> (list: [ProfileSummary], activeID: UUID?)
-    func loadProfile(_ id: UUID)
-    func activeOutputs() -> ActiveOutputs
-    func setActiveOutputs(_ a: ActiveOutputs)
-    func otherHosts() -> [String]
+    func status() -> PluginStatus?               // PluginChannel.status(from: unit.fullState)
+    func send(_ command: PluginCommand)          // unit.fullState = PluginChannel.commandState(command)
 }
 @Observable @MainActor final class AppModel {
     var enabled: Bool                      // UserDefaults "enabled", default true
@@ -350,7 +366,7 @@ Values from the spec: tap is a stereo global tap excluding the app's own pid, `m
 }
 ```
 
-`AppModel` builds `RouteInputs` from `enabled`, permission (per the spike notes: `.denied` on the detected failure, otherwise `.unknown` until audio has flowed, then `.granted`), `PluginHost.loadState`, `OutputDeviceMonitor.current?.uid` and `activeOutputs`; `RouteController.onReloadPlugin` calls `PluginHost.reload()`; `applicationWillTerminate` calls `quit()`'s teardown.
+`AppModel` refreshes `PluginClient.status()` every 2 s while the panel or window is open and after each command. `RouteController`'s build runs `AudioDeviceStart` off the main thread (it blocks while the permission prompt is up). `AppModel` builds `RouteInputs` from `enabled`, permission (per the spike notes: `.denied` on the detected failure, otherwise `.unknown` until audio has flowed, then `.granted`), `PluginHost.loadState`, `OutputDeviceMonitor.current?.uid` and `activeOutputs`; `RouteController.onReloadPlugin` calls `PluginHost.reload()`; `applicationWillTerminate` calls `quit()`'s teardown.
 
 - [ ] **Step 1:** Move `OutputDeviceMonitor` into the core package; `swift test` and the build pass.
 - [ ] **Step 2:** Implement `PluginHost`, `PluginClient`, `AppModel`. Remove `PlayerEngine` and the file player from `HostView` (the view keeps the plugin view for now).
@@ -371,7 +387,7 @@ Values from the spec: tap is a stereo global tap excluding the app's own pid, `m
 
 Content, from spec 4.1–4.3:
 - `MenuBarExtra(isInserted:)` with `.menuBarExtraStyle(.window)`; icon `MenuBarOn` for `.running`, `MenuBarPaused` for `.paused`/`.starting`, `MenuBarOff` for `.off`/`.failed`.
-- Panel, top to bottom: title "AudioCurve" with a switch bound to `enabled`; status line ("Active – %@", "Paused – %@ is the output", "Starting…", "Off", "Allow AudioCurve to record system audio" with a button "Open System Settings" that opens `x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?Privacy_AudioCapture`, "The AudioCurve plugin could not be loaded", "The audio route could not be built"); when `otherHosts` is non-empty, an orange line "AudioCurve is also running in %@: the sound is processed twice." (host name from `NSWorkspace` for the bundle ID); "Profile" picker; "Active on" checkboxes (same rules and "(current)"/"(not connected)" labels as the plugin); "Open AudioCurve…", "Launch at login" checkbox, "Quit AudioCurve".
+- Panel, top to bottom: title "AudioCurve" with a switch bound to `enabled`; status line ("Active – %@", "Paused – %@ is the output", "Starting…", "Off", "Allow AudioCurve to record system audio" with a button "Open System Settings" that opens `x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?Privacy_AudioCapture`, "The AudioCurve plugin could not be loaded", "The audio route could not be built"); when `otherHosts` is non-empty, an orange line "AudioCurve is also running in %@: the sound is processed twice." (app name from `NSWorkspace` for the bundle ID, or "another app" for `"unknown"`); "Profile" picker; "Active on" checkboxes (same rules and "(current)"/"(not connected)" labels as the plugin); "Open AudioCurve…", "Launch at login" checkbox, "Quit AudioCurve".
 - `Window("AudioCurve", id: "main")`: toolbar with a "Bypass (A/B)" checkbox and the status line; content is the plugin's view controller (`auAudioUnit.requestViewController`) as `HostView` does today; minimum size 720×560. Opening it sets `NSApp.setActivationPolicy(.regular)`; closing the last window sets `.accessory`.
 - First launch only (`UserDefaults` "askedLaunchAtLogin"): an alert "Start AudioCurve when you log in?" with "Start at Login" and "Not Now".
 

@@ -94,18 +94,14 @@ Clicking it opens a panel (window-style `MenuBarExtra`) with:
 
 ### 4.4 App ↔ plugin interface
 
-The menu bar must show and change the active profile and "Active on" without the window open. The app cannot read the plugin's sandbox container, so the plugin answers through `AUMessageChannel` (macOS 13+), which works across the out-of-process boundary. Messages:
+The menu bar must show and change the active profile and "Active on" without the window open. The app cannot read the plugin's sandbox container, so it goes through the plugin's `fullState`, which crosses the out-of-process boundary in both directions (`AUMessageChannel` was tried and returns empty replies across processes; see the spike notes in `docs/superpowers/plans/2026-11-13-spike-notes.md`):
 
-- `profiles` → the saved profiles (ID and name) and the active one's ID,
-- `loadProfile(id)`,
-- `activeOutputs` → the selection; `setActiveOutputs(selection)`,
-- `otherHosts` → the hosts from 4.5 that are processing right now.
-
-The first plan task is a spike that confirms `AUMessageChannel` works between the app and the out-of-process plugin. If it does not, the fallback is a read-only profile index parameter in the parameter tree, and "Active on" is edited only in the window.
+- Reading: the plugin's `fullState` getter includes a status value with the saved profiles (ID and name), the active profile's ID, the "Active on" selection and the hosts from 4.5 that are processing right now.
+- Commands: the app sets `fullState` to a dictionary holding only a command (`loadProfile(id)` or `setActiveOutputs(selection)`). The plugin runs it and leaves its parameters and profile otherwise untouched.
 
 ### 4.5 Double processing
 
-Each plugin instance writes a heartbeat file to its container (`instances/<pid>.json`: host bundle ID, active flag, time) every 2 s and removes it on deallocation. The app's plugin instance reads the other files and reports them through `otherHosts` (4.4). If another live host is processing, the panel shows "AudioCurve is also running in <host>: the sound is processed twice."
+Each plugin instance writes a heartbeat file to its container (`instances/<pid>.json`: host bundle ID, active flag, time) every 2 s and removes it on deallocation. The app's plugin instance reads the other files and reports them in its status (4.4). If another live host is processing, the panel shows "AudioCurve is also running in <host>: the sound is processed twice."
 
 ## 5. Errors
 
