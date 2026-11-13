@@ -1,6 +1,5 @@
 import CoreAudio
 import Foundation
-import AudioCurveCore
 
 /// Watches the system's default output device and the list of output devices (Core Audio HAL).
 /// Listener callbacks run on the main queue; `onChange` is called there after either changes.

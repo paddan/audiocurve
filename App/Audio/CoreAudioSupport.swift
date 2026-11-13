@@ -18,7 +18,7 @@ enum HAL {
         AudioObjectPropertyAddress(mSelector: selector, mScope: scope, mElement: kAudioObjectPropertyElementMain)
     }
 
-    static func get<T>(_ object: AudioObjectID, _ selector: AudioObjectPropertySelector, _ initial: T,
+    static func get<T: BitwiseCopyable>(_ object: AudioObjectID, _ selector: AudioObjectPropertySelector, _ initial: T,
                        scope: AudioObjectPropertyScope = kAudioObjectPropertyScopeGlobal) throws -> T {
         var a = address(selector, scope)
         var value = initial
@@ -27,7 +27,7 @@ enum HAL {
         return value
     }
 
-    static func set<T>(_ object: AudioObjectID, _ selector: AudioObjectPropertySelector, _ value: T) throws {
+    static func set<T: BitwiseCopyable>(_ object: AudioObjectID, _ selector: AudioObjectPropertySelector, _ value: T) throws {
         var a = address(selector)
         var v = value
         try check(AudioObjectSetPropertyData(object, &a, 0, nil, UInt32(MemoryLayout<T>.size), &v), "set \(selector)")
@@ -55,5 +55,21 @@ enum HAL {
         let st = AudioObjectGetPropertyData(AudioObjectID(kAudioObjectSystemObject), &a,
                                             UInt32(MemoryLayout<pid_t>.size), &p, &size, &id)
         return st == noErr && id != kAudioObjectUnknown ? id : nil
+    }
+}
+
+extension HAL {
+    /// Is any process other than this one playing audio right now?
+    static func othersPlaying() -> Bool {
+        var a = address(kAudioHardwarePropertyProcessObjectList)
+        var size: UInt32 = 0
+        let system = AudioObjectID(kAudioObjectSystemObject)
+        guard AudioObjectGetPropertyDataSize(system, &a, 0, nil, &size) == noErr, size > 0 else { return false }
+        var ids = [AudioObjectID](repeating: 0, count: Int(size) / MemoryLayout<AudioObjectID>.size)
+        guard AudioObjectGetPropertyData(system, &a, 0, nil, &size, &ids) == noErr else { return false }
+        let me = processObject(pid: getpid())
+        return ids.contains { id in
+            id != me && ((try? get(id, kAudioProcessPropertyIsRunningOutput, UInt32(0))) ?? 0) != 0
+        }
     }
 }

@@ -1,0 +1,159 @@
+import AudioCurveCore
+import AppKit
+import Observation
+import ServiceManagement
+
+/// The app's state: on/off, the route, the plugin's status and launch at login.
+@Observable @MainActor
+final class AppModel {
+    static let enabledKey = "enabled"
+    static let pollInterval: TimeInterval = 2
+    /// Input silent this long while other apps play: the capture permission is taken as denied.
+    static let silenceForDenied: TimeInterval = 3
+
+    var enabled: Bool = UserDefaults.standard.object(forKey: AppModel.enabledKey) as? Bool ?? true {
+        didSet {
+            UserDefaults.standard.set(enabled, forKey: Self.enabledKey)
+            if enabled { permission = .unknown }   // turning it on again retries a denied permission
+            updateInputs()
+        }
+    }
+    private(set) var state: RouteTarget = .off
+    private(set) var currentOutput: OutputDevice?
+    private(set) var availableOutputs: [OutputDevice] = []
+    private(set) var activeOutputs = ActiveOutputs()
+    private(set) var profiles: [ProfileSummary] = []
+    private(set) var activeProfileID: UUID?
+    private(set) var otherHosts: [String] = []
+    var launchAtLogin: Bool {
+        get { SMAppService.mainApp.status == .enabled }
+        set {
+            try? newValue ? SMAppService.mainApp.register() : SMAppService.mainApp.unregister()
+            loginToggles += 1   // SMAppService is not observable
+        }
+    }
+    private var loginToggles = 0
+
+    let host = PluginHost()
+    private let client: PluginClient
+    private let monitor = OutputDeviceMonitor()
+    private var builder: CoreAudioRouteBuilder!
+    private var controller: RouteController!
+    private var permission: PermissionState = .unknown
+    private var poll: Timer?
+    private var silentSince: Date?
+
+    init() {
+        client = PluginClient(host: host)
+        builder = CoreAudioRouteBuilder(
+            unit: { [weak self] in self?.host.audioUnit },
+            onRenderFailure: { [weak self] in Task { @MainActor in self?.controller.pluginDied() } },
+            onSampleRateChange: { [weak self] in self?.controller.invalidate() })
+        controller = RouteController(builder: builder) { delay, f in
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { MainActor.assumeIsolated { f() } }
+        }
+        controller.onStateChange = { [weak self] in self?.state = $0 }
+        controller.onReloadPlugin = { [weak self] in Task { await self?.reloadPlugin() } }
+        host.onLoadStateChange = { [weak self] _ in self?.updateInputs() }
+        monitor.onChange = { [weak self] in MainActor.assumeIsolated { self?.refreshOutputs() } }
+    }
+
+    func start() async {
+        refreshOutputs()
+        await host.load()
+        afterLoad()
+        let t = Timer(timeInterval: Self.pollInterval, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated { self?.tick() }
+        }
+        RunLoop.main.add(t, forMode: .common)
+        poll = t
+    }
+
+    func setOutput(_ d: OutputDevice, enabled on: Bool) {
+        var a = activeOutputs
+        a.setEnabled(d, on, available: availableOutputs)
+        activeOutputs = a
+        client.send(.setActiveOutputs(a))
+        updateInputs()
+    }
+
+    func loadProfile(_ id: UUID) {
+        client.send(.loadProfile(id))
+        activeProfileID = id
+    }
+
+    /// Unmutes at once, saves the plugin state and quits.
+    func quit() {
+        shutDown()
+        NSApp.terminate(nil)
+    }
+
+    /// For `applicationWillTerminate`.
+    func shutDown() {
+        poll?.invalidate()
+        controller.shutDown()
+        host.saveState()
+    }
+
+    var bypass: Bool {
+        get { host.bypass }
+        set { host.bypass = newValue }
+    }
+
+    private func reloadPlugin() async {
+        await host.reload()
+        afterLoad()
+    }
+
+    private func afterLoad() {
+        client.send(.identifyHost(Bundle.main.bundleIdentifier ?? "se.lindefors.audiocurve"))
+        refreshStatus()
+        updateInputs()
+    }
+
+    private func refreshOutputs() {
+        currentOutput = monitor.current
+        availableOutputs = monitor.available
+        updateInputs()
+    }
+
+    private func refreshStatus() {
+        guard let s = client.status() else { return }
+        profiles = s.profiles
+        activeProfileID = s.activeProfileID
+        otherHosts = s.otherHosts
+        if s.activeOutputs != activeOutputs {
+            activeOutputs = s.activeOutputs
+            updateInputs()
+        }
+    }
+
+    private func tick() {
+        refreshStatus()
+        checkPermission()
+    }
+
+    /// No public API tells whether recording was denied: a denied tap delivers silence. Taken as
+    /// denied when the input stays silent for `silenceForDenied` while other apps play.
+    private func checkPermission() {
+        guard case .running = state, let loop = builder.loop else { silentSince = nil; return }
+        if let s = loop.secondsSinceSignal, s < Self.silenceForDenied {
+            silentSince = nil
+            if permission != .granted { permission = .granted }
+            return
+        }
+        guard permission != .granted, HAL.othersPlaying() else { silentSince = nil; return }
+        let since = silentSince ?? Date()
+        silentSince = since
+        if Date().timeIntervalSince(since) >= Self.silenceForDenied {
+            permission = .denied
+            silentSince = nil
+            updateInputs()
+        }
+    }
+
+    private func updateInputs() {
+        controller.inputs = RouteInputs(enabled: enabled, permission: permission, plugin: host.loadState,
+                                        outputUID: currentOutput?.uid, activeOutputs: activeOutputs)
+    }
+}
