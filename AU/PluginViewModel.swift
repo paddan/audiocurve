@@ -144,8 +144,8 @@ final class PluginViewModel {
     /// Re-reads the devices and the shared selection (another plugin instance may have changed it).
     func refreshOutputs() {
         audioUnit.reloadActiveOutputs()
-        currentOutput = audioUnit.outputs.current
-        availableOutputs = audioUnit.outputs.available
+        currentOutput = audioUnit.currentOutput
+        availableOutputs = audioUnit.availableOutputs
         activeOutputs = audioUnit.activeOutputs
         processingActive = audioUnit.isProcessingActive
     }

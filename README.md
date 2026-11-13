@@ -59,6 +59,8 @@ A typical setup:
 2. Play something loud and press **Auto level**, or lower **Output level** until **Safety** stays near 0 dB.
 3. Set the listening level with the Mac's own volume.
 
+**SoundSource says "Audio Unit Error" after an update?** SoundSource's background service still holds the old version of the plugin. Quit SoundSource, run `killall arkaudiod` in Terminal, and open SoundSource again.
+
 ## Building
 
 Requirements:

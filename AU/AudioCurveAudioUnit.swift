@@ -42,8 +42,13 @@ public final class AudioCurveAudioUnit: AUAudioUnit {
     private var pendingSave: DispatchWorkItem?
     private static let autosaveDelay: TimeInterval = 0.5
 
-    /// Watches the system output device. Processing is on only for the outputs in `activeOutputs`.
-    public let outputs = OutputDeviceMonitor()
+    /// Watches the system output device once started (never during init: hosts such as
+    /// SoundSource create the AU while they reconfigure the audio route, and a synchronous
+    /// Core Audio HAL call then can stall instantiation until the host gives up).
+    /// Processing is on only for the outputs in `activeOutputs`. Main thread only.
+    private var outputs: OutputDeviceMonitor?
+    /// UID of the system output device as last read by the monitor (nil = not known yet).
+    private var currentOutputUID: String?
     /// Output devices processing is enabled for (empty = all). Main thread only; shared on disk.
     public private(set) var activeOutputs = ActiveOutputs()
     /// Called on the main queue after the output device or the active-output selection changed.
@@ -71,12 +76,9 @@ public final class AudioCurveAudioUnit: AUAudioUnit {
                                           outputGainDB: model.outputGain, mode: .auto)
         installParameterTree()
         activeOutputs = store.loadActiveOutputs()
-        outputs.onChange = { [weak self] in
-            guard let self else { return }
-            self.recompute()
-            let cb = self.onOutputsChange
-            MainActor.assumeIsolated { cb?() }
-        }
+        // Start device monitoring after init has returned, off the host's instantiation path.
+        let start = MainBox(f: { [weak self] in self?.startOutputMonitoring() })
+        DispatchQueue.main.async { start.f() }
         if let copy = store.loadWorkingCopy() {
             _profile = copy.profile
             sourceID = copy.sourceID
@@ -178,8 +180,27 @@ public final class AudioCurveAudioUnit: AUAudioUnit {
 
     private func recomputeOnMain() { Self.onMain { [self] in recompute() } }
 
-    /// Is processing on for the current output device? Main thread only.
-    public var isProcessingActive: Bool { activeOutputs.isActive(currentUID: outputs.current?.uid) }
+    private func startOutputMonitoring() {
+        guard outputs == nil else { return }
+        let monitor = OutputDeviceMonitor()
+        monitor.onChange = { [weak self] in self?.outputDeviceChanged() }
+        outputs = monitor
+        outputDeviceChanged()
+    }
+
+    private func outputDeviceChanged() {
+        currentOutputUID = outputs?.current?.uid
+        recompute()
+        let cb = onOutputsChange
+        MainActor.assumeIsolated { cb?() }
+    }
+
+    /// The system output device and all output devices (empty until monitoring has started). Main thread only.
+    public var currentOutput: OutputDevice? { outputs?.current }
+    public var availableOutputs: [OutputDevice] { outputs?.available ?? [] }
+
+    /// Is processing on for the current output device? Main thread only. Unknown output → on.
+    public var isProcessingActive: Bool { activeOutputs.isActive(currentUID: currentOutputUID) }
 
     /// Changes which outputs processing is enabled for, saves it and applies it. Main thread only.
     public func setActiveOutputs(_ a: ActiveOutputs) {
