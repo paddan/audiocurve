@@ -14,12 +14,8 @@ public struct BandFitting: Equatable, Sendable {
 }
 
 public enum CompressionMode: Int, Sendable {
-    /// `auto`: the kernel glides between the Music and Speech time constants by its classifier.
+    /// `auto`: the kernel glides between the Speech and Music fitting and time constants by its classifier.
     case speech = 0, music = 1, auto = 2
-
-    /// For `auto` these are the Music end of the glide.
-    public var attackMS: Double { self == .speech ? 5 : 10 }
-    public var releaseMS: Double { self == .speech ? 50 : 200 }
 }
 
 public enum FittingRule {
@@ -87,24 +83,21 @@ public enum FittingRule {
         }
         let left = linear(profile.map { bands(for: $0, ear: .left, strength: s) } ?? Array(repeating: unity, count: Bands.count))
         let right = linear(profile.map { bands(for: $0, ear: .right, strength: s) } ?? Array(repeating: unity, count: Bands.count))
-        withUnsafeMutableBytes(of: &p.left) { raw in
-            let dst = raw.bindMemory(to: ac_band_fitting.self)
+        func fill(_ set: UnsafeMutableRawBufferPointer, _ b: [BandFitting]) {
+            let dst = set.bindMemory(to: ac_band_fitting.self)
             for i in 0..<Bands.count {
-                dst[i] = ac_band_fitting(gain_soft_db: left[i].gainSoftDB, gain_loud_db: left[i].gainLoudDB,
-                                         compression_ratio: left[i].compressionRatio)
+                dst[i] = ac_band_fitting(gain_soft_db: b[i].gainSoftDB, gain_loud_db: b[i].gainLoudDB,
+                                         compression_ratio: b[i].compressionRatio)
             }
         }
-        withUnsafeMutableBytes(of: &p.right) { raw in
-            let dst = raw.bindMemory(to: ac_band_fitting.self)
-            for i in 0..<Bands.count {
-                dst[i] = ac_band_fitting(gain_soft_db: right[i].gainSoftDB, gain_loud_db: right[i].gainLoudDB,
-                                         compression_ratio: right[i].compressionRatio)
-            }
-        }
+        // Until the music fitting differs from the speech one, both sets carry the same fitting.
+        withUnsafeMutableBytes(of: &p.left) { fill($0, left) }
+        withUnsafeMutableBytes(of: &p.right) { fill($0, right) }
+        withUnsafeMutableBytes(of: &p.music_left) { fill($0, left) }
+        withUnsafeMutableBytes(of: &p.music_right) { fill($0, right) }
         p.mpo_dbfs = mpoDBFS.isNaN ? -3 : min(max(mpoDBFS, -20), -1)
         p.output_gain_db = outputGainDB.isNaN ? 0 : min(max(outputGainDB, -48), 12)
-        p.attack_ms = mode.attackMS
-        p.release_ms = mode.releaseMS
+        p.speech_weight = mode == .speech ? 1 : 0
         p.limiter_enabled = limiter ? 1 : 0
         p.input_gain_db = inputGainDB.isNaN ? 0 : min(max(inputGainDB, -30), 12)
         p.auto_mode = mode == .auto ? 1 : 0

@@ -162,6 +162,8 @@ fn imd(p: &Params, wav: &Wav, out: &mut Vec<(String, f64)>) {
 fn gainmod_hf(a: &Audiogram, mode: Mode, wav: &Wav) -> f64 {
     let fits = prescription::fittings(a, Ear::Left, mode);
     let p = params(a, mode);
+    // Kernel time constants for the weight (Auto is measured at the Music values).
+    let (attack, release) = if p.speech_weight >= 0.5 { (5.0, 50.0) } else { (10.0, 200.0) };
     let sig = signals::modulated_pink(-20.0, 4.0, FS);
     let n = sig.len();
     let mut bank = Filterbank::new(FS);
@@ -175,7 +177,7 @@ fn gainmod_hf(a: &Audiogram, mode: Mode, wav: &Wav) -> f64 {
         let (s, m) = (bi * BLOCK, block.len());
         bank.split(block, &mut bufs);
         for (i, comp) in comps.iter_mut().enumerate() {
-            comp.analyze(&bufs.bands[i][..m], &fits[i], p.attack_ms, p.release_ms, &mut gblock[..m], &mut levels[..m]);
+            comp.analyze(&bufs.bands[i][..m], &fits[i], &fits[i], p.speech_weight, attack, release, &mut gblock[..m], &mut levels[..m]);
             gains[i][s..s + m].copy_from_slice(&gblock[..m]);
             for t in 0..m {
                 mix[s + t] += bufs.bands[i][t] * 10f32.powf(gblock[t] / 20.0);

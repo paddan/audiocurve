@@ -98,3 +98,20 @@ fn band_ceiling_infinite_is_noop() {
     let expected = -15.0 + gain_db(&b, -15.0);
     assert!((out - expected).abs() <= 1.0, "output {out}, expected {expected}");
 }
+
+#[test]
+fn blend_weight_selects_fitting() {
+    let speech = BandFitting { gain_soft_db: 30., gain_loud_db: 10., compression_ratio: 3. };
+    let music = BandFitting { gain_soft_db: 10., gain_loud_db: 10., compression_ratio: 1. };
+    let level = -30.0;
+    let (gs, gm) = (gain_db(&speech, level), gain_db(&music, level));
+    for (w, expected) in [(1.0, gs), (0.0, gm), (0.5, 0.5 * (gs + gm))] {
+        let x = sine(1000.0, level, 1.0, FS);
+        let mut c = BandCompressor::new(FS);
+        let mut g = vec![0f32; x.len()];
+        let mut m = vec![0f32; x.len()];
+        c.analyze(&x, &speech, &music, w, 5.0, 50.0, &mut g, &mut m);
+        let settled = *g.last().unwrap() as f64;
+        assert!((settled - expected).abs() <= 0.1, "w={w}: gain {settled:.3} dB, expected {expected:.3} dB");
+    }
+}

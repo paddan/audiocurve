@@ -53,7 +53,8 @@ fn main() {
         }
     }
 
-    p.attack_ms = 10.0; p.release_ms = 200.0; // Music mode
+    p.music_left = p.left; p.music_right = p.right;
+    p.speech_weight = 0.0; // Music mode
     p.output_gain_db = a.get(6).map(|v| v.parse().unwrap()).unwrap_or(0.0);
     p.limiter_enabled = a.get(7).map(|v| v.parse().unwrap()).unwrap_or(1.0);
     let h = Handle::new(fs, 512).unwrap();

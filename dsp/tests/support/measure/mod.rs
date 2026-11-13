@@ -64,18 +64,20 @@ pub fn params(a: &Audiogram, mode: Mode) -> Params {
     let mut p = Params::unity();
     p.left = prescription::fittings(a, Ear::Left, mode);
     p.right = prescription::fittings(a, Ear::Right, mode);
+    // Until the music fitting differs from the speech one, both sets carry the same fitting.
+    p.music_left = p.left;
+    p.music_right = p.right;
     p.mpo_dbfs = -3.0;
     p.output_gain_db = 0.0;
     p.input_gain_db = 0.0;
     p.limiter_enabled = 1.0;
     p.active = 1.0;
-    let (attack, release, auto) = match mode {
-        Mode::Speech => (5.0, 50.0, 0.0),
-        Mode::Music => (10.0, 200.0, 0.0),
-        Mode::Auto => (10.0, 200.0, 1.0),
+    let (weight, auto) = match mode {
+        Mode::Speech => (1.0, 0.0),
+        Mode::Music => (0.0, 0.0),
+        Mode::Auto => (0.0, 1.0),
     };
-    p.attack_ms = attack;
-    p.release_ms = release;
+    p.speech_weight = weight;
     p.auto_mode = auto;
     p
 }

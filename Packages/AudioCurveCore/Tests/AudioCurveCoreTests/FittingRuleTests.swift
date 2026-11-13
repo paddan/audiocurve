@@ -123,8 +123,12 @@ private func expectFitting(_ b: BandFitting, _ soft: Double, _ loud: Double, _ c
     #expect(abs(r.compression_ratio - 45 / 27.5) < 1e-9)
     #expect(abs(p.mpo_dbfs - -3) < 1e-9)
     #expect(abs(p.output_gain_db - -6) < 1e-9)
-    #expect(abs(p.attack_ms - 10) < 1e-9)
-    #expect(abs(p.release_ms - 200) < 1e-9)
+    #expect(p.speech_weight == 0)
+    // Until Task 4 both fitting sets carry the same fitting.
+    let ml = p.music_left.6
+    #expect(ml.gain_soft_db == b.gain_soft_db && ml.compression_ratio == b.compression_ratio)
+    let mr = p.music_right.6
+    #expect(mr.gain_soft_db == r.gain_soft_db && mr.compression_ratio == r.compression_ratio)
 }
 
 @Test func nilProfileIsUnity() {
@@ -135,7 +139,7 @@ private func expectFitting(_ b: BandFitting, _ soft: Double, _ loud: Double, _ c
     for b in all {
         #expect(b.gain_soft_db == 0 && b.gain_loud_db == 0 && b.compression_ratio == 1)
     }
-    #expect(p.attack_ms == 5 && p.release_ms == 50)
+    #expect(p.speech_weight == 1)
 }
 
 @Test func hostParametersAreClamped() {
@@ -185,10 +189,11 @@ private func expectFitting(_ b: BandFitting, _ soft: Double, _ loud: Double, _ c
     #expect(def.input_gain_db == 0)
 }
 
-@Test func autoModeSetsFlagWithMusicTimes() {
+@Test func autoModeSetsFlagWithZeroSpeechWeight() {
     let a = FittingRule.params(profile: nil, strength: 0.5, mpoDBFS: -3, outputGainDB: 0, mode: .auto)
     #expect(a.auto_mode == 1)
-    #expect(a.attack_ms == 10 && a.release_ms == 200)
+    #expect(a.speech_weight == 0)
     let s = FittingRule.params(profile: nil, strength: 0.5, mpoDBFS: -3, outputGainDB: 0, mode: .speech)
     #expect(s.auto_mode == 0)
+    #expect(s.speech_weight == 1)
 }

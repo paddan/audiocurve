@@ -26,6 +26,14 @@ fn run_on(h: &Handle, l: &[f32], r: &[f32], block: usize) -> (Vec<f32>, Vec<f32>
     (l, r)
 }
 
+/// Selects the kernel time constants through `speech_weight`: attack 5 ms = Speech (5/50 ms),
+/// anything else = Music (10/200 ms). Both fitting sets get the speech fitting.
+fn set_timing(p: &mut Params, attack_ms: f64) {
+    p.music_left = p.left;
+    p.music_right = p.right;
+    p.speech_weight = if attack_ms == 5.0 { 1.0 } else { 0.0 };
+}
+
 fn max_abs(x: &[f32]) -> f32 {
     x.iter().fold(0.0, |m, v| m.max(v.abs()))
 }
@@ -262,8 +270,7 @@ fn hf_bursts_do_not_pump_bass() {
         let mut p = Params::unity();
         p.left = pump_fit(&PUMP_LEFT, s);
         p.right = pump_fit(&PUMP_RIGHT, s);
-        p.attack_ms = atk;
-        p.release_ms = rel;
+        set_timing(&mut p, atk);
         p.output_gain_db = 0.0;
         p.mpo_dbfs = -3.0;
         let (l, r) = run(&p, &sig, &sig, 512);
@@ -331,8 +338,7 @@ fn dense_treble_bursts_stay_clean() {
             let mut p = Params::unity();
             p.left = pump_fit(&PUMP_LEFT, 0.5);
             p.right = pump_fit(&PUMP_RIGHT, 0.5);
-            p.attack_ms = atk;
-            p.release_ms = rel;
+            set_timing(&mut p, atk);
             let (l, _) = run(&p, &sig, &sig, 512);
             let w = &l[n / 3..];
             let ratio = 10.0 * (band_energy(w, 200.0, 4000.0) / band_energy(w, 5000.0, 8000.0)).log10();
@@ -498,4 +504,61 @@ fn activity_switch_is_a_smooth_crossfade() {
     let max_step = joined.windows(2).map(|w| (w[1] - w[0]).abs()).fold(0f32, f32::max);
     let sine_step = 2.0 * std::f32::consts::PI * 200.0 / FS as f32 * 10f32.powf(-10.0 / 20.0);
     assert!(max_step < 1.2 * sine_step, "step {max_step} vs {sine_step}");
+}
+
+#[test]
+fn identical_fittings_match_single_fitting() {
+    // With both sets equal the weight only moves the time constants, never the static gain:
+    // the settled output must not depend on it. Weight 1 must also ignore the music set.
+    let x = sine(1000.0, -30.0, 2.0, FS);
+    let mut base = Params::unity();
+    base.left = [fit(30.0, 15.0, 2.5); 12];
+    base.right = base.left;
+    base.music_left = base.left;
+    base.music_right = base.right;
+    let tail = |y: &[f32]| y[y.len() - 9600..].to_vec();
+    let mut outs = Vec::new();
+    for w in [0.0, 0.5, 1.0] {
+        let mut p = base;
+        p.speech_weight = w;
+        outs.push(tail(&run(&p, &x, &x, 512).0));
+    }
+    for o in &outs[1..] {
+        let d = outs[0].iter().zip(o).fold(0f32, |m, (u, v)| m.max((u - v).abs()));
+        println!("settled diff across weights: {d:e}");
+        assert!(d < 1e-3, "settled output depends on the weight: {d}");
+    }
+    let mut p = base;
+    p.speech_weight = 1.0;
+    p.music_left = [fit(0.0, 0.0, 1.0); 12];
+    p.music_right = p.music_left;
+    let d = outs[2].iter().zip(tail(&run(&p, &x, &x, 512).0)).fold(0f32, |m, (u, v)| m.max((u - v).abs()));
+    assert!(d < 1e-6, "weight 1 must ignore the music set: {d}");
+}
+
+#[test]
+fn mode_switch_is_click_free() {
+    let mut p = Params::unity();
+    p.left = [fit(40.0, 20.0, 3.0); 12];
+    p.right = p.left;
+    p.music_left = [fit(10.0, 10.0, 1.0); 12];
+    p.music_right = p.music_left;
+    p.speech_weight = 0.0;
+    let x = sine(1000.0, -20.0, 3.0, FS);
+    let h = Handle::new(FS, 512).unwrap();
+    h.set_params(&p);
+    let half = x.len() / 2 / 512 * 512;
+    let (mut l, mut r) = (x.clone(), x.clone());
+    for (i, (a, b)) in l.chunks_mut(512).zip(r.chunks_mut(512)).enumerate() {
+        if i * 512 == half {
+            p.speech_weight = 1.0;
+            h.set_params(&p);
+        }
+        unsafe { h.process(a, b) };
+    }
+    let steps = |s: &[f32]| s.windows(2).map(|w| (w[1] - w[0]).abs()).fold(0f32, f32::max);
+    // Steady reference: the largest step of the signal after settling, before the switch.
+    let steady = steps(&l[half / 2..half]).max(steps(&l[l.len() - 20_000..]));
+    let around = steps(&l[half - 2048..half + 20_000]);
+    assert!(around <= 2.0 * steady, "step {around} > 2 x steady {steady}");
 }

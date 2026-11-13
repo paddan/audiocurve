@@ -14,9 +14,11 @@ use std::sync::Mutex;
 
 /// Output-gain smoothing time constant: 20/3 ms.
 const GAIN_TAU_S: f64 = 0.020 / 3.0;
-/// Speech time constants; Auto glides (log-wise) from the Music values in `Params` to these.
+/// Speech and Music time constants; the speech weight glides (log-wise) between them.
 const SPEECH_ATTACK_MS: f64 = 5.0;
 const SPEECH_RELEASE_MS: f64 = 50.0;
+const MUSIC_ATTACK_MS: f64 = 10.0;
+const MUSIC_RELEASE_MS: f64 = 200.0;
 
 /// Geometric blend: `a` at s = 0, `b` at s = 1.
 #[inline]
@@ -124,11 +126,12 @@ impl Ear {
     /// as the band detectors); when the bands' predicted output exceeds it, the loudest
     /// bands are capped (water-filling) and the rest pass unchanged.
     /// Returns the deepest broadband-equivalent budget reduction in this block (dB, >= 0).
-    fn run(&mut self, x: &mut [f32], fits: &[crate::params::BandFitting; BAND_COUNT], attack: f64, release: f64, ceiling_dbfs: f64) -> f32 {
+    fn run(&mut self, x: &mut [f32], speech: &[crate::params::BandFitting; BAND_COUNT],
+           music: &[crate::params::BandFitting; BAND_COUNT], weight: f64, attack: f64, release: f64, ceiling_dbfs: f64) -> f32 {
         self.bank.split(x, &mut self.bufs);
         let n = x.len();
         for i in 0..BAND_COUNT {
-            self.comps[i].analyze(&self.bufs.bands[i][..n], &fits[i], attack, release,
+            self.comps[i].analyze(&self.bufs.bands[i][..n], &speech[i], &music[i], weight, attack, release,
                                   &mut self.gains[i][..n], &mut self.levels[i][..n]);
         }
         let budget_db = ceiling_dbfs;
@@ -354,14 +357,12 @@ impl Dsp {
             self.classifier.process(cl, cr);
             let speech = self.classifier.speech() as f64;
             meters.store_speech(speech as f32);
-            let (attack, release) = if p.auto_mode >= 0.5 && p.attack_ms > 0.0 && p.release_ms > 0.0 {
-                (log_blend(p.attack_ms, SPEECH_ATTACK_MS, speech), log_blend(p.release_ms, SPEECH_RELEASE_MS, speech))
-            } else {
-                (p.attack_ms, p.release_ms)
-            };
+            let weight = if p.auto_mode >= 0.5 { speech } else { p.speech_weight.clamp(0.0, 1.0) };
+            let attack = log_blend(MUSIC_ATTACK_MS, SPEECH_ATTACK_MS, weight);
+            let release = log_blend(MUSIC_RELEASE_MS, SPEECH_RELEASE_MS, weight);
             // pre_process: identity (reserved for v2)
-            let red_l = self.ears[0].run(cl, &p.left, attack, release, band_ceiling);
-            let red_r = self.ears[1].run(cr, &p.right, attack, release, band_ceiling);
+            let red_l = self.ears[0].run(cl, &p.left, &p.music_left, weight, attack, release, band_ceiling);
+            let red_r = self.ears[1].run(cr, &p.right, &p.music_right, weight, attack, release, band_ceiling);
             self.output_gain.apply(p.output_gain_db, cl, cr);
             // Defence in depth: never feed a non-finite value to the limiter. Drop the
             // chunk and restart every filter/envelope from a clean state.

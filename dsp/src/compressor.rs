@@ -76,10 +76,11 @@ impl BandCompressor {
 
     /// Analysis pass: for every sample of `x` writes the smoothed WDRC gain (dB) to
     /// `gain_out` and the MPO detector level (dB, held band peak) to
-    /// `level_out`. Does not modify `x`. Does not allocate.
-    pub fn analyze(&mut self, x: &[f32], b: &BandFitting, attack_ms: f64, release_ms: f64,
-                   gain_out: &mut [f32], level_out: &mut [f32]) {
+    /// `level_out`. The static gain is `weight * speech + (1 - weight) * music`. Does not modify `x`. Does not allocate.
+    pub fn analyze(&mut self, x: &[f32], speech: &BandFitting, music: &BandFitting, weight: f64,
+                   attack_ms: f64, release_ms: f64, gain_out: &mut [f32], level_out: &mut [f32]) {
         self.update_coefs(attack_ms, release_ms);
+        let weight = weight.clamp(0.0, 1.0);
         let mut power = self.power;
         let mut level = self.level_db;
         let mut mpo = self.mpo_db;
@@ -100,7 +101,8 @@ impl BandCompressor {
             } else {
                 mpo = (mpo - self.mpo_release_step).max(pk);
             }
-            g += (gain_db(b, level) - g) * self.gain_coef;
+            let target = weight * gain_db(speech, level) + (1.0 - weight) * gain_db(music, level);
+            g += (target - g) * self.gain_coef;
             *go = g as f32;
             *lo = mpo as f32;
         }
@@ -120,7 +122,7 @@ impl BandCompressor {
         let mut m = [0f32; CHUNK];
         for c in x.chunks_mut(CHUNK) {
             let n = c.len();
-            self.analyze(c, b, attack_ms, release_ms, &mut g[..n], &mut m[..n]);
+            self.analyze(c, b, b, 1.0, attack_ms, release_ms, &mut g[..n], &mut m[..n]);
             for ((s, &gi), &mi) in c.iter_mut().zip(&g[..n]).zip(&m[..n]) {
                 let applied = (gi as f64).min(ceiling_dbfs - mi as f64);
                 *s = ((*s as f64) * 10f64.powf(applied / 20.0)) as f32;

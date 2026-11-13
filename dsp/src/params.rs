@@ -17,20 +17,25 @@ impl BandFitting {
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Params {
+    /// Speech fitting per ear.
     pub left: [BandFitting; BAND_COUNT],
     pub right: [BandFitting; BAND_COUNT],
+    /// Music fitting per ear.
+    pub music_left: [BandFitting; BAND_COUNT],
+    pub music_right: [BandFitting; BAND_COUNT],
     pub mpo_dbfs: f64,
     pub output_gain_db: f64,
-    pub attack_ms: f64,
-    pub release_ms: f64,
+    /// Used when `auto_mode < 0.5`: 1.0 = Speech (speech fitting, 5/50 ms), 0.0 = Music (music
+    /// fitting, 10/200 ms); values between blend. In Auto the classifier output replaces it.
+    pub speech_weight: f64,
     /// 1.0 = band budget and lookahead limiter on; 0.0 = both off (output only
     /// hard-clamped at 0 dBFS). For listening experiments.
     pub limiter_enabled: f64,
     /// Gain (dB) before the bands: how hard the input drives the compressors. Applied before
     /// the In meter and spectrum, so those show what the bands get.
     pub input_gain_db: f64,
-    /// 1.0 = Auto: attack/release glide between Music (`attack_ms`/`release_ms`) and Speech
-    /// (5/50 ms) following the speech/music classifier; 0.0 = use `attack_ms`/`release_ms`.
+    /// 1.0 = Auto: fitting and attack/release glide between Music and Speech following the
+    /// speech/music classifier; 0.0 = use `speech_weight`.
     pub auto_mode: f64,
     /// 1.0 = processing on; 0.0 = pass the input through unchanged (same latency), e.g.
     /// while an output device the user did not enable is in use. Changes crossfade over 50 ms.
@@ -42,10 +47,11 @@ impl Params {
         Self {
             left: [BandFitting::UNITY; BAND_COUNT],
             right: [BandFitting::UNITY; BAND_COUNT],
+            music_left: [BandFitting::UNITY; BAND_COUNT],
+            music_right: [BandFitting::UNITY; BAND_COUNT],
             mpo_dbfs: -3.0,
             output_gain_db: 0.0,
-            attack_ms: 5.0,
-            release_ms: 50.0,
+            speech_weight: 1.0,
             limiter_enabled: 1.0,
             input_gain_db: 0.0,
             auto_mode: 0.0,

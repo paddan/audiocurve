@@ -103,9 +103,9 @@ All gains are floored at 0 dB. For example, at 100 dB HL: Speech 48/20 dB (CR 1.
 
 How the kernel uses them:
 
-- `Params` gains a second set of band fittings per ear (`music_left`, `music_right`); the existing `left` and `right` hold the speech fitting.
+- `Params` gains a second set of band fittings per ear (`music_left`, `music_right`) and `speech_weight`, and loses `attack_ms`/`release_ms`; the existing `left` and `right` hold the speech fitting.
 - In Auto, the gain curve per band is a blend in dB of the two fittings' static curves, weighted by the classifier output (0 = music, 1 = speech), the same smoothed value that already glides the time constants. The glide takes a few seconds, so nothing jumps.
-- In Speech or Music mode, Swift sends the selected fitting in both sets, so the kernel needs no mode switch for the fitting.
+- `speech_weight` selects the fitting and the time constants outside Auto (1 = Speech, 0 = Music); in Auto the classifier output takes its place. One weight drives fitting and timing alike.
 - The C header, the FFI layout tests and the Swift parameter block are updated.
 
 ### 4.3 Gentler safety stage

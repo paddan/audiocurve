@@ -10,13 +10,14 @@ extern "C" {
 typedef struct { double gain_soft_db, gain_loud_db, compression_ratio; } ac_band_fitting;
 
 typedef struct {
-    ac_band_fitting left[12], right[12];
+    ac_band_fitting left[12], right[12];            // speech fitting
+    ac_band_fitting music_left[12], music_right[12]; // music fitting
     double mpo_dbfs;        // -20..-1
     double output_gain_db;  // -48..+12, applied before the limiter
-    double attack_ms, release_ms; // Speech 5/50, Music 10/200
+    double speech_weight; // auto_mode = 0: 1 = Speech (speech fitting, 5/50 ms), 0 = Music (music fitting, 10/200 ms); in Auto the classifier replaces it
     double limiter_enabled; // 1 = band budget + limiter on, 0 = off (hard clamp at 0 dBFS only)
     double input_gain_db; // before the bands and the In meter/spectrum; drives the compressors
-    double auto_mode; // 1 = Auto: attack/release glide from attack_ms/release_ms (Music) to 5/50 ms (Speech) by the classifier
+    double auto_mode; // 1 = Auto: fitting and attack/release glide between Music and Speech by the classifier; 0 = use speech_weight
     double active; // 1 = processing on, 0 = input passes through unchanged (same latency); 50 ms crossfade
 } ac_params;
 
