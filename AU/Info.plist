@@ -24,7 +24,7 @@
 					<key>manufacturer</key><string>Lnds</string>
 					<key>name</key><string>AudioCurve: AudioCurve</string>
 					<key>description</key><string>Hearing compensation</string>
-					<key>version</key><integer>65536</integer>
+					<key>version</key><integer>131328</integer>
 					<key>factoryFunction</key><string>$(PRODUCT_MODULE_NAME).AudioCurveViewController</string>
 					<key>sandboxSafe</key><true/>
 					<key>tags</key>
