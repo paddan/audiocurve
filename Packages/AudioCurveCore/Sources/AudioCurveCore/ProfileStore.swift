@@ -44,6 +44,7 @@ public final class ProfileStore: @unchecked Sendable {
     private var profilesDir: URL { root.appendingPathComponent("profiles", isDirectory: true) }
     private var workingCopyURL: URL { root.appendingPathComponent("current.json") }
     private var activeOutputsURL: URL { root.appendingPathComponent("outputs.json") }
+    private var instancesDir: URL { root.appendingPathComponent("instances", isDirectory: true) }
 
     public init(root: URL) { self.root = root }
 
@@ -142,6 +143,25 @@ public final class ProfileStore: @unchecked Sendable {
     /// Best effort, never throws.
     public func saveActiveOutputs(_ a: ActiveOutputs) {
         try? write(a, to: activeOutputsURL)
+    }
+
+    // MARK: Instance heartbeats
+
+    /// Writes `instances/<pid>.json`. Best effort, never throws.
+    public func writeHeartbeat(_ b: InstanceHeartbeat) {
+        try? write(b, to: instancesDir.appendingPathComponent("\(b.pid).json"))
+    }
+
+    /// Every readable heartbeat; unreadable files are skipped.
+    public func readHeartbeats() -> [InstanceHeartbeat] {
+        let files = (try? FileManager.default.contentsOfDirectory(at: instancesDir, includingPropertiesForKeys: nil)) ?? []
+        return files.filter { $0.pathExtension == "json" }
+            .compactMap { read(InstanceHeartbeat.self, from: $0) }
+            .sorted { $0.pid < $1.pid }
+    }
+
+    public func removeHeartbeat(pid: Int32) {
+        try? FileManager.default.removeItem(at: instancesDir.appendingPathComponent("\(pid).json"))
     }
 
     private func url(for id: UUID) -> URL {
