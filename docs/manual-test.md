@@ -46,11 +46,11 @@ UI names below are the English ones; in other languages, use the matching transl
 
 ## Sound quality (2.1)
 
-- [ ] Listen to the A/B WAV files from `cargo run --release --example measure -- --wav` (in `dsp/measurements/wav/`): the 2.1 output is cleaner than the 2.0.0 reference.
+- [ ] Listen to the A/B WAV files: render them with `cargo run --release --example measure -- --wav` in `dsp/` (files in `dsp/measurements/wav/*_out.wav`), and make the 2.0 reference the same way from a 2.0-equivalent tree: `git worktree add <tmp> 070aef8`, then `cd <tmp>/dsp && cargo run --release --example measure -- --wav`. Compare the same-named `*_out.wav` files: the 2.1 output is cleaner than the 2.0 one. Remove the reference afterwards with `git worktree remove --force <tmp>`.
 - [ ] Dense rock or orchestral music at high volume on AirPods: no audible distortion, and the **Safety** meter moves less than in 2.0.
 - [ ] A speech podcast and a film with music in **Auto**: it moves between the prescriptions without audible jumps.
 - [ ] **Tone** from Clear to Warm: the sound gets fuller and softer, and soft consonants stay audible.
-- [ ] Gain view: on each band's gain bar a solid tick marks the soft gain of the speech prescription and a dashed tick the music prescription. The two differ (speech higher in the mid and treble), and both move with Strength and the per-band trim.
+- [ ] Gain view: on each band's gain bar a solid tick marks the soft gain of the speech prescription and a dotted tick the music prescription (the legend below the chart shows both, and the dashed marker is still the loud gain). The two differ (speech higher in the mid and treble), and both move with Strength and the per-band trim.
 - [ ] **Tone** slider works in Speech, Music and Auto: it changes the sound in each mode, and it is back to neutral at Clear.
 
 ## Safety (limiter)

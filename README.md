@@ -33,14 +33,14 @@ Releases are built by the [Release workflow](.github/workflows/release.yml) when
 
 - **Audiogram editor.** Enter your hearing thresholds (dB HL, 125 Hz – 8 kHz) for each ear by dragging or typing. You can save several named versions, and the latest one is restored automatically.
 - **Per-ear prescription.** A 12-band filterbank with wide dynamic range compression (WDRC) per band. Soft sounds get more gain than loud ones, and **Strength** scales the whole prescription. You can fine-tune each band with a per-band trim.
-- **Two prescriptions.** Each ear gets a **speech** fitting (NAL-inspired, not NAL-NL2: more gain for soft sounds and a gentle high-frequency emphasis) and a **music** fitting (near-linear and warmer, with the low frequencies left alone). The compressors use two time constants, so the treble gain no longer follows every syllable.
+- **Two prescriptions.** Each ear gets a **speech** fitting (NAL-inspired, not NAL-NL2: more gain for soft sounds and a gentle high-frequency emphasis) and a **music** fitting (near-linear and warmer, with no bass cut). The compressors use two time constants, so the treble gain no longer follows every syllable.
 - **Speech, Music or Auto.** Speech and Music use their own prescription and compressor time constants. In **Auto**, a lightweight classifier detects speech or music and glides between the two prescriptions and settings. The gain view shows both prescriptions.
-- **Tone.** A **Clear ↔ Warm** control. Toward Warm it lowers the loud-sound gain in the treble for a fuller, softer sound, and leaves soft treble sounds audible.
+- **Tone.** A **Clear ↔ Warm** control. Toward Warm it adds gain in the bass and low mids and lowers the loud-sound gain in the treble, for a fuller, softer sound that leaves soft treble sounds audible.
 - **Hearing safety.** A maximum output level (**Ceiling**, MPO) is enforced by a cross-band output budget with soft knees and a gentle true-peak limiter: a 5 ms smooth attack, with peaks detected on a 4× oversampled signal so inter-sample peaks stay under the ceiling. A hard clamp stays as the final guarantee. A **Safety** meter shows how hard the protection is working, and turning the limiter off asks for confirmation first.
 - **Levels.** **Input level** sets how hard the compressors are driven, and **Output level** sets how close the output sits to the ceiling. **Auto level** picks an output level that keeps the limiter idle.
 - **Live spectrum.** Input and output spectra per ear, with the ceiling marked.
 - **Lab switches.** Compression and limiter can be turned off for listening experiments.
-- **Realtime-safe DSP.** The Rust kernel never allocates or locks on the audio thread. It adds 400 frames of latency (about 8.3 ms at 48 kHz), which it reports to the host.
+- **Realtime-safe DSP.** The Rust kernel never allocates or locks on the audio thread. It adds about 8 ms of latency (400 frames at 48 kHz), which it reports to the host.
 - **Measurement tool.** `cargo run --release --example measure` in `dsp/` runs the kernel offline on made-up example audiograms. It writes distortion, gain-modulation, safety-stage, true-peak and tone-balance numbers to `dsp/measurements/report.md` (with a comparison against the 2.0.0 baseline), and with `-- --wav` also A/B WAV files. `cargo test --release --test measurements` fails if a metric gets worse.
 
 | Gain per band | Spectrum |

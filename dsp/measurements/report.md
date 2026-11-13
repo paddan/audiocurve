@@ -12,26 +12,26 @@ Rows not met: 0.
 | Treble gain modulation <= 0.5x of 2.0.0 | steep/speech/gainmod_hf | 2.11 | 0.63 | -1.48 | met |
 | Treble gain modulation <= 0.5x of 2.0.0 | mild/music/gainmod_hf | 0.80 | 0.13 | -0.67 | met |
 | Treble gain modulation <= 0.5x of 2.0.0 | mild/speech/gainmod_hf | 1.05 | 0.36 | -0.69 | met |
-| THD+N / IMD at -6 dBFS lower or equal (1) | steep/music/thdn_250_m6 | -104.69 | -105.64 | -0.95 | met |
-| THD+N / IMD at -6 dBFS lower or equal (1) | steep/speech/thdn_250_m6 | -104.37 | -104.99 | -0.62 | met |
-| THD+N / IMD at -6 dBFS lower or equal (1) | mild/music/thdn_250_m6 | -105.62 | -106.18 | -0.56 | met |
-| THD+N / IMD at -6 dBFS lower or equal (1) | mild/speech/thdn_250_m6 | -105.60 | -105.78 | -0.18 | met |
-| THD+N / IMD at -6 dBFS lower or equal (1) | steep/music/thdn_1000_m6 | -104.92 | -108.91 | -3.99 | met |
-| THD+N / IMD at -6 dBFS lower or equal (1) | steep/speech/thdn_1000_m6 | -104.93 | -106.72 | -1.79 | met |
-| THD+N / IMD at -6 dBFS lower or equal (1) | mild/music/thdn_1000_m6 | -114.07 | -112.24 | +1.83 | met |
-| THD+N / IMD at -6 dBFS lower or equal (1) | mild/speech/thdn_1000_m6 | -114.07 | -113.90 | +0.17 | met |
+| THD+N / IMD at -6 dBFS lower or equal (1) | steep/music/thdn_250_m6 | -104.69 | -105.64 | -0.95 | equal (below -100 dB) |
+| THD+N / IMD at -6 dBFS lower or equal (1) | steep/speech/thdn_250_m6 | -104.37 | -104.99 | -0.62 | equal (below -100 dB) |
+| THD+N / IMD at -6 dBFS lower or equal (1) | mild/music/thdn_250_m6 | -105.62 | -106.18 | -0.56 | equal (below -100 dB) |
+| THD+N / IMD at -6 dBFS lower or equal (1) | mild/speech/thdn_250_m6 | -105.60 | -105.78 | -0.18 | equal (below -100 dB) |
+| THD+N / IMD at -6 dBFS lower or equal (1) | steep/music/thdn_1000_m6 | -104.92 | -108.91 | -3.99 | equal (below -100 dB) |
+| THD+N / IMD at -6 dBFS lower or equal (1) | steep/speech/thdn_1000_m6 | -104.93 | -106.72 | -1.79 | equal (below -100 dB) |
+| THD+N / IMD at -6 dBFS lower or equal (1) | mild/music/thdn_1000_m6 | -114.07 | -112.24 | +1.83 | equal (below -100 dB) |
+| THD+N / IMD at -6 dBFS lower or equal (1) | mild/speech/thdn_1000_m6 | -114.07 | -113.90 | +0.17 | equal (below -100 dB) |
 | THD+N / IMD at -6 dBFS lower or equal (1) | steep/music/thdn_4000_m6 | -96.98 | -113.46 | -16.48 | met |
 | THD+N / IMD at -6 dBFS lower or equal (1) | steep/speech/thdn_4000_m6 | -96.99 | -105.09 | -8.10 | met |
-| THD+N / IMD at -6 dBFS lower or equal (1) | mild/music/thdn_4000_m6 | -119.34 | -120.00 | -0.66 | met |
-| THD+N / IMD at -6 dBFS lower or equal (1) | mild/speech/thdn_4000_m6 | -119.29 | -119.20 | +0.09 | met |
+| THD+N / IMD at -6 dBFS lower or equal (1) | mild/music/thdn_4000_m6 | -119.34 | -120.00 | -0.66 | equal (below -100 dB) |
+| THD+N / IMD at -6 dBFS lower or equal (1) | mild/speech/thdn_4000_m6 | -119.29 | -119.20 | +0.09 | equal (below -100 dB) |
 | THD+N / IMD at -6 dBFS lower or equal (1) | steep/music/imd_smpte_m6 | -62.29 | -78.21 | -15.92 | met |
 | THD+N / IMD at -6 dBFS lower or equal (1) | steep/speech/imd_smpte_m6 | -62.29 | -78.72 | -16.43 | met |
 | THD+N / IMD at -6 dBFS lower or equal (1) | mild/music/imd_smpte_m6 | -63.55 | -78.00 | -14.45 | met |
 | THD+N / IMD at -6 dBFS lower or equal (1) | mild/speech/imd_smpte_m6 | -63.55 | -78.11 | -14.56 | met |
-| THD+N / IMD at -6 dBFS lower or equal (1) | steep/music/imd_ccif_m6 | -120.00 | -120.00 | +0.00 | met |
-| THD+N / IMD at -6 dBFS lower or equal (1) | steep/speech/imd_ccif_m6 | -119.43 | -120.00 | -0.57 | met |
-| THD+N / IMD at -6 dBFS lower or equal (1) | mild/music/imd_ccif_m6 | -120.00 | -120.00 | +0.00 | met |
-| THD+N / IMD at -6 dBFS lower or equal (1) | mild/speech/imd_ccif_m6 | -120.00 | -120.00 | +0.00 | met |
+| THD+N / IMD at -6 dBFS lower or equal (1) | steep/music/imd_ccif_m6 | -120.00 | -120.00 | +0.00 | equal (below -100 dB) |
+| THD+N / IMD at -6 dBFS lower or equal (1) | steep/speech/imd_ccif_m6 | -119.43 | -120.00 | -0.57 | equal (below -100 dB) |
+| THD+N / IMD at -6 dBFS lower or equal (1) | mild/music/imd_ccif_m6 | -120.00 | -120.00 | +0.00 | equal (below -100 dB) |
+| THD+N / IMD at -6 dBFS lower or equal (1) | mild/speech/imd_ccif_m6 | -120.00 | -120.00 | +0.00 | equal (below -100 dB) |
 | Inter-sample peak <= ceiling | steep/music/isp_over_db | 0.22 | -0.20 | -0.42 | met |
 | Inter-sample peak <= ceiling | steep/speech/isp_over_db | 0.28 | -0.20 | -0.48 | met |
 | Inter-sample peak <= ceiling | mild/music/isp_over_db | 0.23 | -0.20 | -0.43 | met |
