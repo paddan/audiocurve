@@ -73,6 +73,25 @@ UI names below are the English ones; in other languages, use the matching transl
 - [ ] A remembered device that is not connected shows "(not connected)" in the menu.
 - [ ] The selection is shared by every instance (host app and SoundSource) and survives a restart.
 
+## System-wide app (2.0)
+
+Before testing a Debug build, make sure its plugin is the registered one (see the developer note in `docs/superpowers/plans/2026-11-13-spike-notes.md`).
+
+- [ ] First launch: the ear appears in the menu bar and the app asks once whether to start at login.
+- [ ] First processing: macOS asks for permission to record system audio. After Allow, sound is processed.
+- [ ] AirPods as output: music, a video and a call app are processed. Bypass (A/B) gives an audible difference.
+- [ ] Switch to the hearing aids and back: "Paused – … is the output", then "Active – …", with no click and no lasting silence.
+- [ ] Deny the permission (`tccutil reset AudioCapture se.lindefors.audiocurve`, then Don't Allow): within a few seconds the status asks for the permission, and the sound plays unprocessed. Open System Settings works. Allow it, turn AudioCurve off and on: processing resumes.
+- [ ] Kill the `AudioCurveAU` process while audio plays: the sound continues unprocessed within a second, then processing resumes.
+- [ ] Output at 44.1, 48 and 96 kHz (Audio MIDI Setup): sound correct at each, including a change while playing.
+- [ ] Latency: a video with speech has no visible lip-sync error. Note the measured figure (loopback recording): ____ ms.
+- [ ] One hour of mixed listening without dropouts.
+- [ ] SoundSource also running AudioCurve on the same output: the panel shows the "processed twice" warning within a few seconds.
+- [ ] Quit the app while audio plays: the sound continues unprocessed.
+- [ ] The panel's Profile picker and Active on match the window, in both directions.
+- [ ] The Dock icon shows only while the window is open.
+- [ ] Launch at login: tick it, log out and in: the ear is back.
+
 ## Profiles
 
 - [ ] The audiogram is still there after restarting the host app.

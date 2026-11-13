@@ -7,7 +7,7 @@
 
 # AudioCurve
 
-Hearing compensation for everything your Mac plays. AudioCurve is an Audio Unit (AUv3) effect that shapes sound to your own audiogram, much like the headphone accommodations on iPhone with AirPods, but for any app and any output device.
+Hearing compensation for everything your Mac plays. AudioCurve shapes sound to your own audiogram, much like the headphone accommodations on iPhone with AirPods, but for any app and any output device. It runs from the menu bar and needs no other software; the same processing is also available as an Audio Unit (AUv3) effect for other audio apps.
 
 **[⬇ Download the latest release](https://github.com/paddan/audiocurve/releases/latest)** · macOS 27 · Apple silicon
 
@@ -25,7 +25,7 @@ Requires macOS 27 on Apple silicon. Older versions are on the [Releases page](ht
    ```bash
    xattr -dr com.apple.quarantine /Applications/AudioCurve.app
    ```
-4. Open `AudioCurve.app` once. This registers the Audio Unit with macOS.
+4. Open `AudioCurve.app`. It appears as an ear in the menu bar. The first time it processes sound, macOS asks for permission to record system audio: allow it, or AudioCurve cannot hear what your Mac plays.
 
 Releases are built by the [Release workflow](.github/workflows/release.yml) whenever a `v*` tag is pushed.
 
@@ -48,16 +48,20 @@ Releases are built by the [Release workflow](.github/workflows/release.yml) when
 
 ## Using it
 
-AudioCurve is an AUv3 *effect* extension, so it runs inside an audio host:
+`AudioCurve.app` is a menu bar app. It captures what your Mac plays (a Core Audio process tap), runs it through AudioCurve and plays it on the current output device.
 
-- **System-wide:** load it in an app that can insert Audio Units on system output, such as SoundSource or Audio Hijack.
-- **Bundled test host:** `AudioCurve.app` opens an audio file, loops it through the plugin and has an A/B bypass. Running the app once also registers the extension with macOS.
+- **Menu bar panel:** click the ear. It has an on/off switch, a status line, the profile picker, **Active on** (one checkbox per output device), **Open AudioCurve…**, **Launch at login** and **Quit**. The ear is filled while AudioCurve processes sound, an outline while it is paused, and crossed out when it is off or something is wrong.
+- **Active on:** AudioCurve only processes sound on the ticked outputs. For example, tick your headphones but not your hearing aids. On other outputs the sound plays as if AudioCurve were not running.
+- **Window:** **Open AudioCurve…** shows the audiogram editor, the gain and spectrum views, the controls and the meters, with **Bypass (A/B)** at the top for comparing with and without AudioCurve.
+- **Other audio apps:** the Audio Unit still works in hosts such as SoundSource, Audio Hijack or a DAW, with the same profiles. Do not run it there and in the menu bar app at the same time: the panel warns if the sound is processed twice.
 
 A typical setup:
 
 1. Enter your audiogram, or start from a flat profile, and save it.
 2. Play something loud and press **Auto level**, or lower **Output level** until **Safety** stays near 0 dB.
 3. Set the listening level with the Mac's own volume.
+
+AudioCurve adds a little delay, about 10–20 ms in all, which is not noticeable in video. If something goes wrong (permission denied, the plugin crashes, an output disappears), AudioCurve steps aside and the sound plays unprocessed.
 
 **SoundSource says "Audio Unit Error" after an update?** SoundSource's background service still holds the old version of the plugin. Quit SoundSource, run `killall arkaudiod` in Terminal, and open SoundSource again.
 
@@ -125,9 +129,9 @@ The macOS 27 SDK declares SwiftUI's `@State` as a macro, and its compiler plugin
 | Path | What it is |
 |---|---|
 | `dsp/` | Rust DSP kernel behind a small C ABI: filterbank, WDRC, output budget, limiter, meters, spectrum, speech/music classifier |
-| `Packages/AudioCurveCore/` | Swift package: C header, fitting rule (audiogram → band gains), profile storage, auto-level |
+| `Packages/AudioCurveCore/` | Swift package: C header, fitting rule (audiogram → band gains), profile storage, auto-level, route state machine, app ↔ plugin channel |
 | `AU/` | The AUv3 extension: parameters, state and the SwiftUI interface |
-| `App/` | Container and test-host app |
+| `App/` | The menu bar app: system audio capture (`App/Audio/`), plugin host, panel and window |
 | `docs/` | Design spec and manual test checklist |
 | `App/AppIcon.icon` | App icon (Icon Composer, light and dark); `assets/AppIcon.icns` is a dark fallback for builds without Xcode |
 | `Makefile`, `scripts/` | Release build without Xcode |
