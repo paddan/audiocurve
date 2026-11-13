@@ -23,13 +23,13 @@ struct HostView: View {
                 StatusLine(model: model)
             }
             if let pluginVC {
-                PluginViewHost(controller: pluginVC).frame(minWidth: 640, minHeight: 540)
+                PluginViewHost(controller: pluginVC).frame(minWidth: 640, minHeight: 640)
             } else {
                 Spacer()
             }
         }
         .padding()
-        .frame(minWidth: 720, minHeight: 600)
+        .frame(minWidth: 720, minHeight: 700)
         .task(id: model.pluginState) {
             pluginVC = model.pluginState == .loaded ? await model.host.viewController() : nil
             bypass = model.bypass
