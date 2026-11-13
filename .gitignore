@@ -6,3 +6,5 @@ xcuserdata/
 build/
 .DS_Store
 listening/
+
+.superpowers/
