@@ -79,3 +79,8 @@ private let speakers = OutputDevice(uid: "spk", name: "MacBook Pro Speakers")
     let off = FittingRule.params(profile: nil, strength: 0.5, mpoDBFS: -3, outputGainDB: 0, mode: .music, active: false)
     #expect(off.active == 0)
 }
+
+@Test func ownRouteDevicesAreNotOutputs() {
+    #expect(OutputDeviceMonitor.isOwnRoute(uid: "se.lindefors.audiocurve.route.1234"))
+    #expect(!OutputDeviceMonitor.isOwnRoute(uid: "80-28-3C-24-CB-8C:output"))
+}

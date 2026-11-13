@@ -179,3 +179,33 @@ private let teardown = ["stopIO", "destroyAggregate", "destroyTap"]
     h.fire()
     #expect(h.controller.state == .running(deviceUID: "spk"))
 }
+
+@MainActor @Test func failedPluginStaysFailedWhenInputsSayLoaded() {
+    let h = Harness.running()
+    h.controller.pluginDied()
+    h.controller.inputs.plugin = .loaded
+    h.fire()
+    h.clock = h.clock.addingTimeInterval(5)
+    h.controller.pluginDied()
+    h.builder.log = []
+    // The app writes its own idea of the plugin state on the next device change.
+    h.controller.inputs = Harness.inputs(output: "spk")
+    h.fire()
+    #expect(h.controller.state == .failed(.plugin))
+    #expect(h.log.isEmpty)
+    h.controller.retryPlugin()
+    #expect(h.reloads == 2)
+    #expect(h.controller.state == .starting)
+}
+
+@MainActor @Test func lateFailureFromAReplacedRouteIsIgnored() {
+    let h = Harness.running()
+    let oldRoute = h.controller.routeID
+    h.controller.inputs = Harness.inputs(output: "spk")
+    h.fire()
+    h.builder.log = []
+    h.controller.pluginDied(routeID: oldRoute)
+    #expect(h.log.isEmpty)
+    #expect(h.reloads == 0)
+    #expect(h.controller.state == .running(deviceUID: "spk"))
+}

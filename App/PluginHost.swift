@@ -36,6 +36,9 @@ final class PluginHost {
         }
     }
 
+    /// Marks the plugin as loading at once, before an async reload starts.
+    func markLoading() { loadState = .loading }
+
     func reload() async {
         unit = nil
         await load()

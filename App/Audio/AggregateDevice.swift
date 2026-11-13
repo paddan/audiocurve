@@ -1,3 +1,4 @@
+import AudioCurveCore
 import CoreAudio
 import Foundation
 
@@ -9,7 +10,7 @@ final class AggregateDevice {
     init(outputUID: String, tapUID: String) throws {
         let description: [String: Any] = [
             kAudioAggregateDeviceNameKey: "AudioCurve",
-            kAudioAggregateDeviceUIDKey: "se.lindefors.audiocurve.route.\(UUID().uuidString)",
+            kAudioAggregateDeviceUIDKey: OutputDeviceMonitor.routeUIDPrefix + UUID().uuidString,
             kAudioAggregateDeviceMainSubDeviceKey: outputUID,
             kAudioAggregateDeviceIsPrivateKey: true,
             kAudioAggregateDeviceIsStackedKey: false,

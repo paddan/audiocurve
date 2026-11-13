@@ -3,11 +3,15 @@ import Foundation
 /// One built system-wide route. The controller tears it down in this order:
 /// stop IO, destroy the aggregate device, destroy the tap (which unmutes the system).
 public struct BuiltRoute {
+    /// Identifies this route in `RouteController.pluginDied(routeID:)`.
+    public var id: UUID
     public var stopIO: () -> Void
     public var destroyAggregate: () -> Void
     public var destroyTap: () -> Void
 
-    public init(stopIO: @escaping () -> Void, destroyAggregate: @escaping () -> Void, destroyTap: @escaping () -> Void) {
+    public init(id: UUID = UUID(), stopIO: @escaping () -> Void, destroyAggregate: @escaping () -> Void,
+                destroyTap: @escaping () -> Void) {
+        self.id = id
         self.stopIO = stopIO
         self.destroyAggregate = destroyAggregate
         self.destroyTap = destroyTap
@@ -45,6 +49,12 @@ public final class RouteController {
     private var forceRebuild = false
     private var lastDeath: Date?
     private var isShutDown = false
+    /// Set after a second plugin death within `deathWindow`: inputs cannot clear it, only
+    /// `retryPlugin()` can, so a device change does not start a reload/mute cycle.
+    private var pluginFailed = false
+
+    /// The current route's ID, if a route is built.
+    public var routeID: UUID? { route?.parts.id }
     /// Bumped on every apply, so a retry scheduled for an older apply does nothing.
     private var generation = 0
 
@@ -65,15 +75,30 @@ public final class RouteController {
 
     /// The render loop reported a failed render (plugin process gone). Tears down at once and
     /// asks for a reload, unless the previous death was within `deathWindow`.
-    public func pluginDied() {
+    /// `routeID` is the failing route's ID; a failure from a route that was already replaced is
+    /// ignored. nil means "the plugin is gone" whatever the route (detected while paused).
+    public func pluginDied(routeID: UUID? = nil) {
         guard !isShutDown else { return }
+        if let id = routeID, id != route?.parts.id { return }
         tearDown()
         let t = now()
         let repeated = lastDeath.map { t.timeIntervalSince($0) < Self.deathWindow } ?? false
         lastDeath = t
+        pluginFailed = repeated
         setInputsWithoutScheduling { $0.plugin = repeated ? .failed : .loading }
         apply()
         if !repeated { onReloadPlugin?() }
+    }
+
+    /// Leaves `.failed(.plugin)`: clears the latch and asks for a reload.
+    public func retryPlugin() {
+        guard !isShutDown else { return }
+        pluginFailed = false
+        lastDeath = nil
+        tearDown()
+        setInputsWithoutScheduling { $0.plugin = .loading }
+        apply()
+        onReloadPlugin?()
     }
 
     /// Tears down at once (app quitting). Later input changes do nothing.
@@ -103,7 +128,9 @@ public final class RouteController {
     private func apply() {
         guard !isShutDown else { return }
         generation += 1
-        let target = routeTarget(for: inputs)
+        var effective = inputs
+        if pluginFailed && effective.enabled { effective.plugin = .failed }
+        let target = routeTarget(for: effective)
         let force = forceRebuild
         forceRebuild = false
         if case .running(let uid) = target, route?.uid == uid, !force {

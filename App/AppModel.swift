@@ -14,7 +14,10 @@ final class AppModel {
     var enabled: Bool = UserDefaults.standard.object(forKey: AppModel.enabledKey) as? Bool ?? true {
         didSet {
             UserDefaults.standard.set(enabled, forKey: Self.enabledKey)
-            if enabled { permission = .unknown }   // turning it on again retries a denied permission
+            if enabled {
+                permission = .unknown   // turning it on again retries a denied permission
+                if state == .failed(.plugin) { controller.retryPlugin() }
+            }
             updateInputs()
         }
     }
@@ -49,13 +52,16 @@ final class AppModel {
         client = PluginClient(host: host)
         builder = CoreAudioRouteBuilder(
             unit: { [weak self] in self?.host.audioUnit },
-            onRenderFailure: { [weak self] in Task { @MainActor in self?.controller.pluginDied() } },
-            onSampleRateChange: { [weak self] in self?.controller.invalidate() })
+            onRenderFailure: { [weak self] id in Task { @MainActor in self?.controller.pluginDied(routeID: id) } },
+            onRouteInvalid: { [weak self] in self?.controller.invalidate() })
         controller = RouteController(builder: builder) { delay, f in
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) { MainActor.assumeIsolated { f() } }
         }
         controller.onStateChange = { [weak self] in self?.state = $0 }
-        controller.onReloadPlugin = { [weak self] in Task { await self?.reloadPlugin() } }
+        controller.onReloadPlugin = { [weak self] in
+            self?.host.markLoading()   // so no input update writes .loaded before the reload
+            Task { await self?.reloadPlugin() }
+        }
         host.onLoadStateChange = { [weak self] s in
             self?.pluginState = s
             self?.updateInputs()
@@ -137,7 +143,12 @@ final class AppModel {
     }
 
     private func refreshStatus() {
-        guard let s = client.status() else { return }
+        guard let s = client.status() else {
+            // A loaded plugin that no longer answers has died (also while paused, with no
+            // render loop to notice it).
+            if host.loadState == .loaded, state != .failed(.plugin) { controller.pluginDied() }
+            return
+        }
         profiles = s.profiles
         activeProfileID = s.activeProfileID
         otherHosts = s.otherHosts

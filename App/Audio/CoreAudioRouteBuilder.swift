@@ -8,16 +8,18 @@ final class CoreAudioRouteBuilder: RouteBuilding {
     static let minimumBufferFrames: UInt32 = 256
 
     private let unit: () -> AUAudioUnit?
-    private let onRenderFailure: @Sendable () -> Void
-    private let onSampleRateChange: @MainActor () -> Void
+    private let onRenderFailure: @Sendable (UUID) -> Void
+    private let onRouteInvalid: @MainActor () -> Void
     /// The running loop, for the silence-based permission check.
     private(set) var loop: RenderLoop?
 
-    init(unit: @escaping () -> AUAudioUnit?, onRenderFailure: @escaping @Sendable () -> Void,
-         onSampleRateChange: @escaping @MainActor () -> Void) {
+    /// `onRenderFailure` gets the failing route's ID. `onRouteInvalid` is called when the output's
+    /// sample rate changes, the output or the aggregate device dies, or coreaudiod restarts.
+    init(unit: @escaping () -> AUAudioUnit?, onRenderFailure: @escaping @Sendable (UUID) -> Void,
+         onRouteInvalid: @escaping @MainActor () -> Void) {
         self.unit = unit
         self.onRenderFailure = onRenderFailure
-        self.onSampleRateChange = onSampleRateChange
+        self.onRouteInvalid = onRouteInvalid
     }
 
     func build(deviceUID: String) throws -> BuiltRoute {
@@ -29,14 +31,22 @@ final class CoreAudioRouteBuilder: RouteBuilding {
         do {
             let frames = aggregate.setBufferFrames(atLeast: Self.minimumBufferFrames)
             try prepare(unit, sampleRate: aggregate.sampleRate, frames: frames)
-            let loop = try RenderLoop(device: aggregate.id, unit: unit,
-                                      maxFrames: unit.maximumFramesToRender, onRenderFailure: onRenderFailure)
-            let listener = listenForRateChange(on: output)
+            let id = UUID()
+            let report = onRenderFailure
+            let loop = try RenderLoop(device: aggregate.id, unit: unit, maxFrames: unit.maximumFramesToRender,
+                                      onRenderFailure: { report(id) })
+            let removers = [
+                listen(output, kAudioDevicePropertyNominalSampleRate),
+                listen(output, kAudioDevicePropertyDeviceIsAlive),
+                listen(aggregate.id, kAudioDevicePropertyDeviceIsAlive),
+                listen(AudioObjectID(kAudioObjectSystemObject), kAudioHardwarePropertyServiceRestarted),
+            ]
             loop.start()
             self.loop = loop
             return BuiltRoute(
+                id: id,
                 stopIO: { [weak self] in loop.stop(); self?.loop = nil },
-                destroyAggregate: { listener(); aggregate.destroy() },
+                destroyAggregate: { removers.forEach { $0() }; aggregate.destroy() },
                 destroyTap: { tap.destroy() })
         } catch {
             aggregate.destroy()
@@ -59,10 +69,11 @@ final class CoreAudioRouteBuilder: RouteBuilding {
         try unit.allocateRenderResources()
     }
 
-    /// Calls `onSampleRateChange` when the output's nominal rate changes. Returns the remover.
-    private func listenForRateChange(on device: AudioObjectID) -> () -> Void {
-        var address = HAL.address(kAudioDevicePropertyNominalSampleRate)
-        let callback = onSampleRateChange
+    /// Calls `onRouteInvalid` when `selector` changes on `object`. Returns the remover.
+    private func listen(_ object: AudioObjectID, _ selector: AudioObjectPropertySelector) -> () -> Void {
+        var address = HAL.address(selector)
+        let device = object
+        let callback = onRouteInvalid
         let block: AudioObjectPropertyListenerBlock = { _, _ in MainActor.assumeIsolated { callback() } }
         guard AudioObjectAddPropertyListenerBlock(device, &address, .main, block) == noErr else { return {} }
         return {

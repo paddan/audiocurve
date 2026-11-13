@@ -38,7 +38,7 @@ public final class AudioCurveAudioUnit: AUAudioUnit {
     /// Saved profile versions and the autosaved working copy (shared on disk across plugin instances).
     public let store = ProfileStore.standard()
     /// The saved version the current profile was loaded from / last saved to. Main thread only.
-    public private(set) var sourceID: UUID?
+    public private(set) var sourceID: UUID? { didSet { updateStatusSnapshot() } }
     private var pendingSave: DispatchWorkItem?
     private static let autosaveDelay: TimeInterval = 0.5
 
@@ -53,7 +53,11 @@ public final class AudioCurveAudioUnit: AUAudioUnit {
     /// UID of the system output device as last read by the monitor (nil = not known yet).
     private var currentOutputUID: String?
     /// Output devices processing is enabled for (empty = all). Main thread only; shared on disk.
-    public private(set) var activeOutputs = ActiveOutputs()
+    public private(set) var activeOutputs = ActiveOutputs() { didSet { updateStatusSnapshot() } }
+    /// Copies of `sourceID` and `activeOutputs` for the `fullState` getter, which hosts call
+    /// off the main thread. Written on main, read anywhere, always under `statusLock`.
+    private let statusLock = NSLock()
+    private var statusSnapshot: (source: UUID?, outputs: ActiveOutputs) = (nil, ActiveOutputs())
     /// Called on the main queue after the output device or the active-output selection changed.
     public var onOutputsChange: (@MainActor () -> Void)?
 
@@ -87,6 +91,7 @@ public final class AudioCurveAudioUnit: AUAudioUnit {
             sourceID = copy.sourceID
             recompute()
         }
+        updateStatusSnapshot()   // property observers do not run during init
     }
 
     private func installParameterTree() {
@@ -215,11 +220,20 @@ public final class AudioCurveAudioUnit: AUAudioUnit {
                                                active: isProcessingActive, time: Date()))
     }
 
-    /// The status the host reads from `fullState`.
+    private func updateStatusSnapshot() {
+        statusLock.lock()
+        statusSnapshot = (sourceID, activeOutputs)
+        statusLock.unlock()
+    }
+
+    /// The status the host reads from `fullState`. Any thread.
     private func channelStatus() -> PluginStatus {
+        statusLock.lock()
+        let snap = statusSnapshot
+        statusLock.unlock()
         let others = InstanceHeartbeat.live(store.readHeartbeats(), now: Date(), excludingPID: getpid())
         return PluginStatus(profiles: store.list().map { ProfileSummary(id: $0.id, name: $0.name) },
-                            activeProfileID: sourceID, activeOutputs: activeOutputs,
+                            activeProfileID: snap.source, activeOutputs: snap.outputs,
                             otherHosts: others.map(\.hostBundleID))
     }
 

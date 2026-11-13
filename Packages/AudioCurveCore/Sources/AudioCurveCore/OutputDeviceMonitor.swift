@@ -51,9 +51,15 @@ public final class OutputDeviceMonitor: @unchecked Sendable {
         guard AudioObjectGetPropertyDataSize(system, &address, 0, nil, &size) == noErr, size > 0 else { return [] }
         var ids = [AudioObjectID](repeating: 0, count: Int(size) / MemoryLayout<AudioObjectID>.size)
         guard AudioObjectGetPropertyData(system, &address, 0, nil, &size, &ids) == noErr else { return [] }
-        return ids.filter(Self.hasOutput).compactMap(Self.device)
+        return ids.filter(Self.hasOutput).compactMap(Self.device).filter { !Self.isOwnRoute(uid: $0.uid) }
             .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
     }
+
+    /// The UID prefix of AudioCurve's own private aggregate devices.
+    public static let routeUIDPrefix = "se.lindefors.audiocurve.route."
+
+    /// Is this one of AudioCurve's own route devices (never offered as an output)?
+    public static func isOwnRoute(uid: String) -> Bool { uid.hasPrefix(routeUIDPrefix) }
 
     private static func hasOutput(_ id: AudioObjectID) -> Bool {
         var address = AudioObjectPropertyAddress(mSelector: kAudioDevicePropertyStreams,

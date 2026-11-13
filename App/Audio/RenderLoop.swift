@@ -119,14 +119,17 @@ final class RenderLoop: @unchecked Sendable {
     private func readInput(_ input: UnsafeMutableAudioBufferListPointer, frames: Int) {
         var peak: Float = 0
         defer { if peak > 0 { lastSignal.store(AudioGetCurrentHostTime(), ordering: .relaxed) } }
-        guard let first = input.first, let d0 = first.mData?.assumingMemoryBound(to: Float.self) else {
+        // A buffer shorter than the output cycle is never read past its end.
+        let available = input.first.map { Int($0.mDataByteSize) / (MemoryLayout<Float>.size * max(Int($0.mNumberChannels), 1)) } ?? 0
+        guard available >= frames, let first = input.first, let d0 = first.mData?.assumingMemoryBound(to: Float.self) else {
             inL.update(repeating: 0, count: frames); inR.update(repeating: 0, count: frames); return
         }
         if first.mNumberChannels >= 2 {
             let ch = Int(first.mNumberChannels)
             for i in 0..<frames { inL[i] = d0[i * ch]; inR[i] = d0[i * ch + 1]; peak = max(peak, abs(inL[i]), abs(inR[i])) }
         } else {
-            let d1 = input.count > 1 ? input[1].mData?.assumingMemoryBound(to: Float.self) ?? d0 : d0
+            let second = input.count > 1 && Int(input[1].mDataByteSize) >= frames * MemoryLayout<Float>.size
+            let d1 = second ? input[1].mData?.assumingMemoryBound(to: Float.self) ?? d0 : d0
             for i in 0..<frames { inL[i] = d0[i]; inR[i] = d1[i]; peak = max(peak, abs(inL[i]), abs(inR[i])) }
         }
     }
