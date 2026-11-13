@@ -70,6 +70,9 @@ final class AppModel {
     }
 
     func start() async {
+        // Screenshot hook: `open AudioCurve.app --env AUDIOCURVE_DEMO=panel` shows made-up devices
+        // and profiles and processes no audio.
+        if ProcessInfo.processInfo.environment["AUDIOCURVE_DEMO"] == "panel" { showDemoData(); return }
         refreshOutputs()
         await host.load()
         afterLoad()
@@ -123,6 +126,20 @@ final class AppModel {
     var bypass: Bool {
         get { host.bypass }
         set { host.bypass = newValue }
+    }
+
+    private func showDemoData() {
+        let airPods = OutputDevice(uid: "demo.airpods", name: "AirPods Pro")
+        let hearingAids = OutputDevice(uid: "demo.hearing-aids", name: "Hearing Aids")
+        let speakers = OutputDevice(uid: "demo.speakers", name: "Mac Studio Speakers")
+        availableOutputs = [airPods, hearingAids, speakers]
+        currentOutput = airPods
+        activeOutputs = ActiveOutputs(devices: [airPods, speakers])
+        let example = ProfileSummary(id: UUID(), name: "Example")
+        profiles = [example, ProfileSummary(id: UUID(), name: "Example (quiet room)")]
+        activeProfileID = example.id
+        state = .running(deviceUID: airPods.uid)
+        if let dir = DemoSnapshot.outputDirectory { DemoSnapshot.writeAndQuit(model: self, to: dir) }
     }
 
     private func reloadPlugin() async {

@@ -44,11 +44,18 @@ Releases are built by the [Release workflow](.github/workflows/release.yml) when
 |---|---|
 | ![Gain view](docs/screenshots/gain.png) | ![Spectrum view](docs/screenshots/spectrum.png) |
 
-*The screenshots use a made-up, mildly sloping example audiogram.*
+*The screenshots use a made-up, mildly sloping example audiogram and made-up device names. The panel picture is drawn by the app itself: `open AudioCurve.app --env AUDIOCURVE_DEMO=panel --env AUDIOCURVE_DEMO_OUT=<folder>`.*
 
 ## Using it
 
 `AudioCurve.app` is a menu bar app. It captures what your Mac plays (a Core Audio process tap), runs it through AudioCurve and plays it on the current output device.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/panel-dark.png">
+    <img src="docs/screenshots/panel-light.png" width="300" alt="Menu bar panel: on/off switch, status, profile picker and Active on checkboxes">
+  </picture>
+</p>
 
 - **Menu bar panel:** click the ear. It has an on/off switch, a status line, the profile picker, **Active on** (one checkbox per output device), **Open AudioCurve…**, **Launch at login** and **Quit**. The ear is filled while AudioCurve processes sound, an outline while it is paused, and crossed out when it is off or something is wrong.
 - **Active on:** AudioCurve only processes sound on the ticked outputs. For example, tick your headphones but not your hearing aids. On other outputs the sound plays as if AudioCurve were not running.
