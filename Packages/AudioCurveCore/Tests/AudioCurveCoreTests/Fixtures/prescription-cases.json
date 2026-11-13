@@ -14,5 +14,7 @@
   { "prescription": "speech", "f": 500,  "hl": 40,  "tone": 1, "soft": 22, "loud": 8,    "cr": 1.3043 },
   { "prescription": "music",  "f": 1000, "hl": 60,  "tone": 1, "soft": 28, "loud": 19,   "cr": 1.1765 },
   { "prescription": "music",  "f": 2000, "hl": 60,  "tone": 1, "soft": 27, "loud": 18,   "cr": 1.1765 },
-  { "prescription": "speech", "f": 750,  "hl": 60,  "tone": 1, "soft": 37, "loud": 16,   "cr": 1.5385 }
+  { "prescription": "speech", "f": 750,  "hl": 60,  "tone": 1, "soft": 37, "loud": 16,   "cr": 1.5385 },
+  { "prescription": "speech", "f": 250,  "hl": 10,  "tone": 1, "soft": 5,  "loud": 5,    "cr": 1 },
+  { "prescription": "speech", "f": 250,  "hl": 20,  "tone": 1, "soft": 7,  "loud": 5,    "cr": 1.0345 }
 ]

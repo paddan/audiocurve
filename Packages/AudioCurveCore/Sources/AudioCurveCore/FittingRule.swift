@@ -78,12 +78,12 @@ public enum FittingRule {
             case 750, 1000: boost = 1
             default: boost = 0
             }
-            soft += boost * tn
-            loud += boost * tn
-            if f > 2000 { loud -= 6 * tn }
+            // Added after the floor so the speech low-frequency correction cannot swallow it.
+            let toneSoft = max(0, soft) + boost * tn
+            let toneLoud = max(0, loud - (f > 2000 ? 6 * tn : 0)) + boost * tn
             let t = i < trim.count ? trim[i] : 0
-            let gSoft = (max(0, soft) + t) * s
-            let gLoud = (max(0, loud) + t) * s
+            let gSoft = (toneSoft + t) * s
+            let gLoud = (toneLoud + t) * s
             return BandFitting(gainSoftDB: gSoft, gainLoudDB: gLoud,
                                compressionRatio: ratio(soft: gSoft, loud: gLoud, max: maxRatio))
         }
