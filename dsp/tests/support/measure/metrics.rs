@@ -12,6 +12,8 @@ pub const FS: f64 = 48_000.0;
 const BLOCK: usize = 512;
 const SKIP: usize = 48_000;
 const MPO_DBFS: f64 = -3.0;
+/// Distortion below this is f32 noise floor; clamped so the regression gate is stable.
+const DB_FLOOR: f64 = -100.0;
 
 /// Optional WAV dump of a metric's input/output pair (left ear, 32-bit float).
 struct Wav<'a> {
@@ -53,8 +55,6 @@ fn write_wav(path: &Path, x: &[f32]) {
 struct Rendered {
     left: Vec<f32>,
     right: Vec<f32>,
-    /// Per-block safety reduction (max of both ears, dB).
-    reduction: Vec<f32>,
 }
 
 /// Same signal on both ears through a fresh kernel.
@@ -62,13 +62,10 @@ fn render(p: &Params, sig: &[f32]) -> Rendered {
     let h = Handle::new(FS, BLOCK).unwrap();
     h.set_params(p);
     let (mut left, mut right) = (sig.to_vec(), sig.to_vec());
-    let mut reduction = Vec::new();
     for (l, r) in left.chunks_mut(BLOCK).zip(right.chunks_mut(BLOCK)) {
         unsafe { h.process(l, r) };
-        let m = h.meters().reduction_db;
-        reduction.push(m[0].max(m[1]));
     }
-    Rendered { left, right, reduction }
+    Rendered { left, right }
 }
 
 /// All metrics for one audiogram and mode: `(metric name, value)`.
@@ -83,7 +80,7 @@ pub fn measure(aname: &str, a: &Audiogram, mode: Mode, wav_dir: Option<&Path>) -
     }
     let dense = signals::dense(6.0, FS);
     let r = render(&p, &dense);
-    safety(&r, &wav, &dense, &mut out);
+    safety(&p, &r, &wav, &dense, &mut out);
     if mode != Mode::Auto {
         out.push(("isp_over_db".into(), isp_over_db(&p, &r, &wav)));
         tilt(&p, &wav, &mut out);
@@ -103,7 +100,7 @@ fn thdn(p: &Params, wav: &Wav, out: &mut Vec<(String, f64)>) {
                 .map(|ch| support::thd_n_db(&ch[n - SKIP..], f, FS))
                 .fold(f64::MIN, f64::max);
             wav.save(&format!("thdn_{}_{tag}", f as u32), &sig, &r.left);
-            out.push((format!("thdn_{}_{tag}", f as u32), v));
+            out.push((format!("thdn_{}_{tag}", f as u32), v.max(DB_FLOOR)));
         }
     }
 }
@@ -140,11 +137,12 @@ fn imd(p: &Params, wav: &Wav, out: &mut Vec<(String, f64)>) {
             })
             .fold(f64::MIN, f64::max);
         wav.save(&format!("imd_smpte_{tag}"), &sig, &r.left);
-        out.push((format!("imd_smpte_{tag}"), v));
+        out.push((format!("imd_smpte_{tag}"), v.max(DB_FLOOR)));
 
         // CCIF: products at 1 kHz, 18 kHz and 21 kHz relative to the two tones.
         let sig = signals::ccif(level, 2.0, FS);
         let r = render(p, &sig);
+        let n = r.left.len();
         let v = [&r.left, &r.right]
             .iter()
             .map(|ch| {
@@ -155,7 +153,7 @@ fn imd(p: &Params, wav: &Wav, out: &mut Vec<(String, f64)>) {
             })
             .fold(f64::MIN, f64::max);
         wav.save(&format!("imd_ccif_{tag}"), &sig, &r.left);
-        out.push((format!("imd_ccif_{tag}"), v));
+        out.push((format!("imd_ccif_{tag}"), v.max(DB_FLOOR)));
     }
 }
 
@@ -199,14 +197,27 @@ fn gainmod_hf(a: &Audiogram, mode: Mode, wav: &Wav) -> f64 {
     stds.iter().sum::<f64>() / stds.len() as f64
 }
 
-/// Safety-stage activity on the dense signal from the per-block `reduction_db` meter.
-fn safety(r: &Rendered, wav: &Wav, input: &[f32], out: &mut Vec<(String, f64)>) {
-    let red: Vec<f64> = r.reduction[SKIP / BLOCK..].iter().map(|&v| v as f64).collect();
+/// Safety-stage activity on the dense signal: per-block reduction is the energy ratio (dB)
+/// between the same signal rendered with the safety stage off and on.
+fn safety(p: &Params, on: &Rendered, wav: &Wav, input: &[f32], out: &mut Vec<(String, f64)>) {
+    let mut off_p = *p;
+    off_p.limiter_enabled = 0.0;
+    off_p.mpo_dbfs = -1.0;
+    let off = render(&off_p, input);
+    let energy = |x: &[f32]| x.iter().map(|&v| (v as f64) * (v as f64)).sum::<f64>();
+    let red: Vec<f64> = off.left[SKIP..]
+        .chunks(BLOCK)
+        .zip(on.left[SKIP..].chunks(BLOCK))
+        .map(|(a, b)| {
+            let (ea, eb) = (energy(a), energy(b));
+            if ea < 1e-12 || eb < 1e-12 { 0.0 } else { (10.0 * (ea / eb).log10()).max(0.0) }
+        })
+        .collect();
     let n = red.len() as f64;
     out.push(("safety_active_pct".into(), 100.0 * red.iter().filter(|&&v| v > 0.1).count() as f64 / n));
     out.push(("safety_mean_db".into(), red.iter().sum::<f64>() / n));
     out.push(("safety_max_db".into(), red.iter().fold(0.0, |a, &v| a.max(v))));
-    wav.save("safety", input, &r.left);
+    wav.save("safety", input, &on.left);
 }
 
 /// Highest 4x-oversampled true peak (linear) of `x` after the first second.
@@ -245,10 +256,10 @@ fn true_peak(x: &[f32]) -> f64 {
     peak
 }
 
-/// Worst true peak over both ears, on the dense signal and on a full-scale 11 025 Hz sine at
+/// Worst true peak over both ears, on the dense signal and on a full-scale fs/4 sine at
 /// 45 degrees (worst-case inter-sample peak), in dB above the MPO ceiling.
 fn isp_over_db(p: &Params, dense: &Rendered, wav: &Wav) -> f64 {
-    let sig = signals::sine(11025.0, 0.0, PI / 4.0, 2.0, FS);
+    let sig = signals::sine(FS / 4.0, 0.0, PI / 4.0, 2.0, FS);
     let s = render(p, &sig);
     wav.save("isp", &sig, &s.left);
     let peak = [&dense.left, &dense.right, &s.left, &s.right]
