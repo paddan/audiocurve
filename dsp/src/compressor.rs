@@ -44,7 +44,7 @@ pub const FAST_JUMP_DB: f64 = 8.0;
 
 /// Geometric blend of every field: Music at 0, Speech at 1.
 pub fn blend_timing(speech_weight: f64) -> Timing {
-    let s = speech_weight.clamp(0.0, 1.0);
+    let s = if speech_weight.is_nan() { 1.0 } else { speech_weight.clamp(0.0, 1.0) };
     let mix = |a: f64, b: f64| if s == 0.0 { a } else if s == 1.0 { b } else { a * (b / a).powf(s) };
     let (m, p) = (MUSIC_TIMING, SPEECH_TIMING);
     Timing {

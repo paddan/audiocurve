@@ -346,7 +346,7 @@ impl Dsp {
             self.classifier.process(cl, cr);
             let speech = self.classifier.speech() as f64;
             meters.store_speech(speech as f32);
-            let weight = if p.auto_mode >= 0.5 { speech } else { p.speech_weight.clamp(0.0, 1.0) };
+            let weight = if p.auto_mode >= 0.5 { speech } else { if p.speech_weight.is_nan() { 1.0 } else { p.speech_weight.clamp(0.0, 1.0) } };
             let timing = blend_timing(weight);
             // pre_process: identity (reserved for v2)
             let red_l = self.ears[0].run(cl, &p.left, &p.music_left, weight, &timing, band_ceiling);

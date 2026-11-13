@@ -26,8 +26,8 @@ fn run_on(h: &Handle, l: &[f32], r: &[f32], block: usize) -> (Vec<f32>, Vec<f32>
     (l, r)
 }
 
-/// Selects the kernel time constants through `speech_weight`: attack 5 ms = Speech (5/50 ms),
-/// anything else = Music (10/200 ms). Both fitting sets get the speech fitting.
+/// Selects the kernel time constants through `speech_weight`: attack 5 ms = Speech (slow 40/400 ms, fast 2/50 ms),
+/// anything else = Music (slow 50/1500 ms, fast 2/50 ms). Both fitting sets get the speech fitting.
 fn set_timing(p: &mut Params, attack_ms: f64) {
     p.music_left = p.left;
     p.music_right = p.right;
@@ -155,6 +155,18 @@ fn nan_input_is_sanitized() {
     let b = level_dbfs(&reference, 0.25, FS);
     println!("nan_input_is_sanitized: {a:.3} vs ref {b:.3}");
     assert!((a - b).abs() <= 0.5);
+}
+
+#[test]
+fn nan_speech_weight_is_finite_and_audible() {
+    let mut p = Params::unity();
+    p.speech_weight = f64::NAN;
+    let x = sine(1000.0, -20.0, 1.0, FS);
+    let (y, _) = run(&p, &x, &x, 512);
+    assert!(y.iter().all(|v| v.is_finite()));
+    let d = level_dbfs(&y, 0.3, FS);
+    println!("nan_speech_weight_is_finite_and_audible: {d:.3} dBFS");
+    assert!(d > -30.0);
 }
 
 #[test]

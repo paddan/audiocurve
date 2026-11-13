@@ -14,7 +14,10 @@ typedef struct {
     ac_band_fitting music_left[12], music_right[12]; // music fitting
     double mpo_dbfs;        // -20..-1
     double output_gain_db;  // -48..+12, applied before the limiter
-    double speech_weight; // auto_mode = 0: 1 = Speech (speech fitting, 5/50 ms), 0 = Music (music fitting, 10/200 ms); in Auto the classifier replaces it
+    // auto_mode = 0: 1 = Speech (speech fitting, slow detector 40/400 ms), 0 = Music (music fitting,
+    // slow detector 50/1500 ms); fast detector 2/50 ms in both, jump 8 dB. NaN counts as 1.
+    // In Auto the classifier replaces it.
+    double speech_weight;
     double limiter_enabled; // 1 = band budget + limiter on, 0 = off (hard clamp at 0 dBFS only)
     double input_gain_db; // before the bands and the In meter/spectrum; drives the compressors
     double auto_mode; // 1 = Auto: fitting and attack/release glide between Music and Speech by the classifier; 0 = use speech_weight

@@ -25,8 +25,8 @@ pub struct Params {
     pub music_right: [BandFitting; BAND_COUNT],
     pub mpo_dbfs: f64,
     pub output_gain_db: f64,
-    /// Used when `auto_mode < 0.5`: 1.0 = Speech (speech fitting, 5/50 ms), 0.0 = Music (music
-    /// fitting, 10/200 ms); values between blend. In Auto the classifier output replaces it.
+    /// Used when `auto_mode < 0.5`: 1.0 = Speech (speech fitting, slow detector 40/400 ms), 0.0 =
+    /// Music (music fitting, slow detector 50/1500 ms; fast detector 2/50 ms in both, jump 8 dB); values between blend. In Auto the classifier output replaces it.
     pub speech_weight: f64,
     /// 1.0 = band budget and lookahead limiter on; 0.0 = both off (output only
     /// hard-clamped at 0 dBFS). For listening experiments.
