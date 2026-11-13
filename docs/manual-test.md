@@ -44,6 +44,15 @@ UI names below are the English ones; in other languages, use the matching transl
 - [ ] Switch to music: "Auto: music" within about 10 s, with no audible jump in the sound.
 - [ ] A pause or track change (silence) does not change the decision.
 
+## Sound quality (2.1)
+
+- [ ] Listen to the A/B WAV files from `cargo run --release --example measure -- --wav` (in `dsp/measurements/wav/`): the 2.1 output is cleaner than the 2.0.0 reference.
+- [ ] Dense rock or orchestral music at high volume on AirPods: no audible distortion, and the **Safety** meter moves less than in 2.0.
+- [ ] A speech podcast and a film with music in **Auto**: it moves between the prescriptions without audible jumps.
+- [ ] **Tone** from Clear to Warm: the sound gets fuller and softer, and soft consonants stay audible.
+- [ ] Gain view: on each band's gain bar a solid tick marks the soft gain of the speech prescription and a dashed tick the music prescription. The two differ (speech higher in the mid and treble), and both move with Strength and the per-band trim.
+- [ ] **Tone** slider works in Speech, Music and Auto: it changes the sound in each mode, and it is back to neutral at Clear.
+
 ## Safety (limiter)
 
 - [ ] Input level −10 dB: the In meter drops 10 dB and Out drops less than 10 dB (the compression works less).

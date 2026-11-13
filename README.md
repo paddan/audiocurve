@@ -33,12 +33,15 @@ Releases are built by the [Release workflow](.github/workflows/release.yml) when
 
 - **Audiogram editor.** Enter your hearing thresholds (dB HL, 125 Hz – 8 kHz) for each ear by dragging or typing. You can save several named versions, and the latest one is restored automatically.
 - **Per-ear prescription.** A 12-band filterbank with wide dynamic range compression (WDRC) per band. Soft sounds get more gain than loud ones, and **Strength** scales the whole prescription. You can fine-tune each band with a per-band trim.
-- **Speech, Music or Auto.** These modes set the compressor time constants. In **Auto**, a lightweight classifier detects speech or music and glides between the two settings.
+- **Two prescriptions.** Each ear gets a **speech** fitting (NAL-inspired, not NAL-NL2: more gain for soft sounds and a gentle high-frequency emphasis) and a **music** fitting (near-linear and warmer, with the low frequencies left alone). The compressors use two time constants, so the treble gain no longer follows every syllable.
+- **Speech, Music or Auto.** Speech and Music use their own prescription and compressor time constants. In **Auto**, a lightweight classifier detects speech or music and glides between the two prescriptions and settings. The gain view shows both prescriptions.
+- **Tone.** A **Clear ↔ Warm** control. Toward Warm it lowers the loud-sound gain in the treble for a fuller, softer sound, and leaves soft treble sounds audible.
 - **Hearing safety.** A maximum output level (**Ceiling**, MPO) is enforced by a cross-band output budget with soft knees and a lookahead peak limiter. A **Safety** meter shows how hard the protection is working, and turning the limiter off asks for confirmation first.
 - **Levels.** **Input level** sets how hard the compressors are driven, and **Output level** sets how close the output sits to the ceiling. **Auto level** picks an output level that keeps the limiter idle.
 - **Live spectrum.** Input and output spectra per ear, with the ceiling marked.
 - **Lab switches.** Compression and limiter can be turned off for listening experiments.
-- **Realtime-safe DSP.** The Rust kernel never allocates or locks on the audio thread. It adds 5 ms of latency, which it reports to the host.
+- **Realtime-safe DSP.** The Rust kernel never allocates or locks on the audio thread. It adds 400 frames of latency (about 8.3 ms at 48 kHz), which it reports to the host.
+- **Measurement tool.** `cargo run --release --example measure` in `dsp/` runs the kernel offline on made-up example audiograms. It writes distortion, gain-modulation, safety-stage, true-peak and tone-balance numbers to `dsp/measurements/report.md` (with a comparison against the 2.0.0 baseline), and with `-- --wav` also A/B WAV files. `cargo test --release --test measurements` fails if a metric gets worse.
 
 | Gain per band | Spectrum |
 |---|---|
@@ -68,7 +71,7 @@ A typical setup:
 2. Play something loud and press **Auto level**, or lower **Output level** until **Safety** stays near 0 dB.
 3. Set the listening level with the Mac's own volume.
 
-AudioCurve adds a little delay, about 10–20 ms in all, which is not noticeable in video. If something goes wrong (permission denied, the plugin crashes, an output disappears), AudioCurve steps aside and the sound plays unprocessed.
+AudioCurve adds a little delay, roughly 15–25 ms in all (8 ms of it in the DSP kernel, the rest audio buffering), which is not noticeable in video. If something goes wrong (permission denied, the plugin crashes, an output disappears), AudioCurve steps aside and the sound plays unprocessed.
 
 **SoundSource says "Audio Unit Error" after an update?** SoundSource's background service still holds the old version of the plugin. Quit SoundSource, run `killall arkaudiod` in Terminal, and open SoundSource again.
 
