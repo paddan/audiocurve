@@ -49,6 +49,7 @@ struct GainView: View {
         let profile: HearingProfile?
         let range: ClosedRange<Double>
         let fits: [Ear: [BandFitting]]
+        let both: [Ear: (speech: [BandFitting], music: [BandFitting])]
         let trimSelection: TrimSelection?
         let label: String
     }
@@ -56,6 +57,7 @@ struct GainView: View {
     var body: some View {
         let snap = Snapshot(profile: vm.profile, range: vm.gainRange,
                             fits: [.left: vm.fitting(.left), .right: vm.fitting(.right)],
+                            both: [.left: vm.fittings(.left), .right: vm.fittings(.right)],
                             trimSelection: vm.trimSelection,
                             label: vm.trimSelection.map { vm.label(for: $0) } ?? "")
         GeometryReader { geo in
@@ -122,6 +124,17 @@ struct GainView: View {
                 dash.addLine(to: CGPoint(x: rect.maxX + 2, y: yl))
                 ctx.stroke(dash, with: .color(Color.primary.opacity(0.85)),
                            style: StrokeStyle(lineWidth: 1.5, dash: [3, 2]))
+                // Soft gain of each prescription: speech solid, music dashed. Drawing only, no hit-testing.
+                if let two = snap.both[ear], two.speech.indices.contains(band), two.music.indices.contains(band) {
+                    for (gain, dashed) in [(two.speech[band].gainSoftDB, false), (two.music[band].gainSoftDB, true)] {
+                        var tick = Path()
+                        let yt = g.y(gain)
+                        tick.move(to: CGPoint(x: rect.minX - 3, y: yt))
+                        tick.addLine(to: CGPoint(x: rect.maxX + 3, y: yt))
+                        ctx.stroke(tick, with: .color(Color.secondary),
+                                   style: StrokeStyle(lineWidth: 1, dash: dashed ? [2, 2] : []))
+                    }
+                }
             }
         }
 

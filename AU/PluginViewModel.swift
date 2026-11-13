@@ -318,17 +318,32 @@ final class PluginViewModel {
 
     // MARK: Derived data for the views
 
-    func fitting(_ ear: Ear) -> [BandFitting] {
-        guard let p = profile else { return [] }
-        return FittingRule.bands(for: p, ear: ear, strength: strength / 100, tone: tone / 100, prescription: .speech)
+    /// Both prescriptions for one ear (speech and music), from the same profile and settings.
+    func fittings(_ ear: Ear) -> (speech: [BandFitting], music: [BandFitting]) {
+        guard let p = profile else { return ([], []) }
+        let s = strength / 100, t = tone / 100
+        return (FittingRule.bands(for: p, ear: ear, strength: s, tone: t, prescription: .speech),
+                FittingRule.bands(for: p, ear: ear, strength: s, tone: t, prescription: .music))
     }
 
-    /// Axis range (dB) for the gain chart.
+    /// The fitting in effect: the chosen prescription, or in Auto the classifier-weighted blend.
+    func fitting(_ ear: Ear) -> [BandFitting] {
+        let f = fittings(ear)
+        switch mode {
+        case .speech: return f.speech
+        case .music: return f.music
+        case .auto: return FittingRule.blend(f.speech, f.music, weight: Double(meters.speech))
+        }
+    }
+
+    /// Axis range (dB) for the gain chart. Covers both prescriptions; the blend in Auto always lies
+    /// between them, so the range does not move with the classifier.
     var gainRange: ClosedRange<Double> {
         if let f = frozenGainRange { return f }
         var lo = 0.0, hi = 40.0
         for ear in Ear.allCases {
-            for b in fitting(ear) {
+            let f = fittings(ear)
+            for b in f.speech + f.music {
                 hi = max(hi, b.gainSoftDB, b.gainLoudDB)
                 lo = min(lo, b.gainSoftDB, b.gainLoudDB)
             }
