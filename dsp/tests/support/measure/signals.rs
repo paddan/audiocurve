@@ -68,8 +68,11 @@ pub fn modulated_pink(rms_dbfs: f64, seconds: f64, fs: f64) -> Vec<f32> {
         .collect()
 }
 
-/// Dense program: pink noise at -20 dBFS RMS plus a 30 ms decaying noise burst every 250 ms
+/// Dense program: pink noise at `DENSE_BED_DBFS` RMS plus a 30 ms decaying noise burst every 250 ms
 /// whose peak is -0.5 dBFS.
+/// Pink bed level of the dense signal; -20 kept because no tried level (-20..-60) got active_pct <= 70 (see fix report).
+pub const DENSE_BED_DBFS: f64 = -20.0;
+
 pub fn dense(seconds: f64, fs: f64) -> Vec<f32> {
     let n = (seconds * fs) as usize;
     let mut bursts = vec![0f64; n];
@@ -82,7 +85,7 @@ pub fn dense(seconds: f64, fs: f64) -> Vec<f32> {
         }
     }
     normalize_peak(&mut bursts, -0.5);
-    let p = pink(-20.0, n, 5);
+    let p = pink(DENSE_BED_DBFS, n, 5);
     p.iter().zip(&bursts).map(|(a, b)| (a + b) as f32).collect()
 }
 
