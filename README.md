@@ -11,7 +11,10 @@ Hearing compensation for everything your Mac plays. AudioCurve shapes sound to y
 
 **[⬇ Download the latest release](https://github.com/paddan/audiocurve/releases/latest)** · macOS 27 · Apple silicon
 
-![Audiogram editor](docs/screenshots/audiogram.png)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/audiogram-dark.png">
+  <img src="docs/screenshots/audiogram-light.png" alt="Audiogram editor">
+</picture>
 
 > **Not a medical device.** AudioCurve is a personal hobby project. It is not a hearing aid, it is not clinically validated, and it does not replace advice from an audiologist. Keep the volume at a comfortable level.
 
@@ -45,9 +48,9 @@ Releases are built by the [Release workflow](.github/workflows/release.yml) when
 
 | Gain per band | Spectrum |
 |---|---|
-| ![Gain view](docs/screenshots/gain.png) | ![Spectrum view](docs/screenshots/spectrum.png) |
+| <picture>  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/gain-dark.png">  <img src="docs/screenshots/gain-light.png" alt="Gain view: bars per band with speech and music prescription ticks"></picture> | <picture>  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/spectrum-dark.png">  <img src="docs/screenshots/spectrum-light.png" alt="Spectrum view: input and output spectra with the ceiling"></picture> |
 
-*The screenshots use a made-up, mildly sloping example audiogram and made-up device names. The panel picture is drawn by the app itself: `open AudioCurve.app --env AUDIOCURVE_DEMO=panel --env AUDIOCURVE_DEMO_OUT=<folder>`.*
+*The screenshots use a made-up, mildly sloping example audiogram and made-up device names. They are drawn by the code itself, not captured from the screen: `make screenshots` draws the plugin window, running the real kernel on generated noise, and `open AudioCurve.app --env AUDIOCURVE_DEMO=panel --env AUDIOCURVE_DEMO_OUT=<folder>` draws the menu bar panel.*
 
 ## Using it
 
@@ -126,6 +129,7 @@ Other targets and options:
 | `make notarize SIGN_IDENTITY="…" NOTARY_PROFILE=<profile>` | Notarize and staple; create the profile once with `xcrun notarytool store-credentials` |
 | `make uninstall` | Unregister the extension and remove the app from `/Applications` |
 | `make test` | Run the Rust and Swift package tests |
+| `make screenshots` | Redraw the plugin window screenshots in `docs/screenshots` (made-up audiogram; your own profiles are not touched) |
 | `make clean` | Remove `build/` |
 
 An ad hoc signed build runs on the Mac that built it. To give it to other people, sign it with a Developer ID and notarize it.

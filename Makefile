@@ -11,6 +11,7 @@
 #   make uninstall                   remove it from /Applications again
 #   make notarize NOTARY_PROFILE=... notarize and staple (needs a Developer ID identity)
 #   make test                        run the Rust and Swift package tests
+#   make screenshots                 redraw the plugin window screenshots in docs/screenshots
 #   make clean                       remove build/
 
 APP_NAME      := AudioCurve
@@ -60,7 +61,7 @@ SWIFT_FLAGS = -sdk $(SDK) -target $*-apple-macos$(MACOS_MIN) -swift-version 6 \
 
 CODESIGN_FLAGS = --force --sign "$(SIGN_IDENTITY)" $(if $(filter -,$(SIGN_IDENTITY)),,--options runtime --timestamp)
 
-.PHONY: all release install uninstall notarize test clean
+.PHONY: all release install uninstall notarize test clean screenshots
 # Keep intermediate objects so rebuilds are incremental.
 .SECONDARY:
 .DEFAULT_GOAL := release
@@ -162,6 +163,23 @@ $(STAMP): $(foreach a,$(ARCHS),$(OBJ_DIR)/$(a)/$(AU_NAME) $(OBJ_DIR)/$(a)/$(APP_
 	python3 scripts/xcstrings2strings.py AU/Localizable.xcstrings $(APPEX)/Contents/Resources
 	@touch $@
 
+
+# --- README screenshots -----------------------------------------------------
+
+# The plugin view, drawn in-process from the AU sources with a made-up audiogram. The
+# plugin's profile store goes to a home folder under build/, never the user's own profiles.
+SHOT_TOOL := $(OBJ_DIR)/arm64/screenshots
+SHOT_HOME := $(BUILD_DIR)/screenshots-home
+$(SHOT_TOOL): scripts/screenshots/WindowSnapshot.swift $(AU_SRC) AU/Localizable.xcstrings $(OBJ_DIR)/arm64/AudioCurveCore.o $(OBJ_DIR)/arm64/shim.o $(OBJ_DIR)/arm64/libaudiocurve_dsp.a
+	$(SWIFTC) -sdk $(SDK) -target arm64-apple-macos$(MACOS_MIN) -swift-version 6 -O -parse-as-library \
+		-module-name Screenshots -I $(dir $(MODMAP)) -I $(@D) -emit-executable -o $@ \
+		scripts/screenshots/WindowSnapshot.swift $(filter-out AU/AudioCurveViewController.swift,$(AU_SRC)) \
+		$(@D)/AudioCurveCore.o $(@D)/shim.o $(@D)/libaudiocurve_dsp.a
+	python3 scripts/xcstrings2strings.py AU/Localizable.xcstrings $(@D)   # a bare executable finds .lproj beside it
+
+screenshots: $(SHOT_TOOL)
+	@mkdir -p $(SHOT_HOME)
+	CFFIXED_USER_HOME=$(abspath $(SHOT_HOME)) $(SHOT_TOOL) $(abspath docs/screenshots) -AppleLanguages "(en)" -AppleLocale en_US
 
 # --- Install, notarize, test, clean ----------------------------------------
 
