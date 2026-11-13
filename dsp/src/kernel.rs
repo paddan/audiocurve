@@ -2,7 +2,7 @@
 
 use crate::bands::BAND_COUNT;
 use crate::classifier::Classifier;
-use crate::compressor::BandCompressor;
+use crate::compressor::{BandCompressor, Timing, blend_timing};
 use crate::filterbank::{BandBuffers, Filterbank};
 use crate::limiter::{soft_knee_db, Limiter};
 use crate::meters::{AtomicMeters, MeterState, ReductionMeter};
@@ -14,17 +14,6 @@ use std::sync::Mutex;
 
 /// Output-gain smoothing time constant: 20/3 ms.
 const GAIN_TAU_S: f64 = 0.020 / 3.0;
-/// Speech and Music time constants; the speech weight glides (log-wise) between them.
-const SPEECH_ATTACK_MS: f64 = 5.0;
-const SPEECH_RELEASE_MS: f64 = 50.0;
-const MUSIC_ATTACK_MS: f64 = 10.0;
-const MUSIC_RELEASE_MS: f64 = 200.0;
-
-/// Geometric blend: `a` at s = 0, `b` at s = 1.
-#[inline]
-fn log_blend(a: f64, b: f64, s: f64) -> f64 {
-    a * (b / a).powf(s.clamp(0.0, 1.0))
-}
 /// The summed band-output budget sits this far below the MPO. It leaves room for the
 /// crest factor of real signals (the budget is a short-term power level), so the
 /// broadband limiter only catches brief peaks instead of ducking the whole mix.
@@ -127,11 +116,11 @@ impl Ear {
     /// bands are capped (water-filling) and the rest pass unchanged.
     /// Returns the deepest broadband-equivalent budget reduction in this block (dB, >= 0).
     fn run(&mut self, x: &mut [f32], speech: &[crate::params::BandFitting; BAND_COUNT],
-           music: &[crate::params::BandFitting; BAND_COUNT], weight: f64, attack: f64, release: f64, ceiling_dbfs: f64) -> f32 {
+           music: &[crate::params::BandFitting; BAND_COUNT], weight: f64, timing: &Timing, ceiling_dbfs: f64) -> f32 {
         self.bank.split(x, &mut self.bufs);
         let n = x.len();
         for i in 0..BAND_COUNT {
-            self.comps[i].analyze(&self.bufs.bands[i][..n], &speech[i], &music[i], weight, attack, release,
+            self.comps[i].analyze(&self.bufs.bands[i][..n], &speech[i], &music[i], weight, timing,
                                   &mut self.gains[i][..n], &mut self.levels[i][..n]);
         }
         let budget_db = ceiling_dbfs;
@@ -358,11 +347,10 @@ impl Dsp {
             let speech = self.classifier.speech() as f64;
             meters.store_speech(speech as f32);
             let weight = if p.auto_mode >= 0.5 { speech } else { p.speech_weight.clamp(0.0, 1.0) };
-            let attack = log_blend(MUSIC_ATTACK_MS, SPEECH_ATTACK_MS, weight);
-            let release = log_blend(MUSIC_RELEASE_MS, SPEECH_RELEASE_MS, weight);
+            let timing = blend_timing(weight);
             // pre_process: identity (reserved for v2)
-            let red_l = self.ears[0].run(cl, &p.left, &p.music_left, weight, attack, release, band_ceiling);
-            let red_r = self.ears[1].run(cr, &p.right, &p.music_right, weight, attack, release, band_ceiling);
+            let red_l = self.ears[0].run(cl, &p.left, &p.music_left, weight, &timing, band_ceiling);
+            let red_r = self.ears[1].run(cr, &p.right, &p.music_right, weight, &timing, band_ceiling);
             self.output_gain.apply(p.output_gain_db, cl, cr);
             // Defence in depth: never feed a non-finite value to the limiter. Drop the
             // chunk and restart every filter/envelope from a clean state.
