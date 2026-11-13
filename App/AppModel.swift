@@ -30,14 +30,26 @@ final class AppModel {
     private(set) var otherHosts: [String] = []
     /// Mirrors `host.loadState` so views can observe it.
     private(set) var pluginState: PluginLoadState = .loading
+    /// SMAppService is not observable, so the status is mirrored here: after every change and
+    /// on every poll (it can also change in System Settings).
+    private(set) var launchAtLoginEnabled = SMAppService.mainApp.status == .enabled
     var launchAtLogin: Bool {
-        get { SMAppService.mainApp.status == .enabled }
+        get { launchAtLoginEnabled }
         set {
-            try? newValue ? SMAppService.mainApp.register() : SMAppService.mainApp.unregister()
-            loginToggles += 1   // SMAppService is not observable
+            do {
+                try newValue ? SMAppService.mainApp.register() : SMAppService.mainApp.unregister()
+            } catch {
+                NSLog("AudioCurve: launch at login %@ failed: %@", newValue ? "register" : "unregister",
+                      error.localizedDescription)
+            }
+            refreshLaunchAtLogin()
         }
     }
-    private var loginToggles = 0
+
+    private func refreshLaunchAtLogin() {
+        let on = SMAppService.mainApp.status == .enabled
+        if on != launchAtLoginEnabled { launchAtLoginEnabled = on }
+    }
 
     let host = PluginHost()
     private let client: PluginClient
@@ -178,6 +190,7 @@ final class AppModel {
     private func tick() {
         refreshStatus()
         checkPermission()
+        refreshLaunchAtLogin()
     }
 
     /// No public API tells whether recording was denied: a denied tap delivers silence. Taken as
