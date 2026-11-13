@@ -42,7 +42,7 @@ struct ControlsPanel: View {
             }
             .toggleStyle(.checkbox)
             .font(Theme.label)
-            ActiveOutputsMenu(vm: vm)
+            ActiveOutputsList(vm: vm)
             if !vm.limiterOn {
                 Text("Limiter off: no level ceiling below 0 dBFS")
                     .font(Theme.label)
@@ -110,30 +110,33 @@ struct ControlsPanel: View {
 }
 
 /// "Active on" menu: which output devices AudioCurve processes for, plus a paused notice.
-private struct ActiveOutputsMenu: View {
+/// One checkbox per output device: AudioCurve processes sound only while a ticked device is the output.
+private struct ActiveOutputsList: View {
     let vm: PluginViewModel
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Menu {
-                Button { vm.activateOnAllOutputs() } label: {
-                    if vm.activeOutputs.isAll { Label("All outputs", systemImage: "checkmark") } else { Text("All outputs") }
-                }
-                Divider()
-                ForEach(vm.activeOutputs.menuDevices(available: vm.availableOutputs)) { d in
-                    Button { vm.toggleOutput(d) } label: {
-                        let title = itemTitle(d)
-                        if vm.activeOutputs.contains(d.uid) { Label(title, systemImage: "checkmark") } else { Text(title) }
+            Text("Active on")
+                .font(Theme.label)
+                .help(Text("Choose the output devices AudioCurve processes sound for. On other outputs the sound passes through unchanged."))
+            let available = vm.availableOutputs
+            ForEach(vm.activeOutputs.menuDevices(available: available)) { d in
+                let connected = available.contains { $0.uid == d.uid }
+                Toggle(isOn: Binding(get: { vm.activeOutputs.isChecked(d.uid) },
+                                     set: { vm.setOutput(d, enabled: $0) })) {
+                    HStack(spacing: 4) {
+                        Text(verbatim: d.name).lineLimit(1).truncationMode(.middle)
+                        if d.uid == vm.currentOutput?.uid {
+                            Text("(current)", comment: "Output device that is in use now").foregroundStyle(.secondary)
+                        } else if !connected {
+                            Text("(not connected)", comment: "Remembered output device that is not connected").foregroundStyle(.secondary)
+                        }
                     }
                 }
-            } label: {
-                Text(summary).lineLimit(1)
+                .toggleStyle(.checkbox)
+                .font(Theme.label)
+                .disabled(vm.activeOutputs.isLastChecked(d.uid, available: available))
             }
-            .menuStyle(.button)
-            .fixedSize()
-            .font(Theme.label)
-            .help(Text("Choose the output devices AudioCurve processes sound for. On other outputs the sound passes through unchanged."))
-            .onTapGesture { vm.refreshOutputs() }
             if !vm.processingActive {
                 Text("Paused – \(vm.currentOutput?.name ?? "") is the output", comment: "Status when the current output device is not one the user enabled")
                     .font(Theme.label)
@@ -142,23 +145,7 @@ private struct ActiveOutputsMenu: View {
                     .truncationMode(.middle)
             }
         }
-    }
-
-    private var summary: String {
-        let a = vm.activeOutputs
-        if a.isAll { return String(localized: "Active on: all outputs", comment: "Active-outputs menu label") }
-        if a.devices.count == 1 {
-            return String(localized: "Active on: \(a.devices[0].name)", comment: "Active-outputs menu label with one device")
-        }
-        return String(localized: "Active on: \(a.devices.count) outputs", comment: "Active-outputs menu label with several devices")
-    }
-
-    private func itemTitle(_ d: OutputDevice) -> String {
-        if d.uid == vm.currentOutput?.uid { return String(localized: "\(d.name) (current)", comment: "Output device that is in use now") }
-        if !vm.availableOutputs.contains(where: { $0.uid == d.uid }) {
-            return String(localized: "\(d.name) (not connected)", comment: "Remembered output device that is not connected")
-        }
-        return d.name
+        .onAppear { vm.refreshOutputs() }
     }
 }
 

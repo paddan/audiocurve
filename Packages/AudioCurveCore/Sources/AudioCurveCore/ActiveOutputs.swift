@@ -30,16 +30,32 @@ public struct ActiveOutputs: Codable, Equatable, Sendable {
         return contains(uid)
     }
 
-    /// Adds or removes `device`; adding refreshes the stored name.
-    public mutating func toggle(_ device: OutputDevice) {
-        if let i = devices.firstIndex(where: { $0.uid == device.uid }) {
-            devices.remove(at: i)
-        } else {
+    /// Is `uid` ticked in the list? With no selection every device is.
+    public func isChecked(_ uid: String) -> Bool { isAll || contains(uid) }
+
+    /// Is `uid` the only ticked device? It cannot be unticked, since an empty selection means all.
+    public func isLastChecked(_ uid: String, available: [OutputDevice]) -> Bool {
+        let shown = menuDevices(available: available)
+        return shown.filter { isChecked($0.uid) }.map(\.uid) == [uid]
+    }
+
+    /// Ticks or unticks `device` in the list of `available` devices (plus remembered ones).
+    /// Unticking from "all" keeps every other device; ticking every device returns to "all";
+    /// the last ticked device stays ticked.
+    public mutating func setEnabled(_ device: OutputDevice, _ enabled: Bool, available: [OutputDevice]) {
+        let shown = menuDevices(available: available)
+        if enabled {
+            guard !isChecked(device.uid) else { return }
             devices.append(device)
+            if shown.allSatisfy({ contains($0.uid) }) { devices = [] }
+        } else {
+            guard isChecked(device.uid), !isLastChecked(device.uid, available: available) else { return }
+            if isAll { devices = shown }
+            devices.removeAll { $0.uid == device.uid }
         }
     }
 
-    /// Devices to offer in a menu: the ones currently available, then remembered ones that are not.
+    /// Devices to list: the ones currently available, then remembered ones that are not.
     public func menuDevices(available: [OutputDevice]) -> [OutputDevice] {
         available + devices.filter { d in !available.contains { $0.uid == d.uid } }
     }

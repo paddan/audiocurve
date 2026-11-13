@@ -150,13 +150,11 @@ final class PluginViewModel {
         processingActive = audioUnit.isProcessingActive
     }
 
-    func toggleOutput(_ d: OutputDevice) {
+    func setOutput(_ d: OutputDevice, enabled: Bool) {
         var a = activeOutputs
-        a.toggle(d)
+        a.setEnabled(d, enabled, available: availableOutputs)
         audioUnit.setActiveOutputs(a)
     }
-
-    func activateOnAllOutputs() { audioUnit.setActiveOutputs(ActiveOutputs()) }
 
     // MARK: Meters
 

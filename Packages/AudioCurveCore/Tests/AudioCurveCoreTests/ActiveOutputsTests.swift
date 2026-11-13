@@ -20,18 +20,44 @@ private let aids = OutputDevice(uid: "aids-uid", name: "Hearing aids")
     #expect(a.isActive(currentUID: nil))
 }
 
-@Test func toggleAddsAndRemoves() {
+private let speakers = OutputDevice(uid: "spk", name: "MacBook Pro Speakers")
+
+@Test func everyBoxIsCheckedWhenAllAreActive() {
+    let a = ActiveOutputs()
+    #expect(a.isChecked("airpods-uid"))
+    #expect(a.isChecked("spk"))
+}
+
+@Test func uncheckingFromAllKeepsTheOthers() {
     var a = ActiveOutputs()
-    a.toggle(airpods)
-    a.toggle(aids)
-    #expect(a.devices == [airpods, aids])
-    a.toggle(airpods)
-    #expect(a.devices == [aids])
+    a.setEnabled(aids, false, available: [airpods, aids, speakers])
+    #expect(a.devices == [airpods, speakers])
+    #expect(!a.isChecked("aids-uid"))
+}
+
+@Test func checkingAndUncheckingSingleDevices() {
+    var a = ActiveOutputs(devices: [airpods])
+    a.setEnabled(speakers, true, available: [airpods, aids, speakers])
+    #expect(a.devices == [airpods, speakers])
+    a.setEnabled(speakers, false, available: [airpods, aids, speakers])
+    #expect(a.devices == [airpods])
+}
+
+@Test func theLastCheckedBoxCannotBeUnchecked() {
+    var a = ActiveOutputs(devices: [airpods])
+    #expect(a.isLastChecked("airpods-uid", available: [airpods, aids]))
+    a.setEnabled(airpods, false, available: [airpods, aids])
+    #expect(a.devices == [airpods])
+}
+
+@Test func checkingEveryDeviceMeansAll() {
+    var a = ActiveOutputs(devices: [airpods])
+    a.setEnabled(aids, true, available: [airpods, aids])
+    #expect(a.isAll)
 }
 
 @Test func menuListsAvailableThenRememberedOffline() {
     let a = ActiveOutputs(devices: [airpods])
-    let speakers = OutputDevice(uid: "spk", name: "MacBook Pro Speakers")
     #expect(a.menuDevices(available: [speakers, aids]) == [speakers, aids, airpods])
     #expect(a.menuDevices(available: [airpods, speakers]) == [airpods, speakers])
 }
