@@ -80,7 +80,7 @@ pub fn measure(aname: &str, a: &Audiogram, mode: Mode, wav_dir: Option<&Path>) -
     }
     let dense = signals::dense(6.0, FS);
     let r = render(&p, &dense);
-    safety(&p, &r, &wav, &dense, &mut out);
+    safety(&p, &wav, &dense, &mut out);
     if mode != Mode::Auto {
         out.push(("isp_over_db".into(), isp_over_db(&p, &r, &wav)));
         tilt(&p, &wav, &mut out);
@@ -197,9 +197,9 @@ fn gainmod_hf(a: &Audiogram, mode: Mode, wav: &Wav) -> f64 {
     stds.iter().sum::<f64>() / stds.len() as f64
 }
 
-/// Safety-stage activity on the dense signal: per-block reduction is the energy ratio (dB)
-/// between the same signal rendered with the safety stage off and on.
-fn safety(p: &Params, on: &Rendered, wav: &Wav, input: &[f32], out: &mut Vec<(String, f64)>) {
+/// (active %, mean dB, max dB) of the safety-stage reduction on `input`: per-block energy
+/// ratio between the signal rendered with the safety stage off and on (`on` = render with `p`).
+fn safety_stats(p: &Params, on: &Rendered, input: &[f32]) -> (f64, f64, f64) {
     let mut off_p = *p;
     off_p.limiter_enabled = 0.0;
     off_p.mpo_dbfs = -1.0;
@@ -214,9 +214,40 @@ fn safety(p: &Params, on: &Rendered, wav: &Wav, input: &[f32], out: &mut Vec<(St
         })
         .collect();
     let n = red.len() as f64;
-    out.push(("safety_active_pct".into(), 100.0 * red.iter().filter(|&&v| v > 0.1).count() as f64 / n));
-    out.push(("safety_mean_db".into(), red.iter().sum::<f64>() / n));
-    out.push(("safety_max_db".into(), red.iter().fold(0.0, |a, &v| a.max(v))));
+    (
+        100.0 * red.iter().filter(|&&v| v > 0.1).count() as f64 / n,
+        red.iter().sum::<f64>() / n,
+        red.iter().fold(0.0, |a, &v| a.max(v)),
+    )
+}
+
+/// "Auto level" operating point: the highest output gain (0 down to -40 dB, 1 dB steps) at
+/// which the bed alone (no bursts) leaves the safety stage idle (mean reduction <= 0.1 dB).
+/// Coarse 6 dB steps first, then a 1 dB refinement.
+fn auto_level_gain(p: &Params) -> f64 {
+    let bed = signals::to_f32(&signals::pink(signals::DENSE_BED_DBFS, 2 * FS as usize, 5));
+    let idle = |g: f64| {
+        let mut q = *p;
+        q.output_gain_db = g;
+        safety_stats(&q, &render(&q, &bed), &bed).1 <= 0.1
+    };
+    let mut coarse = 0.0;
+    while coarse > -40.0 && !idle(coarse) {
+        coarse = (coarse - 6.0).max(-40.0);
+    }
+    (1..=5).map(|k| coarse + (6 - k) as f64).filter(|&g| g <= 0.0 && g > coarse).find(|&g| idle(g)).unwrap_or(coarse)
+}
+
+/// Safety-stage activity on the dense signal at the auto-level output gain.
+fn safety(p: &Params, wav: &Wav, input: &[f32], out: &mut Vec<(String, f64)>) {
+    let mut q = *p;
+    q.output_gain_db = auto_level_gain(p);
+    let on = render(&q, input);
+    let (pct, mean, max) = safety_stats(&q, &on, input);
+    out.push(("safety_output_gain_db".into(), q.output_gain_db));
+    out.push(("safety_active_pct".into(), pct));
+    out.push(("safety_mean_db".into(), mean));
+    out.push(("safety_max_db".into(), max));
     wav.save("safety", input, &on.left);
 }
 

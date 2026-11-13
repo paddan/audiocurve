@@ -7,6 +7,9 @@ use std::path::Path;
 /// Metric-name prefixes for which a larger value is worse (checked by the regression test).
 pub const LOWER_IS_BETTER: &[&str] = &["thdn_", "imd_", "gainmod_hf", "safety_", "isp_over_db"];
 
+/// Report-only metrics: never checked by the regression test.
+pub const REPORT_ONLY: &[&str] = &["safety_output_gain_db", "tilt_db_per_oct", "lowhigh_diff_db"];
+
 fn round2(v: f64) -> f64 {
     (v * 100.0).round() / 100.0
 }

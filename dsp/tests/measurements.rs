@@ -15,6 +15,10 @@ fn no_metric_worse_than_2_0_0() {
         serde_json::from_str(include_str!("../measurements/baseline-2.0.0.json")).unwrap();
     let now = now();
     for (k, b) in &base {
+        let name = k.split('/').last().unwrap();
+        if measure::report::REPORT_ONLY.contains(&name) {
+            continue;
+        }
         if !measure::report::LOWER_IS_BETTER.iter().any(|s| k.split('/').last().unwrap().starts_with(s)) {
             continue;
         }
@@ -26,6 +30,8 @@ fn no_metric_worse_than_2_0_0() {
 #[test]
 fn metrics_are_finite_and_complete() {
     let now = now();
-    assert_eq!(now.len(), 2 * (2 * (9 + 4 + 1 + 3 + 1 + 2) + 3));
+    // Per audiogram: speech and music each have 9 thdn + 4 imd + 1 gainmod + 4 safety (incl.
+    // output gain) + 1 isp + 2 tilt; auto has the 4 safety keys only.
+    assert_eq!(now.len(), 2 * (2 * (9 + 4 + 1 + 4 + 1 + 2) + 4));
     assert!(now.values().all(|v| v.is_finite()));
 }
