@@ -257,8 +257,9 @@ fn safety(p: &Params, wav: &Wav, input: &[f32], out: &mut Vec<(String, f64)>) {
     wav.save("safety", input, &on.left);
 }
 
-/// Highest 4x-oversampled true peak (linear) of `x` after the first second.
-fn true_peak(x: &[f32]) -> f64 {
+/// Highest 4x-oversampled true peak (linear) of `x` after the first second (also used by
+/// `tests/limiter.rs`).
+pub fn true_peak(x: &[f32]) -> f64 {
     const HALF: isize = 32; // 64 taps per phase
     const BETA: f64 = 8.0;
     let i0 = |v: f64| {

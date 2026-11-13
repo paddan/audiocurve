@@ -36,8 +36,9 @@ fn ffi_rejects_bad_args() {
 fn ffi_latency() {
     unsafe {
         let k = ac_kernel_new(48000.0, 512);
-        // 2 ms limiter lookahead + 3 ms band-budget lookahead at 48 kHz.
-        assert_eq!(ac_kernel_latency_frames(k), 240);
+        // Limiter: 5 ms lookahead + 16-frame true-peak detector; plus 3 ms band-budget
+        // lookahead, at 48 kHz.
+        assert_eq!(ac_kernel_latency_frames(k), 240 + 16 + 144);
         ac_kernel_free(k);
     }
 }

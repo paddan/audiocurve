@@ -22,7 +22,7 @@ fn no_metric_worse_than_2_0_0() {
         if !measure::report::LOWER_IS_BETTER.iter().any(|s| k.split('/').last().unwrap().starts_with(s)) {
             continue;
         }
-        // Distortion below -100 dB is inaudible (15+ dB under the 16-bit floor): count it as equal.
+        // Distortion below -100 dB is inaudible, below the 16-bit noise floor (~-96 dB): count it as equal.
         let (b, v) = if name.starts_with("thdn_") || name.starts_with("imd_") {
             (b.max(-100.0), now[k].max(-100.0))
         } else {
@@ -44,6 +44,16 @@ fn gain_modulation_at_most_half_of_2_0_0() {
         checked += 1;
     }
     assert_eq!(checked, 4);
+}
+
+#[test]
+fn no_inter_sample_peak_over_ceiling() {
+    // Spec 1: no 4x-oversampled inter-sample peak exceeds the MPO ceiling.
+    let isp: Vec<_> = now().iter().filter(|(k, _)| k.ends_with("/isp_over_db")).collect();
+    assert_eq!(isp.len(), 4);
+    for (k, v) in isp {
+        assert!(*v <= 0.0, "{k}: {v} dB over the ceiling");
+    }
 }
 
 #[test]
