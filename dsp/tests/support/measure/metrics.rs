@@ -17,7 +17,7 @@ const TONE_SETTLE_S: f64 = 8.0;
 const TONE_S: f64 = TONE_SETTLE_S + 1.0;
 const MPO_DBFS: f64 = -3.0;
 /// Distortion below this is f32 noise floor; clamped so the regression gate is stable.
-const DB_FLOOR: f64 = -100.0;
+const DB_FLOOR: f64 = -120.0;
 
 /// Optional WAV dump of a metric's input/output pair (left ear, 32-bit float).
 struct Wav<'a> {
@@ -167,7 +167,7 @@ fn gainmod_hf(a: &Audiogram, mode: Mode, wav: &Wav) -> f64 {
     let fits = prescription::fittings(a, Ear::Left, mode);
     let p = params(a, mode);
     // Kernel time constants for the weight (Auto is measured at the Music values).
-    let timing = audiocurve_dsp::compressor::blend_timing(if p.speech_weight >= 0.5 { 1.0 } else { 0.0 });
+    let timing = audiocurve_dsp::compressor::blend_timing(p.speech_weight);
     let sig = signals::modulated_pink(-20.0, 4.0, FS);
     let n = sig.len();
     let mut bank = Filterbank::new(FS);

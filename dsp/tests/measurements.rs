@@ -28,6 +28,19 @@ fn no_metric_worse_than_2_0_0() {
 }
 
 #[test]
+fn gain_modulation_at_most_half_of_2_0_0() {
+    let base: BTreeMap<String, f64> =
+        serde_json::from_str(include_str!("../measurements/baseline-2.0.0.json")).unwrap();
+    let now = now();
+    let mut checked = 0;
+    for (k, b) in base.iter().filter(|(k, _)| k.ends_with("/gainmod_hf")) {
+        assert!(now[k] <= 0.5 * b, "{k}: {} > 0.5 x baseline {b}", now[k]);
+        checked += 1;
+    }
+    assert_eq!(checked, 4);
+}
+
+#[test]
 fn metrics_are_finite_and_complete() {
     let now = now();
     // Per audiogram: speech and music each have 9 thdn + 4 imd + 1 gainmod + 4 safety (incl.
