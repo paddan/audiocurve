@@ -22,6 +22,10 @@ struct ControlsPanel: View {
             SliderRow(title: "Strength", value: binding(.strength), range: 0...100, step: 1, defaultValue: 50) {
                 Fmt.percent($0)
             }
+            SliderRow(title: "Tone", value: binding(.tone), range: 0...100, step: 1, defaultValue: 0,
+                      minimumLabel: "Clear", maximumLabel: "Warm") {
+                Fmt.percent($0)
+            }
             SliderRow(title: "Input level", value: binding(.inputGain), range: -30...12, step: 0.5, defaultValue: 0) {
                 "\(Fmt.signed($0)) dB"
             }
@@ -84,6 +88,7 @@ struct ControlsPanel: View {
             get: {
                 switch a {
                 case .strength: vm.strength
+                case .tone: vm.tone
                 case .mpo: vm.mpo
                 case .outputGain: vm.outputGain
                 case .mode: Double(vm.mode.rawValue)
@@ -223,6 +228,8 @@ private struct SliderRow: View {
     let range: ClosedRange<Double>
     let step: Double
     let defaultValue: Double
+    var minimumLabel: LocalizedStringKey?
+    var maximumLabel: LocalizedStringKey?
     let format: (Double) -> String
 
     var body: some View {
@@ -240,6 +247,14 @@ private struct SliderRow: View {
                 .labelsHidden()
                 .accessibilityLabel(Text(title))
                 .accessibilityValue(format(value))
+            if let minimumLabel, let maximumLabel {
+                HStack {
+                    Text(minimumLabel); Spacer(); Text(maximumLabel)
+                }
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
+            }
         }
     }
 }

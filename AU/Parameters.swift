@@ -2,7 +2,7 @@ import AudioToolbox
 import AudioCurveCore
 
 public enum ParamAddress: AUParameterAddress {
-    case strength = 0, mpo = 1, outputGain = 2, mode = 3, compression = 4, limiter = 5, inputGain = 6
+    case strength = 0, mpo = 1, outputGain = 2, mode = 3, compression = 4, limiter = 5, inputGain = 6, tone = 7
 
     var identifier: String {
         switch self {
@@ -13,6 +13,7 @@ public enum ParamAddress: AUParameterAddress {
         case .compression: "compression"
         case .limiter: "limiter"
         case .inputGain: "inputGain"
+        case .tone: "tone"
         }
     }
 }
@@ -27,6 +28,8 @@ struct ParamValues: Sendable {
     var compression: Int = 1
     var limiter: Int = 1
     var inputGain: Double = 0
+    /// Clear to Warm, a percentage (0...100). Absent in 2.0 states, so it stays 0 there.
+    var tone: Double = 0
 
     subscript(a: ParamAddress) -> Double {
         get {
@@ -38,6 +41,7 @@ struct ParamValues: Sendable {
             case .compression: Double(compression)
             case .limiter: Double(limiter)
             case .inputGain: inputGain
+            case .tone: tone
             }
         }
         set {
@@ -49,6 +53,7 @@ struct ParamValues: Sendable {
             case .compression: compression = newValue >= 0.5 ? 1 : 0
             case .limiter: limiter = newValue >= 0.5 ? 1 : 0
             case .inputGain: inputGain = newValue
+            case .tone: tone = newValue
             }
         }
     }
@@ -63,6 +68,12 @@ enum Parameters {
             unitName: nil, flags: [.flag_IsReadable, .flag_IsWritable], valueStrings: nil,
             dependentParameters: nil)
         strength.value = AUValue(d.strength)
+        let tone = AUParameterTree.createParameter(
+            withIdentifier: ParamAddress.tone.identifier, name: String(localized: "Tone", comment: "Parameter name: tonal balance of the fitting, from clear (0) to warm (100)"),
+            address: ParamAddress.tone.rawValue, min: 0, max: 100, unit: .percent,
+            unitName: nil, flags: [.flag_IsReadable, .flag_IsWritable], valueStrings: nil,
+            dependentParameters: nil)
+        tone.value = AUValue(d.tone)
         let mpo = AUParameterTree.createParameter(
             withIdentifier: ParamAddress.mpo.identifier, name: String(localized: "Maximum output", comment: "Parameter name: MPO, the output ceiling in dBFS"),
             address: ParamAddress.mpo.rawValue, min: -20, max: -1, unit: .decibels,
@@ -102,6 +113,6 @@ enum Parameters {
             unitName: nil, flags: [.flag_IsReadable, .flag_IsWritable], valueStrings: nil,
             dependentParameters: nil)
         limiter.value = AUValue(d.limiter)
-        return AUParameterTree.createTree(withChildren: [strength, mpo, gain, mode, compression, limiter, input])
+        return AUParameterTree.createTree(withChildren: [strength, tone, mpo, gain, mode, compression, limiter, input])
     }
 }

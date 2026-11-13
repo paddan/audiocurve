@@ -10,5 +10,9 @@
   { "prescription": "music",  "f": 1000, "hl": 60,  "tone": 0, "soft": 27, "loud": 18,   "cr": 1.1765 },
   { "prescription": "music",  "f": 4000, "hl": 100, "tone": 0, "soft": 36, "loud": 16,   "cr": 1.5 },
   { "prescription": "music",  "f": 250,  "hl": 40,  "tone": 0, "soft": 18, "loud": 12,   "cr": 1.1111 },
-  { "prescription": "music",  "f": 250,  "hl": 40,  "tone": 1, "soft": 23, "loud": 17,   "cr": 1.1111 }
+  { "prescription": "music",  "f": 250,  "hl": 40,  "tone": 1, "soft": 23, "loud": 17,   "cr": 1.1111 },
+  { "prescription": "speech", "f": 500,  "hl": 40,  "tone": 1, "soft": 22, "loud": 8,    "cr": 1.3043 },
+  { "prescription": "music",  "f": 1000, "hl": 60,  "tone": 1, "soft": 28, "loud": 19,   "cr": 1.1765 },
+  { "prescription": "music",  "f": 2000, "hl": 60,  "tone": 1, "soft": 27, "loud": 18,   "cr": 1.1765 },
+  { "prescription": "speech", "f": 750,  "hl": 60,  "tone": 1, "soft": 37, "loud": 16,   "cr": 1.5385 }
 ]

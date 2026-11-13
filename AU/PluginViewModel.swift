@@ -64,6 +64,7 @@ final class PluginViewModel {
     var activeEar: Ear = .left
     var view: Pane = .audiogram
     var strength: Double = 50
+    var tone: Double = 0
     var mpo: Double = -3
     var outputGain: Double = 0
     var inputGain: Double = 0
@@ -120,6 +121,7 @@ final class PluginViewModel {
         if let tree = audioUnit.parameterTree {
             func value(_ a: ParamAddress) -> Double? { tree.parameter(withAddress: a.rawValue).map { Double($0.value) } }
             strength = value(.strength) ?? strength
+            tone = value(.tone) ?? tone
             mpo = value(.mpo) ?? mpo
             outputGain = value(.outputGain) ?? outputGain
             inputGain = value(.inputGain) ?? inputGain
@@ -177,6 +179,7 @@ final class PluginViewModel {
         guard let a = ParamAddress(rawValue: address) else { return }
         switch a {
         case .strength: strength = value
+        case .tone: tone = value
         case .mpo: mpo = value
         case .outputGain: outputGain = value
         case .mode: mode = CompressionMode(rawValue: Int(value.rounded())) ?? .auto
@@ -189,6 +192,7 @@ final class PluginViewModel {
     func set(_ a: ParamAddress, _ value: Double) {
         switch a {
         case .strength: strength = value
+        case .tone: tone = value
         case .mpo: mpo = value
         case .outputGain: outputGain = value
         case .mode: mode = CompressionMode(rawValue: Int(value.rounded())) ?? .auto
@@ -316,7 +320,7 @@ final class PluginViewModel {
 
     func fitting(_ ear: Ear) -> [BandFitting] {
         guard let p = profile else { return [] }
-        return FittingRule.bands(for: p, ear: ear, strength: strength / 100, tone: 0, prescription: .speech)
+        return FittingRule.bands(for: p, ear: ear, strength: strength / 100, tone: tone / 100, prescription: .speech)
     }
 
     /// Axis range (dB) for the gain chart.
