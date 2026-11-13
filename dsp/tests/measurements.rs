@@ -22,8 +22,14 @@ fn no_metric_worse_than_2_0_0() {
         if !measure::report::LOWER_IS_BETTER.iter().any(|s| k.split('/').last().unwrap().starts_with(s)) {
             continue;
         }
+        // Distortion below -100 dB is inaudible (15+ dB under the 16-bit floor): count it as equal.
+        let (b, v) = if name.starts_with("thdn_") || name.starts_with("imd_") {
+            (b.max(-100.0), now[k].max(-100.0))
+        } else {
+            (*b, now[k])
+        };
         let tol = if k.contains("safety_active_pct") { 1.0 } else { 0.5 };
-        assert!(now[k] <= b + tol, "{k}: {} > baseline {b}", now[k]);
+        assert!(v <= b + tol, "{k}: {v} > baseline {b}");
     }
 }
 

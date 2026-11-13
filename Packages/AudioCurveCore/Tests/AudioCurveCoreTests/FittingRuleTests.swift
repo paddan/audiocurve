@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 import CAudioCurveDSP
 @testable import AudioCurveCore
@@ -18,71 +19,132 @@ private func expectFitting(_ b: BandFitting, _ soft: Double, _ loud: Double, _ c
     #expect(abs(b.compressionRatio - cr) < 1e-9, sourceLocation: sourceLocation)
 }
 
+private struct PrescriptionCase: Decodable {
+    let prescription: String
+    let f: Double, hl: Double, tone: Double, soft: Double, loud: Double, cr: Double
+}
+
+@Test func prescriptionCasesMatchFixture() throws {
+    let url = try #require(Bundle.module.url(forResource: "prescription-cases", withExtension: "json", subdirectory: "Fixtures"))
+    let rows = try JSONDecoder().decode([PrescriptionCase].self, from: Data(contentsOf: url))
+    #expect(rows.count >= 12)
+    for r in rows {
+        let rx: Prescription = r.prescription == "speech" ? .speech : .music
+        let bands = FittingRule.bands(for: uniformProfile(r.hl), ear: .left, strength: 1, tone: r.tone, prescription: rx)
+        let i = try #require(Bands.centers.firstIndex(of: r.f))
+        #expect(abs(bands[i].gainSoftDB - r.soft) < 0.001, "soft \(r)")
+        #expect(abs(bands[i].gainLoudDB - r.loud) < 0.001, "loud \(r)")
+        #expect(abs(bands[i].compressionRatio - r.cr) < 0.001, "cr \(r)")
+    }
+}
+
 @Test func normalHearingIsUnity() {
-    let bands = FittingRule.bands(for: HearingProfile.flat(), ear: .left, strength: 1)
-    #expect(bands.count == 12)
-    for b in bands { expectFitting(b, 0, 0, 1) }
+    for rx in [Prescription.speech, .music] {
+        let bands = FittingRule.bands(for: HearingProfile.flat(), ear: .left, strength: 1, prescription: rx)
+        #expect(bands.count == 12)
+        for b in bands { expectFitting(b, 0, 0, 1) }
+    }
 }
 
-@Test func exampleLeftAt1500() {
-    let bands = FittingRule.bands(for: exampleProfile(), ear: .left, strength: 1)
-    expectFitting(bands[5], 39, 16.25, 45 / 22.25)
+@Test func speechRatioAtMost3() {
+    for hl in stride(from: 0.0, through: 120, by: 10) {
+        for b in FittingRule.bands(for: uniformProfile(hl), ear: .left, strength: 1, prescription: .speech) {
+            #expect(b.compressionRatio >= 1 && b.compressionRatio <= 3)
+        }
+    }
 }
 
-@Test func exampleLeftAt6k() {
-    let bands = FittingRule.bands(for: exampleProfile(), ear: .left, strength: 1)
-    expectFitting(bands[9], 57, 23.75, 45 / 11.75)
+@Test func musicRatioAtMost2AndNoBassCut() {
+    for hl in stride(from: 0.0, through: 120, by: 10) {
+        let music = FittingRule.bands(for: uniformProfile(hl), ear: .left, strength: 1, prescription: .music)
+        let hle = hl <= 60 ? hl : 60 + 0.5 * (hl - 60)
+        for i in 0..<Bands.count {
+            #expect(music[i].compressionRatio >= 1 && music[i].compressionRatio <= 2)
+            if Bands.centers[i] <= 500 {
+                // No low-frequency correction is subtracted.
+                #expect(abs(music[i].gainSoftDB - 0.45 * hle) < 1e-9)
+                #expect(abs(music[i].gainLoudDB - 0.3 * hle) < 1e-9)
+            }
+        }
+    }
+}
+
+@Test func toneZeroIsBase() {
+    let p = exampleProfile()
+    for rx in [Prescription.speech, .music] {
+        #expect(FittingRule.bands(for: p, ear: .left, strength: 1, tone: 0, prescription: rx)
+                == FittingRule.bands(for: p, ear: .left, strength: 1, prescription: rx))
+    }
+}
+
+@Test func toneKeepsSoftTrebleAndLowersLoudBy6() {
+    let p = uniformProfile(60)
+    for rx in [Prescription.speech, .music] {
+        let base = FittingRule.bands(for: p, ear: .left, strength: 1, tone: 0, prescription: rx)
+        let full = FittingRule.bands(for: p, ear: .left, strength: 1, tone: 1, prescription: rx)
+        for i in 0..<Bands.count where Bands.centers[i] > 2000 {
+            #expect(full[i].gainSoftDB == base[i].gainSoftDB)
+            #expect(abs(full[i].gainLoudDB - (base[i].gainLoudDB - 6)) < 1e-9)
+        }
+        for i in 0..<Bands.count where Bands.centers[i] <= 250 {
+            #expect(abs(full[i].gainSoftDB - (base[i].gainSoftDB + 5)) < 1e-9)
+            #expect(abs(full[i].gainLoudDB - (base[i].gainLoudDB + 5)) < 1e-9)
+        }
+    }
+}
+
+@Test func strengthZeroToneFullIsFiniteAndNonNegative() {
+    for hl in stride(from: 0.0, through: 120, by: 10) {
+        for rx in [Prescription.speech, .music] {
+            for s in [0.0, 0.5, 1.0] {
+                for b in FittingRule.bands(for: uniformProfile(hl), ear: .left, strength: s, tone: 1, prescription: rx) {
+                    #expect(b.gainSoftDB.isFinite && b.gainSoftDB >= 0)
+                    #expect(b.gainLoudDB.isFinite && b.gainLoudDB >= 0)
+                    #expect(b.compressionRatio.isFinite && b.compressionRatio >= 1 && b.compressionRatio <= (rx == .speech ? 3 : 2))
+                }
+            }
+        }
+    }
 }
 
 @Test func example12kHoldsAt8k() {
     let p = exampleProfile()
     for ear in Ear.allCases {
-        let bands = FittingRule.bands(for: p, ear: ear, strength: 1)
-        #expect(bands[11] == bands[10])
+        for rx in [Prescription.speech, .music] {
+            let bands = FittingRule.bands(for: p, ear: ear, strength: 1, prescription: rx)
+            #expect(bands[11] == bands[10])
+        }
     }
 }
 
-@Test func exampleRightAt500() {
-    let bands = FittingRule.bands(for: exampleProfile(), ear: .right, strength: 1)
-    expectFitting(bands[2], 7, 0, 45 / 38)
+@Test func exampleLeftAt1500() {
+    // HL 65 -> effective 62.5.
+    let b = FittingRule.bands(for: exampleProfile(), ear: .left, strength: 1, prescription: .speech)[5]
+    expectFitting(b, 37.5, 15.625, 60 / (60 - 21.875))
+    let m = FittingRule.bands(for: exampleProfile(), ear: .left, strength: 1, prescription: .music)[5]
+    expectFitting(m, 0.45 * 62.5, 0.3 * 62.5, 60 / (60 - 0.15 * 62.5))
 }
 
-@Test func lowFrequencyCorrection() {
-    let bands = FittingRule.bands(for: uniformProfile(40), ear: .left, strength: 1)
-    expectFitting(bands[1], 14, 0, bands[1].compressionRatio)
-    expectFitting(bands[2], 19, 5, bands[2].compressionRatio)
-}
-
-@Test func ratioClampedAt10() {
-    let bands = FittingRule.bands(for: uniformProfile(120), ear: .left, strength: 1)
-    expectFitting(bands[4], 72, 30, 10)
-}
-
-@Test func strengthScales() {
+@Test func strengthScalesAndZeroIsUnity() {
     let p = exampleProfile()
-    for b in FittingRule.bands(for: p, ear: .left, strength: 0) { expectFitting(b, 0, 0, 1) }
-    let half = FittingRule.bands(for: p, ear: .left, strength: 0.5)
-    #expect(abs(half[9].gainSoftDB - 28.5) < 1e-9)
-    #expect(abs(half[9].gainLoudDB - 11.875) < 1e-9)
+    for b in FittingRule.bands(for: p, ear: .left, strength: 0, prescription: .speech) { expectFitting(b, 0, 0, 1) }
+    let full = FittingRule.bands(for: p, ear: .left, strength: 1, prescription: .speech)
+    let half = FittingRule.bands(for: p, ear: .left, strength: 0.5, prescription: .speech)
+    #expect(abs(half[9].gainSoftDB - full[9].gainSoftDB / 2) < 1e-9)
+    #expect(abs(half[9].gainLoudDB - full[9].gainLoudDB / 2) < 1e-9)
 }
 
-@Test func crDenominatorEdgeIsTen() {
-    // Unvalidated input: spread 0.35 * 130 = 45.5 > 45, so the denominator is negative.
-    let bands = FittingRule.bands(for: uniformProfile(130), ear: .left, strength: 1)
-    #expect(bands[4].compressionRatio == 10)
+@Test func nanStrengthIsZero() {
+    let bands = FittingRule.bands(for: exampleProfile(), ear: .left, strength: .nan, prescription: .speech)
+    for b in bands { expectFitting(b, 0, 0, 1) }
 }
 
 @Test func shortTrimArrayDoesNotCrash() {
     var p = exampleProfile()
     p.leftTrimDB = []
-    let bands = FittingRule.bands(for: p, ear: .left, strength: 1)
+    let bands = FittingRule.bands(for: p, ear: .left, strength: 1, prescription: .speech)
     #expect(bands.count == 12)
-    expectFitting(bands[9], 57, 23.75, 45 / 11.75)
-}
-
-@Test func nanStrengthIsZero() {
-    let bands = FittingRule.bands(for: exampleProfile(), ear: .left, strength: .nan)
-    for b in bands { expectFitting(b, 0, 0, 1) }
+    #expect(bands == FittingRule.bands(for: exampleProfile(), ear: .left, strength: 1, prescription: .speech))
 }
 
 @Test func trimAddsToBoth() {
@@ -90,11 +152,24 @@ private func expectFitting(_ b: BandFitting, _ soft: Double, _ loud: Double, _ c
     var t = p.trim(.left)
     t[4] = 5
     p.setTrim(t, for: .left)
-    let left = FittingRule.bands(for: p, ear: .left, strength: 1)
-    expectFitting(left[4], 38, 18.75, 45 / (45 - 19.25))
-    let right = FittingRule.bands(for: p, ear: .right, strength: 1)
-    let original = FittingRule.bands(for: exampleProfile(), ear: .right, strength: 1)
-    #expect(right == original)
+    let base = FittingRule.bands(for: exampleProfile(), ear: .left, strength: 1, prescription: .speech)
+    let left = FittingRule.bands(for: p, ear: .left, strength: 1, prescription: .speech)
+    #expect(abs(left[4].gainSoftDB - (base[4].gainSoftDB + 5)) < 1e-9)
+    #expect(abs(left[4].gainLoudDB - (base[4].gainLoudDB + 5)) < 1e-9)
+    let right = FittingRule.bands(for: p, ear: .right, strength: 1, prescription: .speech)
+    #expect(right == FittingRule.bands(for: exampleProfile(), ear: .right, strength: 1, prescription: .speech))
+}
+
+@Test func blendIsLinearInGains() {
+    let sp = FittingRule.bands(for: exampleProfile(), ear: .left, strength: 1, prescription: .speech)
+    let mu = FittingRule.bands(for: exampleProfile(), ear: .left, strength: 1, prescription: .music)
+    #expect(FittingRule.blend(sp, mu, weight: 1) == sp)
+    #expect(FittingRule.blend(sp, mu, weight: 0) == mu)
+    let h = FittingRule.blend(sp, mu, weight: 0.5)
+    for i in 0..<Bands.count {
+        #expect(abs(h[i].gainSoftDB - (sp[i].gainSoftDB + mu[i].gainSoftDB) / 2) < 1e-9)
+        #expect(abs(h[i].gainLoudDB - (sp[i].gainLoudDB + mu[i].gainLoudDB) / 2) < 1e-9)
+    }
 }
 
 @Test func interpolationLogFrequency() {
@@ -112,23 +187,25 @@ private func expectFitting(_ b: BandFitting, _ soft: Double, _ loud: Double, _ c
 }
 
 @Test func paramsPacking() {
-    let p = FittingRule.params(profile: exampleProfile(), strength: 1, mpoDBFS: -3, outputGainDB: -6, mode: .music)
-    let b = p.left.6
-    #expect(abs(b.gain_soft_db - 42) < 1e-9)
-    #expect(abs(b.gain_loud_db - 17.5) < 1e-9)
-    #expect(abs(b.compression_ratio - 45 / 20.5) < 1e-9)
-    let r = p.right.6
-    #expect(abs(r.gain_soft_db - 30) < 1e-9)
-    #expect(abs(r.gain_loud_db - 12.5) < 1e-9)
-    #expect(abs(r.compression_ratio - 45 / 27.5) < 1e-9)
+    let profile = exampleProfile()
+    let p = FittingRule.params(profile: profile, strength: 1, tone: 0.5, mpoDBFS: -3, outputGainDB: -6, mode: .music)
+    func check(_ raw: [ac_band_fitting], _ expected: [BandFitting]) {
+        for i in 0..<Bands.count {
+            #expect(raw[i].gain_soft_db == expected[i].gainSoftDB)
+            #expect(raw[i].gain_loud_db == expected[i].gainLoudDB)
+            #expect(raw[i].compression_ratio == expected[i].compressionRatio)
+        }
+    }
+    func arr(_ set: UnsafeRawBufferPointer) -> [ac_band_fitting] { Array(set.bindMemory(to: ac_band_fitting.self)) }
+    for (ear, speechSet, musicSet) in [(Ear.left, p.left, p.music_left), (Ear.right, p.right, p.music_right)] {
+        check(withUnsafeBytes(of: speechSet) { arr($0) },
+              FittingRule.bands(for: profile, ear: ear, strength: 1, tone: 0.5, prescription: .speech))
+        check(withUnsafeBytes(of: musicSet) { arr($0) },
+              FittingRule.bands(for: profile, ear: ear, strength: 1, tone: 0.5, prescription: .music))
+    }
     #expect(abs(p.mpo_dbfs - -3) < 1e-9)
     #expect(abs(p.output_gain_db - -6) < 1e-9)
     #expect(p.speech_weight == 0)
-    // Until Task 4 both fitting sets carry the same fitting.
-    let ml = p.music_left.6
-    #expect(ml.gain_soft_db == b.gain_soft_db && ml.compression_ratio == b.compression_ratio)
-    let mr = p.music_right.6
-    #expect(mr.gain_soft_db == r.gain_soft_db && mr.compression_ratio == r.compression_ratio)
 }
 
 @Test func nilProfileIsUnity() {
@@ -161,13 +238,16 @@ private func expectFitting(_ b: BandFitting, _ soft: Double, _ loud: Double, _ c
 @Test func compressionOffGivesFixedLoudGain() {
     let p = FittingRule.params(profile: exampleProfile(), strength: 0.5, mpoDBFS: -3, outputGainDB: 0,
                                mode: .speech, compression: false)
-    let expected = FittingRule.bands(for: exampleProfile(), ear: .left, strength: 0.5)
-    withUnsafeBytes(of: p.left) { raw in
-        let b = raw.bindMemory(to: ac_band_fitting.self)
-        for i in 0..<Bands.count {
-            #expect(b[i].compression_ratio == 1)
-            #expect(b[i].gain_soft_db == expected[i].gainLoudDB)
-            #expect(b[i].gain_loud_db == expected[i].gainLoudDB)
+    let expected = FittingRule.bands(for: exampleProfile(), ear: .left, strength: 0.5, prescription: .speech)
+    let expectedMusic = FittingRule.bands(for: exampleProfile(), ear: .left, strength: 0.5, prescription: .music)
+    for (set, want) in [(p.left, expected), (p.music_left, expectedMusic)] {
+        withUnsafeBytes(of: set) { raw in
+            let b = raw.bindMemory(to: ac_band_fitting.self)
+            for i in 0..<Bands.count {
+                #expect(b[i].compression_ratio == 1)
+                #expect(b[i].gain_soft_db == want[i].gainLoudDB)
+                #expect(b[i].gain_loud_db == want[i].gainLoudDB)
+            }
         }
     }
     #expect(p.limiter_enabled == 1)

@@ -8,6 +8,7 @@ let package = Package(
     targets: [
         .target(name: "CAudioCurveDSP"),
         .target(name: "AudioCurveCore", dependencies: ["CAudioCurveDSP"]),
-        .testTarget(name: "AudioCurveCoreTests", dependencies: ["AudioCurveCore", "CAudioCurveDSP"]),
+        .testTarget(name: "AudioCurveCoreTests", dependencies: ["AudioCurveCore", "CAudioCurveDSP"],
+                    resources: [.copy("Fixtures")]),
     ]
 )

@@ -62,11 +62,8 @@ pub enum Ear {
 /// Kernel parameters for an audiogram and mode: MPO -3 dBFS, unity gains, limiter on.
 pub fn params(a: &Audiogram, mode: Mode) -> Params {
     let mut p = Params::unity();
-    p.left = prescription::fittings(a, Ear::Left, mode);
-    p.right = prescription::fittings(a, Ear::Right, mode);
-    // Until the music fitting differs from the speech one, both sets carry the same fitting.
-    p.music_left = p.left;
-    p.music_right = p.right;
+    (p.left, p.music_left) = prescription::pair(a, Ear::Left, 0.0);
+    (p.right, p.music_right) = prescription::pair(a, Ear::Right, 0.0);
     p.mpo_dbfs = -3.0;
     p.output_gain_db = 0.0;
     p.input_gain_db = 0.0;

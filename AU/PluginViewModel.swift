@@ -316,7 +316,7 @@ final class PluginViewModel {
 
     func fitting(_ ear: Ear) -> [BandFitting] {
         guard let p = profile else { return [] }
-        return FittingRule.bands(for: p, ear: ear, strength: strength / 100)
+        return FittingRule.bands(for: p, ear: ear, strength: strength / 100, tone: 0, prescription: .speech)
     }
 
     /// Axis range (dB) for the gain chart.

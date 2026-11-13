@@ -164,7 +164,7 @@ fn imd(p: &Params, wav: &Wav, out: &mut Vec<(String, f64)>) {
 /// Mean over bands above 2 kHz of the standard deviation (dB) of the WDRC gain on
 /// modulated pink noise (left ear fitting, kernel attack/release for the mode).
 fn gainmod_hf(a: &Audiogram, mode: Mode, wav: &Wav) -> f64 {
-    let fits = prescription::fittings(a, Ear::Left, mode);
+    let (speech_fits, music_fits) = prescription::pair(a, Ear::Left, 0.0);
     let p = params(a, mode);
     // Kernel time constants for the weight (Auto is measured at the Music values).
     let timing = audiocurve_dsp::compressor::blend_timing(p.speech_weight);
@@ -181,7 +181,7 @@ fn gainmod_hf(a: &Audiogram, mode: Mode, wav: &Wav) -> f64 {
         let (s, m) = (bi * BLOCK, block.len());
         bank.split(block, &mut bufs);
         for (i, comp) in comps.iter_mut().enumerate() {
-            comp.analyze(&bufs.bands[i][..m], &fits[i], &fits[i], p.speech_weight, &timing, &mut gblock[..m], &mut levels[..m]);
+            comp.analyze(&bufs.bands[i][..m], &speech_fits[i], &music_fits[i], p.speech_weight, &timing, &mut gblock[..m], &mut levels[..m]);
             gains[i][s..s + m].copy_from_slice(&gblock[..m]);
             for t in 0..m {
                 mix[s + t] += bufs.bands[i][t] * 10f32.powf(gblock[t] / 20.0);
