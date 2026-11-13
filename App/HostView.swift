@@ -30,8 +30,8 @@ struct HostView: View {
         }
         .padding()
         .frame(minWidth: 720, minHeight: 600)
-        .task(id: model.host.loadState == .loaded) {
-            pluginVC = model.host.loadState == .loaded ? await model.host.viewController() : nil
+        .task(id: model.pluginState) {
+            pluginVC = model.pluginState == .loaded ? await model.host.viewController() : nil
             bypass = model.bypass
         }
     }

@@ -25,6 +25,8 @@ final class AppModel {
     private(set) var profiles: [ProfileSummary] = []
     private(set) var activeProfileID: UUID?
     private(set) var otherHosts: [String] = []
+    /// Mirrors `host.loadState` so views can observe it.
+    private(set) var pluginState: PluginLoadState = .loading
     var launchAtLogin: Bool {
         get { SMAppService.mainApp.status == .enabled }
         set {
@@ -54,7 +56,10 @@ final class AppModel {
         }
         controller.onStateChange = { [weak self] in self?.state = $0 }
         controller.onReloadPlugin = { [weak self] in Task { await self?.reloadPlugin() } }
-        host.onLoadStateChange = { [weak self] _ in self?.updateInputs() }
+        host.onLoadStateChange = { [weak self] s in
+            self?.pluginState = s
+            self?.updateInputs()
+        }
         monitor.onChange = { [weak self] in MainActor.assumeIsolated { self?.refreshOutputs() } }
     }
 
