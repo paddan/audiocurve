@@ -1,7 +1,7 @@
 //! Diagnostic: render a float32 stereo WAV through the kernel with a fictional, steeply sloping example audiogram.
 //! usage: render <in.wav> <out.wav> <strength 0..1> <full|linear> [gain_db] [output_gain_db] [limiter 1|0]
 use audiocurve_dsp::{BandFitting, Handle, Params};
-#[path = "thd.rs"] #[allow(dead_code)] mod thd;
+#[path = "../tests/support/mod.rs"] mod support;
 
 fn read_wav(p: &str) -> (f64, Vec<f32>, Vec<f32>) {
     let b = std::fs::read(p).unwrap();
@@ -43,10 +43,8 @@ fn main() {
     l = l[s0..s1].iter().map(|v| v * pre).collect();
     r = r[s0..s1].iter().map(|v| v * pre).collect();
     let s: f64 = a[3].parse().unwrap();
-    let left = [(125.,20.),(250.,25.),(500.,35.),(750.,40.),(1000.,55.),(1500.,65.),(2000.,70.),(3000.,80.),(4000.,85.),(6000.,95.),(8000.,105.)];
-    let right = [(125.,15.),(250.,15.),(500.,20.),(750.,25.),(1000.,35.),(1500.,45.),(2000.,50.),(3000.,60.),(4000.,65.),(6000.,75.),(8000.,85.)];
     let mut p = Params::unity();
-    p.left = thd::fit(&left, s); p.right = thd::fit(&right, s);
+    p.left = support::pump_fit(&support::PUMP_LEFT, s); p.right = support::pump_fit(&support::PUMP_RIGHT, s);
     p.left[11].gain_soft_db -= 20.0 * s; p.left[11].gain_loud_db -= 20.0 * s; // example -20 dB trim at 12k
     p.right[11].gain_soft_db -= 20.0 * s; p.right[11].gain_loud_db -= 20.0 * s;
     if a[4] == "linear" {
