@@ -33,3 +33,14 @@ import Foundation
     try Data("garbage".utf8).write(to: dir.appendingPathComponent("instances/garbage.json"))
     #expect(store.readHeartbeats() == [InstanceHeartbeat(pid: 11, hostBundleID: "b", active: false, time: t)])
 }
+
+@Test func pruneRemovesLongDeadBeats() {
+    let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: dir) }
+    let store = ProfileStore(root: dir)
+    let now = Date(timeIntervalSince1970: 10_000)
+    store.writeHeartbeat(InstanceHeartbeat(pid: 1, hostBundleID: "a", active: true, time: now.addingTimeInterval(-61)))
+    store.writeHeartbeat(InstanceHeartbeat(pid: 2, hostBundleID: "b", active: true, time: now.addingTimeInterval(-10)))
+    store.pruneHeartbeats(now: now)
+    #expect(store.readHeartbeats().map(\.pid) == [2])
+}

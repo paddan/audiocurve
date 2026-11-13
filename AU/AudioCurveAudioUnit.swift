@@ -202,6 +202,7 @@ public final class AudioCurveAudioUnit: AUAudioUnit {
     // MARK: Host channel (fullState) and heartbeat
 
     private func startHeartbeat() {
+        store.pruneHeartbeats(now: Date())
         writeHeartbeat()
         let beat = MainBox(f: { [weak self] in self?.writeHeartbeat() })
         let t = Timer(timeInterval: InstanceHeartbeat.interval, repeats: true) { _ in beat.f() }

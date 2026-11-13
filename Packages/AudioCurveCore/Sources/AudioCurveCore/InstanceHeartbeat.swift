@@ -12,6 +12,8 @@ public struct InstanceHeartbeat: Codable, Sendable, Equatable {
 
     public static let interval: TimeInterval = 2
     public static let staleAfter: TimeInterval = 6
+    /// Older than this, a heartbeat file is deleted.
+    public static let pruneAfter: TimeInterval = 60
 
     public init(pid: Int32, hostBundleID: String, active: Bool, time: Date) {
         self.pid = pid

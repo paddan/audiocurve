@@ -160,6 +160,14 @@ public final class ProfileStore: @unchecked Sendable {
             .sorted { $0.pid < $1.pid }
     }
 
+    /// Removes heartbeats older than `InstanceHeartbeat.pruneAfter` (instances that died without
+    /// cleaning up). Best effort.
+    public func pruneHeartbeats(now: Date) {
+        for b in readHeartbeats() where now.timeIntervalSince(b.time) > InstanceHeartbeat.pruneAfter {
+            removeHeartbeat(pid: b.pid)
+        }
+    }
+
     public func removeHeartbeat(pid: Int32) {
         try? FileManager.default.removeItem(at: instancesDir.appendingPathComponent("\(pid).json"))
     }
