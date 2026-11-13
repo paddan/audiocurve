@@ -1,6 +1,6 @@
 //! The measurements themselves. Everything runs at 48 kHz through `Handle` in 512-frame
 //! blocks (except `gainmod_hf`, which drives the filterbank and compressors directly) and
-//! discards the first second.
+//! discards the first second; the distortion tones settle `TONE_SETTLE_S` first.
 
 use super::{params, prescription, signals, support, Audiogram, Ear, Mode};
 use audiocurve_dsp::compressor::BandCompressor;
@@ -11,6 +11,10 @@ use std::path::Path;
 pub const FS: f64 = 48_000.0;
 const BLOCK: usize = 512;
 const SKIP: usize = 48_000;
+/// THD+N and IMD tones run this long before their 1 s analysis window, so every detector
+/// (slowest release 1.5 s) and the budget release have settled after the onset.
+const TONE_SETTLE_S: f64 = 8.0;
+const TONE_S: f64 = TONE_SETTLE_S + 1.0;
 const MPO_DBFS: f64 = -3.0;
 /// Distortion below this is f32 noise floor; clamped so the regression gate is stable.
 const DB_FLOOR: f64 = -100.0;
@@ -91,7 +95,7 @@ pub fn measure(aname: &str, a: &Audiogram, mode: Mode, wav_dir: Option<&Path>) -
 fn thdn(p: &Params, wav: &Wav, out: &mut Vec<(String, f64)>) {
     for f in [250.0, 1000.0, 4000.0] {
         for (tag, level) in [("m40", -40.0), ("m20", -20.0), ("m6", -6.0)] {
-            let sig = signals::sine(f, level, 0.0, 2.0, FS);
+            let sig = signals::sine(f, level, 0.0, TONE_S, FS);
             let r = render(p, &sig);
             let n = r.left.len();
             // Last second holds a whole number of cycles for these frequencies.
@@ -122,7 +126,7 @@ fn component_power(x: &[f32], f: f64) -> f64 {
 fn imd(p: &Params, wav: &Wav, out: &mut Vec<(String, f64)>) {
     for (tag, level) in [("m20", -20.0), ("m6", -6.0)] {
         // SMPTE: sidebands of 7 kHz at +-n*60 Hz relative to the 7 kHz component.
-        let sig = signals::smpte(level, 2.0, FS);
+        let sig = signals::smpte(level, TONE_S, FS);
         let r = render(p, &sig);
         let n = r.left.len();
         let v = [&r.left, &r.right]
@@ -140,7 +144,7 @@ fn imd(p: &Params, wav: &Wav, out: &mut Vec<(String, f64)>) {
         out.push((format!("imd_smpte_{tag}"), v.max(DB_FLOOR)));
 
         // CCIF: products at 1 kHz, 18 kHz and 21 kHz relative to the two tones.
-        let sig = signals::ccif(level, 2.0, FS);
+        let sig = signals::ccif(level, TONE_S, FS);
         let r = render(p, &sig);
         let n = r.left.len();
         let v = [&r.left, &r.right]
