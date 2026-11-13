@@ -67,7 +67,7 @@ UI names below are the English ones; in other languages, use the matching transl
 
 ## Active outputs
 
-- [ ] With every box under "Active on" ticked (default), processing works on every output device.
+- [ ] With every box in the "Active on" dropdown ticked (default), processing works on every output device.
 - [ ] Untick every device except the AirPods (the last ticked box cannot be unticked): with the AirPods as output, processing is on; switch the output to the hearing aids (or turn the AirPods off) and the sound passes through unchanged, with "Paused – <device> is the output" shown.
 - [ ] The switch is a smooth fade, without a click or a gap.
 - [ ] A remembered device that is not connected shows "(not connected)" in the menu.
