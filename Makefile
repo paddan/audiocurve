@@ -52,7 +52,7 @@ CORE_SRC  := $(wildcard $(CORE_DIR)/AudioCurveCore/*.swift)
 CDSP_DIR  := $(CORE_DIR)/CAudioCurveDSP
 CDSP_HDR  := $(CDSP_DIR)/include/audiocurve_dsp.h
 AU_SRC    := $(wildcard AU/*.swift AU/UI/*.swift)
-APP_SRC   := $(wildcard App/*.swift)
+APP_SRC   := $(wildcard App/*.swift App/Audio/*.swift)
 MODMAP    := $(OBJ_DIR)/modules/module.modulemap
 
 SWIFT_FLAGS = -sdk $(SDK) -target $*-apple-macos$(MACOS_MIN) -swift-version 6 \
@@ -117,10 +117,12 @@ $(OBJ_DIR)/%/$(AU_NAME): $(AU_SRC) $(OBJ_DIR)/%/AudioCurveCore.o $(OBJ_DIR)/%/sh
 		$(@D)/AudioCurveCore.o $(@D)/shim.o $(@D)/libaudiocurve_dsp.a \
 		-Xlinker -e -Xlinker _NSExtensionMain -Xlinker -dead_strip
 
-$(OBJ_DIR)/%/$(APP_NAME): $(APP_SRC)
+$(OBJ_DIR)/%/$(APP_NAME): $(APP_SRC) $(OBJ_DIR)/%/AudioCurveCore.o $(OBJ_DIR)/%/shim.o $(OBJ_DIR)/%/libaudiocurve_dsp.a
 	$(call check_no_state_macro,$(APP_SRC))
 	@mkdir -p $(@D)
-	$(SWIFTC) $(SWIFT_FLAGS) -module-name $(APP_NAME) -emit-executable -o $@ $(APP_SRC) \
+	$(SWIFTC) $(SWIFT_FLAGS) -module-name $(APP_NAME) \
+		-I $(dir $(MODMAP)) -I $(@D) -emit-executable -o $@ $(APP_SRC) \
+		$(@D)/AudioCurveCore.o $(@D)/shim.o $(@D)/libaudiocurve_dsp.a \
 		-Xlinker -dead_strip
 
 # --- Bundles ---------------------------------------------------------------

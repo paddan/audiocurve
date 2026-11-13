@@ -114,7 +114,7 @@ struct ControlsPanel: View {
 /// ticked device is the output. A popover (not a menu) so several boxes can be ticked in one go.
 private struct ActiveOutputsDropdown: View {
     let vm: PluginViewModel
-    @State private var open = false
+    @ViewState private var open = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {

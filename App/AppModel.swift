@@ -100,6 +100,20 @@ final class AppModel {
         host.saveState()
     }
 
+    func openCaptureSettings() {
+        if let url = URL(string: "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?Privacy_AudioCapture") {
+            NSWorkspace.shared.open(url)
+        }
+    }
+
+    /// The display name of the app with this bundle ID, or "another app".
+    static func appName(for bundleID: String) -> String {
+        if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) {
+            return FileManager.default.displayName(atPath: url.path).replacingOccurrences(of: ".app", with: "")
+        }
+        return String(localized: "another app", comment: "Used when the other host is not known")
+    }
+
     var bypass: Bool {
         get { host.bypass }
         set { host.bypass = newValue }

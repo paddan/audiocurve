@@ -20,6 +20,8 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>$(MACOSX_DEPLOYMENT_TARGET)</string>
+	<key>LSUIElement</key>
+	<true/>
 	<key>NSAudioCaptureUsageDescription</key>
 	<string>AudioCurve processes the sound your Mac plays so it matches your hearing.</string>
 	<key>NSPrincipalClass</key>

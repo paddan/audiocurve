@@ -1,6 +1,374 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "(current)" : {
+      "localizations" : {
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "(aktuel)"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "(aktuell)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "(actual)"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "(nykyinen)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "(actuelle)"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "(nåværende)"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "(nuvarande)"
+          }
+        }
+      }
+    },
+    "(not connected)" : {
+      "localizations" : {
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "(ikke tilsluttet)"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "(nicht verbunden)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "(no conectado)"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "(ei yhdistetty)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "(non connecté)"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "(ikke tilkoblet)"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "(inte ansluten)"
+          }
+        }
+      }
+    },
+    "Active on" : {
+      "localizations" : {
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aktiv på"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aktiv auf"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activo en"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Actif sur"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Käytössä"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aktiv på"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aktiv på"
+          }
+        }
+      }
+    },
+    "Active – %@" : {
+      "localizations" : {
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aktiv – %@"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aktiv – %@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activo – %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Actif – %@"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Käytössä – %@"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aktiv – %@"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aktiv – %@"
+          }
+        }
+      }
+    },
+    "Allow AudioCurve to record system audio" : {
+      "localizations" : {
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tillåt AudioCurve att spela in systemljud"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AudioCurve erlauben, Systemaudio aufzunehmen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Permite que AudioCurve grabe el audio del sistema"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Autorisez AudioCurve à enregistrer l’audio du système"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Salli AudioCurven tallentaa järjestelmän ääntä"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gi AudioCurve tillatelse til å ta opp systemlyd"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Giv AudioCurve tilladelse til at optage systemlyd"
+          }
+        }
+      }
+    },
+    "AudioCurve is also running in %@: the sound is processed twice." : {
+      "localizations" : {
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AudioCurve körs också i %@: ljudet bearbetas två gånger."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AudioCurve läuft auch in %@: Der Ton wird doppelt bearbeitet."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AudioCurve también se está ejecutando en %@: el sonido se procesa dos veces."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AudioCurve s’exécute aussi dans %@ : le son est traité deux fois."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AudioCurve on käynnissä myös sovelluksessa %@: ääni käsitellään kahdesti."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AudioCurve kjører også i %@: lyden behandles to ganger."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AudioCurve kører også i %@: lyden behandles to gange."
+          }
+        }
+      }
+    },
+    "AudioCurve lives in the menu bar. You can change this later in its menu." : {
+      "localizations" : {
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AudioCurve finns i menyraden. Du kan ändra detta senare i dess meny."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AudioCurve befindet sich in der Menüleiste. Du kannst das später in seinem Menü ändern."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AudioCurve está en la barra de menús. Puedes cambiarlo más tarde en su menú."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AudioCurve se trouve dans la barre des menus. Vous pourrez modifier ce choix plus tard dans son menu."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AudioCurve on valikkorivillä. Voit muuttaa tätä myöhemmin sen valikosta."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AudioCurve ligger i menylinjen. Du kan endre dette senere i menyen."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AudioCurve ligger i menulinjen. Du kan ændre det senere i menuen."
+          }
+        }
+      }
+    },
+    "AudioCurve on" : {
+      "localizations" : {
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AudioCurve på"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AudioCurve an"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AudioCurve activado"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AudioCurve activé"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AudioCurve päällä"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AudioCurve på"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AudioCurve til"
+          }
+        }
+      }
+    },
     "Bypass (A/B)" : {
       "localizations" : {
         "da" : {
@@ -47,416 +415,692 @@
         }
       }
     },
-    "Could not load plugin: %@" : {
+    "Launch at login" : {
       "localizations" : {
-        "da" : {
+        "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Kunne ikke indlæse plugin: %@"
+            "value" : "Starta vid inloggning"
           }
         },
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Plug-in konnte nicht geladen werden: %@"
+            "value" : "Beim Anmelden starten"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No se pudo cargar el plugin: %@"
-          }
-        },
-        "fi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Laajennusta ei voitu ladata: %@"
+            "value" : "Abrir al iniciar sesión"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Impossible de charger le plug-in : %@"
+            "value" : "Ouvrir à l’ouverture de session"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Käynnistä kirjauduttaessa"
           }
         },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Kunne ikke laste inn plugin: %@"
+            "value" : "Start ved pålogging"
           }
         },
-        "sv" : {
+        "da" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Kunde inte ladda plugin: %@"
+            "value" : "Start ved login"
           }
         }
       }
     },
-    "Could not open file: %@" : {
+    "Not Now" : {
       "localizations" : {
-        "da" : {
+        "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Kunne ikke åbne fil: %@"
+            "value" : "Inte nu"
           }
         },
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Datei konnte nicht geöffnet werden: %@"
+            "value" : "Nicht jetzt"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No se pudo abrir el archivo: %@"
-          }
-        },
-        "fi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tiedostoa ei voitu avata: %@"
+            "value" : "Ahora no"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Impossible d’ouvrir le fichier : %@"
+            "value" : "Pas maintenant"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ei nyt"
           }
         },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Kunne ikke åpne fil: %@"
+            "value" : "Ikke nå"
           }
         },
-        "sv" : {
+        "da" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Kunde inte öppna fil: %@"
+            "value" : "Ikke nu"
           }
         }
       }
     },
-    "Could not play: %@" : {
+    "Off" : {
       "localizations" : {
-        "da" : {
+        "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Kunne ikke afspille: %@"
+            "value" : "Av"
           }
         },
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Wiedergabe fehlgeschlagen: %@"
+            "value" : "Aus"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No se pudo reproducir: %@"
-          }
-        },
-        "fi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Toisto epäonnistui: %@"
+            "value" : "Desactivado"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Lecture impossible : %@"
+            "value" : "Désactivé"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pois"
           }
         },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Kunne ikke spille av: %@"
+            "value" : "Av"
           }
         },
-        "sv" : {
+        "da" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Kunde inte spela: %@"
+            "value" : "Fra"
           }
         }
       }
     },
-    "Loading plugin…" : {
+    "Open AudioCurve…" : {
       "localizations" : {
-        "da" : {
+        "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Indlæser plugin …"
+            "value" : "Öppna AudioCurve…"
           }
         },
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Plug-in wird geladen …"
+            "value" : "AudioCurve öffnen…"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Cargando plugin…"
-          }
-        },
-        "fi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ladataan laajennusta…"
+            "value" : "Abrir AudioCurve…"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Chargement du plug-in…"
+            "value" : "Ouvrir AudioCurve…"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avaa AudioCurve…"
           }
         },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Laster inn plugin …"
+            "value" : "Åpne AudioCurve…"
           }
         },
-        "sv" : {
+        "da" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Laddar plugin…"
+            "value" : "Åbn AudioCurve…"
           }
         }
       }
     },
-    "Open Audio File…" : {
+    "Open System Settings" : {
       "localizations" : {
-        "da" : {
+        "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Åbn lydfil …"
+            "value" : "Öppna Systeminställningar"
           }
         },
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Audiodatei öffnen …"
+            "value" : "Systemeinstellungen öffnen"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Abrir archivo de audio…"
-          }
-        },
-        "fi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Avaa äänitiedosto…"
+            "value" : "Abrir Ajustes del Sistema"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ouvrir un fichier audio…"
+            "value" : "Ouvrir Réglages Système"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avaa Järjestelmäasetukset"
           }
         },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Åpne lydfil …"
+            "value" : "Åpne Systeminnstillinger"
           }
         },
-        "sv" : {
+        "da" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Öppna ljudfil…"
+            "value" : "Åbn Systemindstillinger"
           }
         }
       }
     },
-    "Play" : {
+    "Paused – %@ is the output" : {
       "localizations" : {
         "da" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Afspil"
+            "value" : "Pause – %@ er udgangen"
           }
         },
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Wiedergabe"
+            "value" : "Pausiert – Ausgang ist %@"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Reproducir"
+            "value" : "En pausa: la salida es %@"
           }
         },
         "fi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Toista"
+            "value" : "Tauolla – lähtö on %@"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Lire"
+            "value" : "En pause – la sortie est %@"
           }
         },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Spill av"
+            "value" : "Pause – %@ er utgangen"
           }
         },
         "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Spela"
+            "value" : "Vilar – %@ är utgången"
           }
         }
       }
     },
-    "Playing (loop)" : {
+    "Profile" : {
       "localizations" : {
-        "da" : {
+        "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Afspiller (loop)"
+            "value" : "Profil"
           }
         },
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Wiedergabe (Schleife)"
+            "value" : "Profil"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Reproduciendo (bucle)"
-          }
-        },
-        "fi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Toistetaan (silmukka)"
+            "value" : "Perfil"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Lecture (en boucle)"
+            "value" : "Profil"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Profiili"
           }
         },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Spiller (sløyfe)"
+            "value" : "Profil"
           }
         },
-        "sv" : {
+        "da" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Spelar (slinga)"
+            "value" : "Profil"
           }
         }
       }
     },
-    "Plugin loaded" : {
+    "Quit AudioCurve" : {
       "localizations" : {
-        "da" : {
+        "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Plugin indlæst"
+            "value" : "Avsluta AudioCurve"
           }
         },
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Plug-in geladen"
+            "value" : "AudioCurve beenden"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Plugin cargado"
-          }
-        },
-        "fi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Laajennus ladattu"
+            "value" : "Salir de AudioCurve"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Plug-in chargé"
+            "value" : "Quitter AudioCurve"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lopeta AudioCurve"
           }
         },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Plugin lastet inn"
+            "value" : "Avslutt AudioCurve"
           }
         },
-        "sv" : {
+        "da" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Plugin laddat"
+            "value" : "Afslut AudioCurve"
           }
         }
       }
     },
-    "Stop" : {
+    "Start AudioCurve when you log in?" : {
       "localizations" : {
-        "da" : {
+        "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Stop"
+            "value" : "Starta AudioCurve när du loggar in?"
           }
         },
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Stopp"
+            "value" : "AudioCurve beim Anmelden starten?"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Detener"
-          }
-        },
-        "fi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pysäytä"
+            "value" : "¿Abrir AudioCurve al iniciar sesión?"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Arrêter"
+            "value" : "Ouvrir AudioCurve à l’ouverture de session ?"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Käynnistetäänkö AudioCurve kirjauduttaessa?"
           }
         },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Stopp"
+            "value" : "Starte AudioCurve når du logger på?"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Start AudioCurve, når du logger ind?"
+          }
+        }
+      }
+    },
+    "Start at Login" : {
+      "localizations" : {
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Starta vid inloggning"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Beim Anmelden starten"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abrir al iniciar sesión"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ouvrir à l’ouverture de session"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Käynnistä kirjauduttaessa"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Start ved pålogging"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Start ved login"
+          }
+        }
+      }
+    },
+    "Starting…" : {
+      "localizations" : {
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Startar…"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wird gestartet…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Iniciando…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Démarrage…"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Käynnistyy…"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Starter…"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Starter…"
+          }
+        }
+      }
+    },
+    "The AudioCurve plugin could not be loaded" : {
+      "localizations" : {
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AudioCurve-pluginet kunde inte laddas"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das AudioCurve-Plug-in konnte nicht geladen werden"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se ha podido cargar el plugin AudioCurve"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible de charger le plug-in AudioCurve"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AudioCurve-laajennusta ei voitu ladata"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AudioCurve-tillegget kunne ikke lastes inn"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AudioCurve-pluginnet kunne ikke indlæses"
+          }
+        }
+      }
+    },
+    "The audio route could not be built" : {
+      "localizations" : {
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ljudvägen kunde inte byggas"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Audioweg konnte nicht aufgebaut werden"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se ha podido crear la ruta de audio"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible de créer le chemin audio"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Äänireittiä ei voitu muodostaa"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lydbanen kunne ikke bygges"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lydvejen kunne ikke oprettes"
+          }
+        }
+      }
+    },
+    "Unsaved profile" : {
+      "localizations" : {
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ikke-gemt profil"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ungesichertes Profil"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Perfil sin guardar"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tallentamaton profiili"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Profil non enregistré"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ulagret profil"
           }
         },
         "sv" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Stoppa"
+            "value" : "Osparad profil"
+          }
+        }
+      }
+    },
+    "another app" : {
+      "localizations" : {
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "en annan app"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "einer anderen App"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "otra app"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "une autre app"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "toisessa sovelluksessa"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "en annen app"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "en anden app"
           }
         }
       }

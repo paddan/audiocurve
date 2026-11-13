@@ -11,8 +11,8 @@ struct PluginViewHost: NSViewControllerRepresentable {
 @MainActor
 struct HostView: View {
     let model: AppModel
-    @State private var pluginVC: NSViewController?
-    @State private var bypass = false
+    @ViewState private var pluginVC: NSViewController?
+    @ViewState private var bypass = false
 
     var body: some View {
         VStack(spacing: 12) {
