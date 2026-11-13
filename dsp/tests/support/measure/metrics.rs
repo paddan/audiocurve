@@ -82,6 +82,7 @@ pub fn measure(aname: &str, a: &Audiogram, mode: Mode, wav_dir: Option<&Path>) -
         imd(&p, &wav, &mut out);
         out.push(("gainmod_hf".into(), gainmod_hf(a, mode, &wav)));
         out.push(("speech_burst_hold_db".into(), speech_burst_hold_db(a, mode, &wav)));
+        out.push(("sibilant_gain_rise_db".into(), sibilant_gain_rise_db(a, mode, &wav)));
     }
     let dense = signals::dense(6.0, FS);
     let r = render(&p, &dense);
@@ -383,20 +384,16 @@ fn tilt(p: &Params, wav: &Wav, out: &mut Vec<(String, f64)>) {
     out.push(("lowhigh_diff_db".into(), mean(2000.0, 4000.0) - mean(250.0, 500.0)));
 }
 
-/// How long a consonant-like burst holds the treble gain down: on `signals::speech_bursts`, the
-/// WDRC gain (left ear, mode time constants, bands above 2 kHz) averaged over 100..400 ms after
-/// each burst start, subtracted from its average over 50..10 ms before it. Mean over bands and
-/// bursts, dB (0 = the burst leaves no trace).
-fn speech_burst_hold_db(a: &Audiogram, mode: Mode, wav: &Wav) -> f64 {
+/// WDRC gain (dB) per band and sample for `sig` (left ear, mode fittings and time constants,
+/// like `gainmod_hf`); the band mix is saved as the WAV output.
+fn wdrc_gains(a: &Audiogram, mode: Mode, sig: &[f32], wav: &Wav, tag: &str) -> Vec<Vec<f32>> {
     let (speech_fits, music_fits) = prescription::pair(a, Ear::Left, 0.0);
     let p = params(a, mode);
     let timing = audiocurve_dsp::compressor::blend_timing(p.speech_weight);
-    let (sig, starts) = signals::speech_bursts(8.0, FS);
     let n = sig.len();
     let mut bank = Filterbank::new(FS);
     let mut bufs = BandBuffers::new(BLOCK);
     let mut comps: Vec<BandCompressor> = CENTERS.iter().map(|_| BandCompressor::new(FS)).collect();
-    let hf: Vec<usize> = (0..CENTERS.len()).filter(|&i| CENTERS[i] > 2000.0).collect();
     let mut gains = vec![vec![0f32; n]; CENTERS.len()];
     let mut levels = vec![0f32; BLOCK];
     let mut gblock = vec![0f32; BLOCK];
@@ -412,13 +409,50 @@ fn speech_burst_hold_db(a: &Audiogram, mode: Mode, wav: &Wav) -> f64 {
             }
         }
     }
-    wav.save("speech_burst_hold", &sig, &mix);
+    wav.save(tag, sig, &mix);
+    gains
+}
+
+fn treble_bands() -> Vec<usize> {
+    (0..CENTERS.len()).filter(|&i| CENTERS[i] > 2000.0).collect()
+}
+
+/// How long a consonant-like burst holds the treble gain down: on `signals::speech_bursts`, the
+/// WDRC gain (bands above 2 kHz) averaged over 100..400 ms after each burst start, subtracted
+/// from its average over 50..10 ms before it. Mean over bands and bursts, dB (0 = the burst
+/// leaves no trace).
+fn speech_burst_hold_db(a: &Audiogram, mode: Mode, wav: &Wav) -> f64 {
+    let (sig, starts) = signals::speech_bursts(8.0, FS);
+    let gains = wdrc_gains(a, mode, &sig, wav, "speech_burst_hold");
+    let hf = treble_bands();
     let ms = |v: f64| (v / 1000.0 * FS) as usize;
     let mean = |g: &[f32]| g.iter().map(|&v| v as f64).sum::<f64>() / g.len() as f64;
     let mut sum = 0.0;
     for &s in &starts {
         for &i in &hf {
             sum += mean(&gains[i][s - ms(50.0)..s - ms(10.0)]) - mean(&gains[i][s + ms(100.0)..s + ms(400.0)]);
+        }
+    }
+    sum / (starts.len() * hf.len()) as f64
+}
+
+/// Gain flutter inside a sibilant: on `signals::sibilants`, the largest rise of the WDRC gain
+/// (bands above 2 kHz) above its running minimum from 5 ms after each /s/ onset to its end.
+/// Mean over bands and /s/, dB (0 = the gain only goes down while the /s/ lasts).
+fn sibilant_gain_rise_db(a: &Audiogram, mode: Mode, wav: &Wav) -> f64 {
+    let (sig, starts) = signals::sibilants(8.0, FS);
+    let gains = wdrc_gains(a, mode, &sig, wav, "sibilant_gain_rise");
+    let hf = treble_bands();
+    let (skip, len) = ((0.005 * FS) as usize, (signals::SIBILANT_S * FS) as usize);
+    let mut sum = 0.0;
+    for &s in &starts {
+        for &i in &hf {
+            let (mut lowest, mut rise) = (f32::MAX, 0f32);
+            for &v in &gains[i][s + skip..s + len] {
+                lowest = lowest.min(v);
+                rise = rise.max(v - lowest);
+            }
+            sum += rise as f64;
         }
     }
     sum / (starts.len() * hf.len()) as f64

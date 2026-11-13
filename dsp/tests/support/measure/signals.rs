@@ -169,3 +169,41 @@ pub fn speech_bursts(seconds: f64, fs: f64) -> (Vec<f32>, Vec<usize>) {
     }
     (x, starts)
 }
+
+/// /s/ of `sibilants`: one every `BURST_PERIOD_S` from 1 s on, `SIBILANT_S` long.
+pub const SIBILANT_S: f64 = 0.150;
+
+/// Speech-shaped noise (`ltass`, -30 dBFS RMS) with a 150 ms /s/ every `BURST_PERIOD_S`: white
+/// noise band-passed to 4-9 kHz (two 2nd-order high-passes at 4 kHz, two low-passes at 9 kHz),
+/// 2 ms onset, 15 ms decay, at the same RMS as the bed. Returns the signal and the /s/ starts.
+pub fn sibilants(seconds: f64, fs: f64) -> (Vec<f32>, Vec<usize>) {
+    let mut x = ltass(-30.0, seconds, fs);
+    let n = x.len();
+    let bq = |f: f64, high: bool| {
+        let w = 2.0 * PI * f / fs;
+        let al = w.sin() / (2.0 * std::f64::consts::FRAC_1_SQRT_2);
+        let (c, a0) = (w.cos(), 1.0 + al);
+        let b = if high { [(1.0 + c) / 2.0, -(1.0 + c), (1.0 + c) / 2.0] } else { [(1.0 - c) / 2.0, 1.0 - c, (1.0 - c) / 2.0] };
+        Biquad { b: [b[0] / a0, b[1] / a0, b[2] / a0], a: [-2.0 * c / a0, (1.0 - al) / a0], z: [0.0; 2] }
+    };
+    let mut f = [bq(4000.0, true), bq(4000.0, true), bq(9000.0, false), bq(9000.0, false)];
+    let w = support::noise(1.0, n, 43);
+    let s: Vec<f64> = w.iter().map(|&v| f.iter_mut().fold(v as f64, |y, q| q.run(y))).collect();
+    let len = (SIBILANT_S * fs) as usize;
+    let starts: Vec<usize> = (1..).map(|k| (fs + (k - 1) as f64 * BURST_PERIOD_S * fs) as usize).take_while(|&p| p + len < n).collect();
+    let env = |i: usize| ((i as f64 / (0.002 * fs)).min(1.0)) * (((len - i) as f64 / (0.015 * fs)).min(1.0));
+    let (mut e, mut c) = (0.0, 0usize);
+    for &p in &starts {
+        for i in 0..len {
+            e += (s[p + i] * env(i)).powi(2);
+            c += 1;
+        }
+    }
+    let g = db_to_lin(-30.0) / (e / c as f64).sqrt();
+    for &p in &starts {
+        for i in 0..len {
+            x[p + i] += (g * s[p + i] * env(i)) as f32;
+        }
+    }
+    (x, starts)
+}

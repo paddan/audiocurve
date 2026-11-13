@@ -8,26 +8,30 @@ Rows not met: 0.
 
 | criterion | metric | 2.0.0 | 2.1 | change | verdict |
 |---|---|---:|---:|---:|---|
-| Treble gain modulation <= 0.5x of 2.0.0 | steep/music/gainmod_hf | 1.61 | 0.21 | -1.40 | met |
-| Treble gain modulation <= 0.5x of 2.0.0 | steep/speech/gainmod_hf | 2.11 | 0.58 | -1.53 | met |
-| Treble gain modulation <= 0.5x of 2.0.0 | mild/music/gainmod_hf | 0.80 | 0.12 | -0.68 | met |
-| Treble gain modulation <= 0.5x of 2.0.0 | mild/speech/gainmod_hf | 1.05 | 0.34 | -0.71 | met |
-| Treble gain hold after a consonant burst (report only, 4) | steep/music/speech_burst_hold_db | 1.59 | 0.46 | -1.13 | met |
-| Treble gain hold after a consonant burst (report only, 4) | steep/speech/speech_burst_hold_db | 0.19 | 0.87 | +0.68 | met |
-| Treble gain hold after a consonant burst (report only, 4) | mild/music/speech_burst_hold_db | 0.79 | 0.28 | -0.51 | met |
-| Treble gain hold after a consonant burst (report only, 4) | mild/speech/speech_burst_hold_db | 0.09 | 0.52 | +0.43 | met |
+| Treble gain modulation <= 0.5x of 2.0.0 | steep/music/gainmod_hf | 1.61 | 0.23 | -1.38 | met |
+| Treble gain modulation <= 0.5x of 2.0.0 | steep/speech/gainmod_hf | 2.11 | 0.63 | -1.48 | met |
+| Treble gain modulation <= 0.5x of 2.0.0 | mild/music/gainmod_hf | 0.80 | 0.13 | -0.67 | met |
+| Treble gain modulation <= 0.5x of 2.0.0 | mild/speech/gainmod_hf | 1.05 | 0.37 | -0.68 | met |
+| Treble gain hold after a consonant burst (report only, 4) | steep/music/speech_burst_hold_db | 1.59 | 0.41 | -1.18 | met |
+| Treble gain hold after a consonant burst (report only, 4) | steep/speech/speech_burst_hold_db | 0.19 | 0.70 | +0.51 | met |
+| Treble gain hold after a consonant burst (report only, 4) | mild/music/speech_burst_hold_db | 0.79 | 0.24 | -0.55 | met |
+| Treble gain hold after a consonant burst (report only, 4) | mild/speech/speech_burst_hold_db | 0.09 | 0.42 | +0.33 | met |
+| Treble gain rise inside a 150 ms /s/ (report only, 5) | steep/music/sibilant_gain_rise_db | 0.09 | 0.02 | -0.07 | met |
+| Treble gain rise inside a 150 ms /s/ (report only, 5) | steep/speech/sibilant_gain_rise_db | 0.42 | 0.07 | -0.35 | met |
+| Treble gain rise inside a 150 ms /s/ (report only, 5) | mild/music/sibilant_gain_rise_db | 0.05 | 0.01 | -0.04 | met |
+| Treble gain rise inside a 150 ms /s/ (report only, 5) | mild/speech/sibilant_gain_rise_db | 0.21 | 0.04 | -0.17 | met |
 | THD+N / IMD at -6 dBFS lower or equal (1) | steep/music/thdn_250_m6 | -104.69 | -105.64 | -0.95 | equal (below -100 dB) |
 | THD+N / IMD at -6 dBFS lower or equal (1) | steep/speech/thdn_250_m6 | -104.37 | -105.02 | -0.65 | equal (below -100 dB) |
 | THD+N / IMD at -6 dBFS lower or equal (1) | mild/music/thdn_250_m6 | -105.62 | -106.18 | -0.56 | equal (below -100 dB) |
 | THD+N / IMD at -6 dBFS lower or equal (1) | mild/speech/thdn_250_m6 | -105.60 | -105.78 | -0.18 | equal (below -100 dB) |
 | THD+N / IMD at -6 dBFS lower or equal (1) | steep/music/thdn_1000_m6 | -104.92 | -108.91 | -3.99 | equal (below -100 dB) |
-| THD+N / IMD at -6 dBFS lower or equal (1) | steep/speech/thdn_1000_m6 | -104.93 | -106.72 | -1.79 | equal (below -100 dB) |
+| THD+N / IMD at -6 dBFS lower or equal (1) | steep/speech/thdn_1000_m6 | -104.93 | -106.73 | -1.80 | equal (below -100 dB) |
 | THD+N / IMD at -6 dBFS lower or equal (1) | mild/music/thdn_1000_m6 | -114.07 | -112.24 | +1.83 | equal (below -100 dB) |
 | THD+N / IMD at -6 dBFS lower or equal (1) | mild/speech/thdn_1000_m6 | -114.07 | -113.91 | +0.16 | equal (below -100 dB) |
 | THD+N / IMD at -6 dBFS lower or equal (1) | steep/music/thdn_4000_m6 | -96.98 | -113.50 | -16.52 | met |
 | THD+N / IMD at -6 dBFS lower or equal (1) | steep/speech/thdn_4000_m6 | -96.99 | -105.09 | -8.10 | met |
 | THD+N / IMD at -6 dBFS lower or equal (1) | mild/music/thdn_4000_m6 | -119.34 | -120.00 | -0.66 | equal (below -100 dB) |
-| THD+N / IMD at -6 dBFS lower or equal (1) | mild/speech/thdn_4000_m6 | -119.29 | -119.20 | +0.09 | equal (below -100 dB) |
+| THD+N / IMD at -6 dBFS lower or equal (1) | mild/speech/thdn_4000_m6 | -119.29 | -119.23 | +0.06 | equal (below -100 dB) |
 | THD+N / IMD at -6 dBFS lower or equal (1) | steep/music/imd_smpte_m6 | -62.29 | -78.21 | -15.92 | met |
 | THD+N / IMD at -6 dBFS lower or equal (1) | steep/speech/imd_smpte_m6 | -62.29 | -78.72 | -16.43 | met |
 | THD+N / IMD at -6 dBFS lower or equal (1) | mild/music/imd_smpte_m6 | -63.55 | -78.00 | -14.45 | met |
@@ -40,41 +44,43 @@ Rows not met: 0.
 | Inter-sample peak <= ceiling | steep/speech/isp_over_db | 0.28 | -0.20 | -0.48 | met |
 | Inter-sample peak <= ceiling | mild/music/isp_over_db | 0.23 | -0.20 | -0.43 | met |
 | Inter-sample peak <= ceiling | mild/speech/isp_over_db | 0.26 | -0.20 | -0.46 | met |
-| Safety stage: lower mean reduction (2) | steep/auto/safety_mean_db | 7.12 | 5.70 | -1.42 | met |
-| Safety stage: lower mean reduction (2) | steep/music/safety_mean_db | 5.61 | 5.40 | -0.21 | met |
-| Safety stage: lower mean reduction (2) | steep/speech/safety_mean_db | 7.75 | 6.05 | -1.70 | met |
-| Safety stage: lower mean reduction (2) | mild/auto/safety_mean_db | 5.97 | 5.07 | -0.90 | met |
-| Safety stage: lower mean reduction (2) | mild/music/safety_mean_db | 5.59 | 4.40 | -1.19 | met |
-| Safety stage: lower mean reduction (2) | mild/speech/safety_mean_db | 6.29 | 5.84 | -0.45 | met |
-| Safety stage deepest reduction within 0.5 dB gate (2) | steep/auto/safety_max_db | 11.96 | 10.89 | -1.07 | met |
-| Safety stage deepest reduction within 0.5 dB gate (2) | steep/music/safety_max_db | 10.63 | 11.05 | +0.42 | met |
-| Safety stage deepest reduction within 0.5 dB gate (2) | steep/speech/safety_max_db | 12.22 | 10.80 | -1.42 | met |
-| Safety stage deepest reduction within 0.5 dB gate (2) | mild/auto/safety_max_db | 11.57 | 11.03 | -0.54 | met |
-| Safety stage deepest reduction within 0.5 dB gate (2) | mild/music/safety_max_db | 11.18 | 10.77 | -0.41 | met |
-| Safety stage deepest reduction within 0.5 dB gate (2) | mild/speech/safety_max_db | 11.66 | 11.35 | -0.31 | met |
+| Safety stage: lower mean reduction (2) | steep/auto/safety_mean_db | 7.12 | 5.81 | -1.31 | met |
+| Safety stage: lower mean reduction (2) | steep/music/safety_mean_db | 5.61 | 5.43 | -0.18 | met |
+| Safety stage: lower mean reduction (2) | steep/speech/safety_mean_db | 7.75 | 6.33 | -1.42 | met |
+| Safety stage: lower mean reduction (2) | mild/auto/safety_mean_db | 5.97 | 5.14 | -0.83 | met |
+| Safety stage: lower mean reduction (2) | mild/music/safety_mean_db | 5.59 | 4.42 | -1.17 | met |
+| Safety stage: lower mean reduction (2) | mild/speech/safety_mean_db | 6.29 | 6.02 | -0.27 | met |
+| Safety stage deepest reduction within 0.5 dB gate (2) | steep/auto/safety_max_db | 11.96 | 10.97 | -0.99 | met |
+| Safety stage deepest reduction within 0.5 dB gate (2) | steep/music/safety_max_db | 10.63 | 11.09 | +0.46 | met |
+| Safety stage deepest reduction within 0.5 dB gate (2) | steep/speech/safety_max_db | 12.22 | 10.95 | -1.27 | met |
+| Safety stage deepest reduction within 0.5 dB gate (2) | mild/auto/safety_max_db | 11.57 | 11.08 | -0.49 | met |
+| Safety stage deepest reduction within 0.5 dB gate (2) | mild/music/safety_max_db | 11.18 | 10.79 | -0.39 | met |
+| Safety stage deepest reduction within 0.5 dB gate (2) | mild/speech/safety_max_db | 11.66 | 11.43 | -0.23 | met |
 | No metric worse than 2.0.0 (3) | all lower-is-better metrics | | | | met |
 
 1. Distortion below -100 dB is inaudible (under the 16-bit noise floor), so values below -100 dB count as equal. The raw values are shown.
 2. `safety_active_pct` is 100 % in both versions for this signal, so the share of time is judged by `safety_mean_db` (mean gain reduction while active). `safety_max_db` is the deepest reduction; a small rise is allowed up to the 0.5 dB regression gate and is reported as is.
 3. Tolerances as in the regression test: 0.5 dB (1 point for activity); distortion floored at -100 dB.
 4. Mean drop (dB) of the treble WDRC gain 100-400 ms after a 10 ms burst on speech-shaped noise, lower is better. Not gated: the 2.1 slow detector (400 ms / 1.5 s release) holds a burst longer than 2.0's 50/200 ms release by design.
+5. Mean largest rise (dB) of the treble WDRC gain above its running minimum inside a 150 ms 4-9 kHz /s/ on speech-shaped noise, lower is better (a rise is heard as a fluttering, lisping /s/). Not gated: includes detector ripple on noise.
 
 ## mild
 
 | metric | speech | music | auto |
 |---|---:|---:|---:|
-| gainmod_hf | 0.34 | 0.12 | - |
+| gainmod_hf | 0.37 | 0.13 | - |
 | imd_ccif_m20 | -120.00 | -120.00 | - |
 | imd_ccif_m6 | -120.00 | -120.00 | - |
 | imd_smpte_m20 | -120.00 | -120.00 | - |
 | imd_smpte_m6 | -78.11 | -78.00 | - |
 | isp_over_db | -0.20 | -0.20 | - |
-| lowhigh_diff_db | 6.09 | 4.79 | - |
+| lowhigh_diff_db | 6.08 | 4.79 | - |
 | safety_active_pct | 100.00 | 100.00 | 100.00 |
-| safety_max_db | 11.35 | 10.77 | 11.03 |
-| safety_mean_db | 5.84 | 4.40 | 5.07 |
+| safety_max_db | 11.43 | 10.79 | 11.08 |
+| safety_mean_db | 6.02 | 4.42 | 5.14 |
 | safety_output_gain_db | -12.00 | -8.00 | -10.00 |
-| speech_burst_hold_db | 0.52 | 0.28 | - |
+| sibilant_gain_rise_db | 0.04 | 0.01 | - |
+| speech_burst_hold_db | 0.42 | 0.24 | - |
 | thdn_1000_m20 | -116.17 | -114.76 | - |
 | thdn_1000_m40 | -117.19 | -115.30 | - |
 | thdn_1000_m6 | -113.91 | -112.24 | - |
@@ -83,14 +89,14 @@ Rows not met: 0.
 | thdn_250_m6 | -105.78 | -106.18 | - |
 | thdn_4000_m20 | -120.00 | -120.00 | - |
 | thdn_4000_m40 | -120.00 | -120.00 | - |
-| thdn_4000_m6 | -119.20 | -120.00 | - |
+| thdn_4000_m6 | -119.23 | -120.00 | - |
 | tilt_db_per_oct | 2.72 | 2.44 | - |
 
 ## steep
 
 | metric | speech | music | auto |
 |---|---:|---:|---:|
-| gainmod_hf | 0.58 | 0.21 | - |
+| gainmod_hf | 0.63 | 0.23 | - |
 | imd_ccif_m20 | -120.00 | -120.00 | - |
 | imd_ccif_m6 | -120.00 | -120.00 | - |
 | imd_smpte_m20 | -83.94 | -82.60 | - |
@@ -98,17 +104,18 @@ Rows not met: 0.
 | isp_over_db | -0.20 | -0.20 | - |
 | lowhigh_diff_db | 5.21 | 4.72 | - |
 | safety_active_pct | 100.00 | 100.00 | 100.00 |
-| safety_max_db | 10.80 | 11.05 | 10.89 |
-| safety_mean_db | 6.05 | 5.40 | 5.70 |
+| safety_max_db | 10.95 | 11.09 | 10.97 |
+| safety_mean_db | 6.33 | 5.43 | 5.81 |
 | safety_output_gain_db | -25.00 | -17.00 | -21.00 |
-| speech_burst_hold_db | 0.87 | 0.46 | - |
-| thdn_1000_m20 | -115.55 | -115.93 | - |
-| thdn_1000_m40 | -118.11 | -117.05 | - |
-| thdn_1000_m6 | -106.72 | -108.91 | - |
-| thdn_250_m20 | -101.74 | -104.24 | - |
+| sibilant_gain_rise_db | 0.07 | 0.02 | - |
+| speech_burst_hold_db | 0.70 | 0.41 | - |
+| thdn_1000_m20 | -115.56 | -115.93 | - |
+| thdn_1000_m40 | -118.10 | -117.05 | - |
+| thdn_1000_m6 | -106.73 | -108.91 | - |
+| thdn_250_m20 | -101.75 | -104.24 | - |
 | thdn_250_m40 | -103.56 | -103.91 | - |
 | thdn_250_m6 | -105.02 | -105.64 | - |
-| thdn_4000_m20 | -119.79 | -120.00 | - |
+| thdn_4000_m20 | -119.80 | -120.00 | - |
 | thdn_4000_m40 | -120.00 | -120.00 | - |
 | thdn_4000_m6 | -105.09 | -113.50 | - |
 | tilt_db_per_oct | 2.57 | 2.50 | - |
