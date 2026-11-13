@@ -154,14 +154,31 @@ private struct EarLegend: View {
             }
             Spacer()
             if vm.profile != nil && vm.view == .gain {
-                Text("Bar: soft · dashed: loud")
-                    .font(Theme.label)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .layoutPriority(-1)
+                HStack(spacing: 8) {
+                    Text("Bar: soft · dashed: loud")
+                    tickSwatch(.speech, title: Text("Speech"))
+                    tickSwatch(.music, title: Text("Music"))
+                }
+                .font(Theme.label)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .layoutPriority(-1)
             }
         }
         .frame(height: 26)
+    }
+
+    private func tickSwatch(_ tick: PrescriptionTick, title: Text) -> some View {
+        HStack(spacing: 4) {
+            Path { p in
+                p.move(to: CGPoint(x: 0, y: 3))
+                p.addLine(to: CGPoint(x: 14, y: 3))
+            }
+            .stroke(Color.secondary, style: tick.stroke)
+            .frame(width: 14, height: 6)
+            title
+        }
+        .accessibilityElement(children: .combine)
     }
 }
 

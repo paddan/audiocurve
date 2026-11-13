@@ -126,13 +126,13 @@ struct GainView: View {
                            style: StrokeStyle(lineWidth: 1.5, dash: [3, 2]))
                 // Soft gain of each prescription: speech solid, music dashed. Drawing only, no hit-testing.
                 if let two = snap.both[ear], two.speech.indices.contains(band), two.music.indices.contains(band) {
-                    for (gain, dashed) in [(two.speech[band].gainSoftDB, false), (two.music[band].gainSoftDB, true)] {
+                    for (gain, style) in [(two.speech[band].gainSoftDB, PrescriptionTick.speech),
+                                          (two.music[band].gainSoftDB, PrescriptionTick.music)] {
                         var tick = Path()
                         let yt = g.y(gain)
                         tick.move(to: CGPoint(x: rect.minX - 3, y: yt))
                         tick.addLine(to: CGPoint(x: rect.maxX + 3, y: yt))
-                        ctx.stroke(tick, with: .color(Color.secondary),
-                                   style: StrokeStyle(lineWidth: 1, dash: dashed ? [2, 2] : []))
+                        ctx.stroke(tick, with: .color(Color.secondary), style: style.stroke)
                     }
                 }
             }
@@ -178,6 +178,19 @@ struct GainView: View {
                     @unknown default: break
                     }
                 }
+        }
+    }
+}
+
+/// Look of the per-band prescription ticks, shared by the gain view and its legend. Speech is a solid
+/// line and music a dotted one, so neither looks like the dashed loud-gain marker.
+enum PrescriptionTick {
+    case speech, music
+
+    var stroke: StrokeStyle {
+        switch self {
+        case .speech: StrokeStyle(lineWidth: 1.5)
+        case .music: StrokeStyle(lineWidth: 1.5, dash: [1, 2])
         }
     }
 }

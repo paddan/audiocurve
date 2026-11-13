@@ -232,6 +232,12 @@ private struct SliderRow: View {
     var maximumLabel: LocalizedStringKey?
     let format: (Double) -> String
 
+    /// "Clear to Warm" for sliders with end labels, built from the visible labels.
+    private var endLabelsHint: Text {
+        guard let minimumLabel, let maximumLabel else { return Text(verbatim: "") }
+        return Text(minimumLabel) + Text(verbatim: " – ") + Text(maximumLabel)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             HStack {
@@ -247,6 +253,7 @@ private struct SliderRow: View {
                 .labelsHidden()
                 .accessibilityLabel(Text(title))
                 .accessibilityValue(format(value))
+                .accessibilityHint(endLabelsHint)
             if let minimumLabel, let maximumLabel {
                 HStack {
                     Text(minimumLabel); Spacer(); Text(maximumLabel)
