@@ -59,8 +59,8 @@ fn no_inter_sample_peak_over_ceiling() {
 #[test]
 fn metrics_are_finite_and_complete() {
     let now = now();
-    // Per audiogram: speech and music each have 9 thdn + 4 imd + 1 gainmod + 4 safety (incl.
-    // output gain) + 1 isp + 2 tilt; auto has the 4 safety keys only.
-    assert_eq!(now.len(), 2 * (2 * (9 + 4 + 1 + 4 + 1 + 2) + 4));
+    // Per audiogram: speech and music each have 9 thdn + 4 imd + 1 gainmod + 1 burst hold + 4
+    // safety (incl. output gain) + 1 isp + 2 tilt; auto has the 4 safety keys only.
+    assert_eq!(now.len(), 2 * (2 * (9 + 4 + 1 + 1 + 4 + 1 + 2) + 4));
     assert!(now.values().all(|v| v.is_finite()));
 }

@@ -5,10 +5,13 @@ use std::fmt::Write as _;
 use std::path::Path;
 
 /// Metric-name prefixes for which a larger value is worse (checked by the regression test).
-pub const LOWER_IS_BETTER: &[&str] = &["thdn_", "imd_", "gainmod_hf", "safety_", "isp_over_db"];
+pub const LOWER_IS_BETTER: &[&str] = &["thdn_", "imd_", "gainmod_hf", "safety_", "isp_over_db", "speech_burst_hold_db"];
 
 /// Report-only metrics: never checked by the regression test.
-pub const REPORT_ONLY: &[&str] = &["safety_output_gain_db", "tilt_db_per_oct", "lowhigh_diff_db"];
+/// `speech_burst_hold_db` is report-only: 2.1's slow detector holds a level longer than 2.0's
+/// 50 ms release by design, so it is not gated against 2.0.0 (the compressor test
+/// `burst_does_not_hold_the_gain_down` guards the fast-path part).
+pub const REPORT_ONLY: &[&str] = &["safety_output_gain_db", "tilt_db_per_oct", "lowhigh_diff_db", "speech_burst_hold_db"];
 
 fn round2(v: f64) -> f64 {
     (v * 100.0).round() / 100.0
@@ -60,6 +63,9 @@ fn comparison(map: &BTreeMap<String, f64>, base: &BTreeMap<String, f64>) -> Stri
     for k in keys("gainmod_hf") {
         row("Treble gain modulation <= 0.5x of 2.0.0", &k, &|b, v| v <= 0.5 * b, "");
     }
+    for k in keys("speech_burst_hold_db") {
+        row("Treble gain hold after a consonant burst (report only, 4)", &k, &|_, _| true, "");
+    }
     for m in ["thdn_250_m6", "thdn_1000_m6", "thdn_4000_m6", "imd_smpte_m6", "imd_ccif_m6"] {
         for k in keys(m) {
             row("THD+N / IMD at -6 dBFS lower or equal (1)", &k, &|b, v| floor(v) <= floor(b), "");
@@ -100,7 +106,8 @@ fn comparison(map: &BTreeMap<String, f64>, base: &BTreeMap<String, f64>) -> Stri
     s.push_str(
         "1. Distortion below -100 dB is inaudible (under the 16-bit noise floor), so values below -100 dB count as equal. The raw values are shown.\n\
          2. `safety_active_pct` is 100 % in both versions for this signal, so the share of time is judged by `safety_mean_db` (mean gain reduction while active). `safety_max_db` is the deepest reduction; a small rise is allowed up to the 0.5 dB regression gate and is reported as is.\n\
-         3. Tolerances as in the regression test: 0.5 dB (1 point for activity); distortion floored at -100 dB.\n",
+         3. Tolerances as in the regression test: 0.5 dB (1 point for activity); distortion floored at -100 dB.\n\
+         4. Mean drop (dB) of the treble WDRC gain 100-400 ms after a 10 ms burst on speech-shaped noise, lower is better. Not gated: the 2.1 slow detector (400 ms / 1.5 s release) holds a burst longer than 2.0's 50/200 ms release by design.\n",
     );
     s
 }

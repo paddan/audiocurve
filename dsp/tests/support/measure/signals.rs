@@ -145,3 +145,27 @@ pub fn ltass(rms_dbfs: f64, seconds: f64, fs: f64) -> Vec<f32> {
     scale_rms(&mut y, rms_dbfs);
     to_f32(&y)
 }
+
+/// Bursts of `speech_bursts`: one every `BURST_PERIOD_S` from 1 s on, `BURST_S` long.
+pub const BURST_PERIOD_S: f64 = 0.7;
+pub const BURST_S: f64 = 0.010;
+
+/// Speech-shaped noise (`ltass`, -30 dBFS RMS) with a white-noise burst of the same RMS every
+/// `BURST_PERIOD_S`: a consonant-like (plosive) burst that sits 20-30 dB above the bed in the
+/// treble bands. Returns the signal and the burst start samples.
+pub fn speech_bursts(seconds: f64, fs: f64) -> (Vec<f32>, Vec<usize>) {
+    let mut x = ltass(-30.0, seconds, fs);
+    let n = x.len();
+    // Uniform noise in [-a, a] has RMS a / sqrt(3).
+    let w = support::noise((3f64.sqrt() * db_to_lin(-30.0)) as f32, n, 41);
+    let (len, edge) = ((BURST_S * fs) as usize, (0.001 * fs) as usize);
+    let starts: Vec<usize> = (1..).map(|k| (fs + (k - 1) as f64 * BURST_PERIOD_S * fs) as usize).take_while(|&s| s + len < n).collect();
+    for &s in &starts {
+        for i in 0..len {
+            let e = (i.min(len - 1 - i) as f64 / edge as f64).min(1.0);
+            let e = 0.5 - 0.5 * (PI * e).cos();
+            x[s + i] += (w[s + i] as f64 * e) as f32;
+        }
+    }
+    (x, starts)
+}
