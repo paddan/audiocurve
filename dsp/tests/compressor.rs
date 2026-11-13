@@ -219,3 +219,41 @@ fn burst_does_not_hold_the_gain_down() {
         }
     }
 }
+
+/// Largest rise (dB) of the gain after its minimum while a sound that starts `up` dB above a
+/// -50 dBFS tone lasts `ms` milliseconds (from 5 ms after the onset to the end).
+fn rise_inside_sound(t: &Timing, up: f64, ms: f64) -> f64 {
+    let b = cr3();
+    let start = (2.0 * FS) as usize;
+    let len = (ms / 1000.0 * FS) as usize;
+    let mut x = sine(1000.0, -50.0, 3.0, FS);
+    let k = 10f64.powf(up / 20.0) as f32;
+    for v in &mut x[start..start + len] {
+        *v *= k;
+    }
+    let g = run_gain(&x, &b, t);
+    let seg = &g[start + (0.005 * FS) as usize..start + len];
+    let mut lowest = f32::MAX;
+    let mut rise = 0f32;
+    for &v in seg {
+        lowest = lowest.min(v);
+        rise = rise.max(v - lowest);
+    }
+    rise as f64
+}
+
+/// A sustained sound that jumps above the slow level (an /s/ of 80-200 ms) must not have its
+/// gain go down and back up while it lasts: that modulates the sibilant and is heard as a lisp.
+/// After f8dc461 the peak level fell back to the still-lagging slow level within the sound and
+/// the gain rose again by up to 1.8 dB (CR 3) at 60-100 ms; 0.3 dB allows for detector ripple.
+#[test]
+fn gain_does_not_rise_inside_a_sustained_sound() {
+    for t in [SPEECH_TIMING, MUSIC_TIMING] {
+        for up in [12.0, 20.0, 30.0] {
+            for ms in [80.0, 150.0, 300.0] {
+                let r = rise_inside_sound(&t, up, ms);
+                assert!(r <= 0.3, "{t:?} +{up} dB for {ms} ms: gain rises {r:.2} dB inside the sound");
+            }
+        }
+    }
+}

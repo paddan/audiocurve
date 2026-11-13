@@ -70,7 +70,7 @@ Today the per-band gain follows the level detector with 5–10 ms attack, so in 
 New detector per band:
 
 - A **slow** level, smoothed in dB: about 50 ms attack and 1–2 s release for Music; about 20 ms attack and 300 ms release for Speech. It sets the gain.
-- A **fast** level with the current time constants. When it exceeds the slow level by more than about 8 dB (a sudden loud sound), the gain follows the fast level down, then returns to the slow level's gain with the fast release. The jump never moves the slow level itself. (Amended after the 2.1 listening test: returning with the slow release held the treble gain down after every plosive and /s/ onset in speech, which was heard as clipped, choppy speech.)
+- A **fast** level with the current time constants. When it exceeds the slow level by more than about 8 dB (a sudden loud sound), the gain follows the fast level down, then returns to the slow level's gain as the fast level falls (the fast path only follows the fast level down after the jump, so the gain never rises again while a sustained sound such as an /s/ lasts). The jump never moves the slow level itself. (Amended after the 2.1 listening test: returning with the slow release held the treble gain down after every plosive and /s/ onset in speech, which was heard as clipped, choppy speech.)
 - Auto glides both sets of time constants with the classifier as today.
 
 The exact time constants and the 8 dB threshold are tuned with the measurements (metric 3 must halve without metric 4 getting worse). The MPO detector (held band peak) is unchanged.

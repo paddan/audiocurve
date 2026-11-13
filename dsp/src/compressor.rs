@@ -4,10 +4,11 @@
 //! Detector: symmetric power average (5 ms), level in dB, then two attack/release
 //! smoothers of the dB level. The slow one sets the gain, so syllables and transients
 //! do not modulate it. When the fast one jumps more than `FAST_JUMP_DB` above it, a
-//! separate peak level latches onto the fast one while it rises and then falls back to the
-//! slow level with the fast release; the gain follows the higher of the two. The slow level
-//! itself is never moved by the jump, so a short burst (a plosive, the onset of an /s/) does
-//! not hold the gain down for the slow release. Applied gain is smoothed in dB with 20/3 ms.
+//! separate peak level latches onto the fast one while it rises and afterwards only follows it
+//! down; the gain follows the higher of the peak and slow levels. The slow level itself is never
+//! moved by the jump, so a short burst (a plosive) does not hold the gain down for the slow
+//! release, and a sustained sound (an /s/) keeps a steady gain until the slow level takes over.
+//! Applied gain is smoothed in dB with 20/3 ms.
 
 use crate::params::{BandFitting, gain_db};
 
@@ -62,8 +63,8 @@ pub struct BandCompressor {
     power: f64,
     fast_db: f64,
     slow_db: f64,
-    /// Fast-path level: latched to the fast level during a jump, then back to `slow_db` with
-    /// the fast release. The gain is set by `max(slow_db, peak_db)`.
+    /// Fast-path level: latched to the fast level during a jump, afterwards the running minimum
+    /// of the fast level. The gain is set by `max(slow_db, peak_db)`.
     peak_db: f64,
     /// Set while the peak level follows a jump of the fast level.
     jump: bool,
@@ -135,8 +136,10 @@ impl BandCompressor {
     /// Detector per sample: power level `l` (5 ms), fast level `lf`, slow level `ls` and peak
     /// level `lp`. When `lf > ls + FAST_JUMP_DB` the peak level latches to the fast one while
     /// `lf` keeps rising, so the gain follows a sudden loud sound down at the fast attack; once
-    /// `lf` stops rising, `lp` falls back to `ls` with the fast release. `ls` only follows `l`
-    /// with the slow attack/release. The static gain is taken from `max(ls, lp)`.
+    /// `lf` stops rising, `lp` only follows `lf` down (`min(lp, lf)`): after a burst it falls with
+    /// the fast release, during a sustained sound it stays put, so the gain never goes back up
+    /// while the sound lasts. `ls` only follows `l` with the slow attack/release. The static
+    /// gain is taken from `max(ls, lp)`.
     pub fn analyze(&mut self, x: &[f32], speech: &BandFitting, music: &BandFitting, weight: f64,
                    timing: &Timing, gain_out: &mut [f32], level_out: &mut [f32]) {
         self.update_coefs(timing);
@@ -156,7 +159,7 @@ impl BandCompressor {
             fast += (l - fast) * if l > fast { self.fast_attack_coef } else { self.fast_release_coef };
             slow += (l - slow) * if l > slow { self.slow_attack_coef } else { self.slow_release_coef };
             // A jump of the fast level above the slow one: the peak level follows the fast one
-            // while it rises, then returns to the slow level with the fast release.
+            // while it rises, then only follows it down.
             if fast > slow + FAST_JUMP_DB {
                 jump = true;
             }
@@ -164,7 +167,7 @@ impl BandCompressor {
                 peak = fast;
             } else {
                 jump = false;
-                peak += (slow - peak) * self.fast_release_coef;
+                peak = peak.min(fast);
             }
             let level = slow.max(peak);
             let pk = 20.0 * ((*s as f64).abs() + 1e-10).log10();
