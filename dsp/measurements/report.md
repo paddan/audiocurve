@@ -8,10 +8,10 @@ Rows not met: 0.
 
 | criterion | metric | 2.0.0 | 2.1 | change | verdict |
 |---|---|---:|---:|---:|---|
-| Treble gain modulation <= 0.5x | steep/music/gainmod_hf | 1.61 | 0.22 | -1.39 | met |
-| Treble gain modulation <= 0.5x | steep/speech/gainmod_hf | 2.11 | 0.63 | -1.48 | met |
-| Treble gain modulation <= 0.5x | mild/music/gainmod_hf | 0.80 | 0.13 | -0.67 | met |
-| Treble gain modulation <= 0.5x | mild/speech/gainmod_hf | 1.05 | 0.36 | -0.69 | met |
+| Treble gain modulation <= 0.5x of 2.0.0 | steep/music/gainmod_hf | 1.61 | 0.22 | -1.39 | met |
+| Treble gain modulation <= 0.5x of 2.0.0 | steep/speech/gainmod_hf | 2.11 | 0.63 | -1.48 | met |
+| Treble gain modulation <= 0.5x of 2.0.0 | mild/music/gainmod_hf | 0.80 | 0.13 | -0.67 | met |
+| Treble gain modulation <= 0.5x of 2.0.0 | mild/speech/gainmod_hf | 1.05 | 0.36 | -0.69 | met |
 | THD+N / IMD at -6 dBFS lower or equal (1) | steep/music/thdn_250_m6 | -104.69 | -105.64 | -0.95 | met |
 | THD+N / IMD at -6 dBFS lower or equal (1) | steep/speech/thdn_250_m6 | -104.37 | -104.99 | -0.62 | met |
 | THD+N / IMD at -6 dBFS lower or equal (1) | mild/music/thdn_250_m6 | -105.62 | -106.18 | -0.56 | met |
@@ -36,12 +36,12 @@ Rows not met: 0.
 | Inter-sample peak <= ceiling | steep/speech/isp_over_db | 0.28 | -0.20 | -0.48 | met |
 | Inter-sample peak <= ceiling | mild/music/isp_over_db | 0.23 | -0.20 | -0.43 | met |
 | Inter-sample peak <= ceiling | mild/speech/isp_over_db | 0.26 | -0.20 | -0.46 | met |
-| Safety stage smaller share of time (2) | steep/auto/safety_mean_db | 7.12 | 5.66 | -1.46 | met |
-| Safety stage smaller share of time (2) | steep/music/safety_mean_db | 5.61 | 5.38 | -0.23 | met |
-| Safety stage smaller share of time (2) | steep/speech/safety_mean_db | 7.75 | 5.82 | -1.93 | met |
-| Safety stage smaller share of time (2) | mild/auto/safety_mean_db | 5.97 | 5.04 | -0.93 | met |
-| Safety stage smaller share of time (2) | mild/music/safety_mean_db | 5.59 | 4.39 | -1.20 | met |
-| Safety stage smaller share of time (2) | mild/speech/safety_mean_db | 6.29 | 5.68 | -0.61 | met |
+| Safety stage: lower mean reduction (2) | steep/auto/safety_mean_db | 7.12 | 5.66 | -1.46 | met |
+| Safety stage: lower mean reduction (2) | steep/music/safety_mean_db | 5.61 | 5.38 | -0.23 | met |
+| Safety stage: lower mean reduction (2) | steep/speech/safety_mean_db | 7.75 | 5.82 | -1.93 | met |
+| Safety stage: lower mean reduction (2) | mild/auto/safety_mean_db | 5.97 | 5.04 | -0.93 | met |
+| Safety stage: lower mean reduction (2) | mild/music/safety_mean_db | 5.59 | 4.39 | -1.20 | met |
+| Safety stage: lower mean reduction (2) | mild/speech/safety_mean_db | 6.29 | 5.68 | -0.61 | met |
 | Safety stage deepest reduction within 0.5 dB gate (2) | steep/auto/safety_max_db | 11.96 | 11.10 | -0.86 | met |
 | Safety stage deepest reduction within 0.5 dB gate (2) | steep/music/safety_max_db | 10.63 | 10.99 | +0.36 | met |
 | Safety stage deepest reduction within 0.5 dB gate (2) | steep/speech/safety_max_db | 12.22 | 10.98 | -1.24 | met |

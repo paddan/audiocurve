@@ -50,7 +50,7 @@ fn comparison(map: &BTreeMap<String, f64>, base: &BTreeMap<String, f64>) -> Stri
         k
     };
     for k in keys("gainmod_hf") {
-        row("Treble gain modulation <= 0.5x", &k, &|b, v| v <= 0.5 * b, "");
+        row("Treble gain modulation <= 0.5x of 2.0.0", &k, &|b, v| v <= 0.5 * b, "");
     }
     let floor = |x: f64| x.max(-100.0);
     for m in ["thdn_250_m6", "thdn_1000_m6", "thdn_4000_m6", "imd_smpte_m6", "imd_ccif_m6"] {
@@ -62,7 +62,7 @@ fn comparison(map: &BTreeMap<String, f64>, base: &BTreeMap<String, f64>) -> Stri
         row("Inter-sample peak <= ceiling", &k, &|_, v| v <= 0.0, "");
     }
     for k in keys("safety_mean_db") {
-        row("Safety stage smaller share of time (2)", &k, &|b, v| v < b, "");
+        row("Safety stage: lower mean reduction (2)", &k, &|b, v| v < b, "");
     }
     for k in keys("safety_max_db") {
         row("Safety stage deepest reduction within 0.5 dB gate (2)", &k, &|b, v| v <= b + 0.5, "");

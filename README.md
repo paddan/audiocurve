@@ -36,7 +36,7 @@ Releases are built by the [Release workflow](.github/workflows/release.yml) when
 - **Two prescriptions.** Each ear gets a **speech** fitting (NAL-inspired, not NAL-NL2: more gain for soft sounds and a gentle high-frequency emphasis) and a **music** fitting (near-linear and warmer, with the low frequencies left alone). The compressors use two time constants, so the treble gain no longer follows every syllable.
 - **Speech, Music or Auto.** Speech and Music use their own prescription and compressor time constants. In **Auto**, a lightweight classifier detects speech or music and glides between the two prescriptions and settings. The gain view shows both prescriptions.
 - **Tone.** A **Clear ↔ Warm** control. Toward Warm it lowers the loud-sound gain in the treble for a fuller, softer sound, and leaves soft treble sounds audible.
-- **Hearing safety.** A maximum output level (**Ceiling**, MPO) is enforced by a cross-band output budget with soft knees and a lookahead peak limiter. A **Safety** meter shows how hard the protection is working, and turning the limiter off asks for confirmation first.
+- **Hearing safety.** A maximum output level (**Ceiling**, MPO) is enforced by a cross-band output budget with soft knees and a gentle true-peak limiter: a 5 ms smooth attack, with peaks detected on a 4× oversampled signal so inter-sample peaks stay under the ceiling. A hard clamp stays as the final guarantee. A **Safety** meter shows how hard the protection is working, and turning the limiter off asks for confirmation first.
 - **Levels.** **Input level** sets how hard the compressors are driven, and **Output level** sets how close the output sits to the ceiling. **Auto level** picks an output level that keeps the limiter idle.
 - **Live spectrum.** Input and output spectra per ear, with the ceiling marked.
 - **Lab switches.** Compression and limiter can be turned off for listening experiments.
@@ -71,7 +71,7 @@ A typical setup:
 2. Play something loud and press **Auto level**, or lower **Output level** until **Safety** stays near 0 dB.
 3. Set the listening level with the Mac's own volume.
 
-AudioCurve adds a little delay, roughly 15–25 ms in all (8 ms of it in the DSP kernel, the rest audio buffering), which is not noticeable in video. If something goes wrong (permission denied, the plugin crashes, an output disappears), AudioCurve steps aside and the sound plays unprocessed.
+AudioCurve adds a little delay, about 8 ms in the DSP kernel, plus the audio device's buffering, which is not noticeable in video. If something goes wrong (permission denied, the plugin crashes, an output disappears), AudioCurve steps aside and the sound plays unprocessed.
 
 **SoundSource says "Audio Unit Error" after an update?** SoundSource's background service still holds the old version of the plugin. Quit SoundSource, run `killall arkaudiod` in Terminal, and open SoundSource again.
 
