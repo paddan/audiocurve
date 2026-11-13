@@ -53,6 +53,7 @@ A small state machine, `RouteController`, owns the tap, the aggregate device and
 | `off` | The user turned AudioCurve off | System plays normally |
 | `paused` | The current output is not ticked in "Active on" | System plays normally |
 | `running(device)` | Tap and aggregate device built for `device` | Processed |
+| `starting` | The plugin is loading | System plays normally |
 | `failed(reason)` | Permission missing, plugin failed to load, or a rebuild failed twice | System plays normally |
 
 On every change of the inputs the controller tears down what exists (IOProc, aggregate device, tap, in that order) and builds what the new state needs. A teardown followed by a build gives a short gap in the sound; the plugin's activity crossfade means no click. Rebuilds are coalesced: several device notifications within 200 ms lead to one rebuild.
@@ -95,8 +96,8 @@ Clicking it opens a panel (window-style `MenuBarExtra`) with:
 
 The menu bar must show and change the active profile and "Active on" without the window open. The app cannot read the plugin's sandbox container, so the plugin answers through `AUMessageChannel` (macOS 13+), which works across the out-of-process boundary. Messages:
 
-- `profiles` → the saved profile names and the active one,
-- `loadProfile(name)`,
+- `profiles` → the saved profiles (ID and name) and the active one's ID,
+- `loadProfile(id)`,
 - `activeOutputs` → the selection; `setActiveOutputs(selection)`,
 - `otherHosts` → the hosts from 4.5 that are processing right now.
 
@@ -132,7 +133,7 @@ Rule: every failure path ends with the tap destroyed, so the Mac is never silent
 
 Automatic:
 
-- `RouteDecision` for every combination of inputs in 3.1, including an unknown output (processing stays on, as in 1.x).
+- `RouteDecision` for every combination of inputs in 3.1, including an unknown output (no device to build for: `failed(route)`, so the sound plays normally).
 - `RouteController` with fake tap, aggregate device and plugin: teardown order, coalescing of notifications, one retry, unmute on every failure path.
 - Heartbeat parsing and staleness (older than 6 s means gone).
 - The existing Rust and Swift tests stay green.
