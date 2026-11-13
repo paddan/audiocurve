@@ -135,6 +135,7 @@ final class PluginViewModel {
         audioUnit.onProfileChange = { [weak self] newProfile in
             guard let self, !self.isPushing else { return }
             self.profile = newProfile
+            self.sourceID = self.audioUnit.sourceID   // a host may have loaded a saved profile
             self.reconcileSelection()
         }
     }
@@ -232,10 +233,13 @@ final class PluginViewModel {
 
     func load(_ id: UUID) {
         refreshSaved()
-        guard let saved = savedProfiles.first(where: { $0.id == id }) else { showError(String(localized: "Could not load the profile")); return }
         selection = nil; trimSelection = nil; typedBuffer = ""
-        commit(saved.profile)
-        setSource(id)
+        isPushing = true
+        let ok = audioUnit.loadSaved(id: id)
+        isPushing = false
+        guard ok else { showError(String(localized: "Could not load the profile")); return }
+        profile = audioUnit.profile
+        sourceID = id
     }
 
     /// Overwrites the current version. Returns false when there is none, so the UI can ask for a name.

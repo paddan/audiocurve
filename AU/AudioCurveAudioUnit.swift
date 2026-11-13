@@ -47,6 +47,9 @@ public final class AudioCurveAudioUnit: AUAudioUnit {
     /// Core Audio HAL call then can stall instantiation until the host gives up).
     /// Processing is on only for the outputs in `activeOutputs`. Main thread only.
     private var outputs: OutputDeviceMonitor?
+    private var heartbeatTimer: Timer?
+    /// Set by the host with `PluginCommand.identifyHost`; a plugin cannot see its host otherwise.
+    private var hostBundleID = "unknown"
     /// UID of the system output device as last read by the monitor (nil = not known yet).
     private var currentOutputUID: String?
     /// Output devices processing is enabled for (empty = all). Main thread only; shared on disk.
@@ -182,6 +185,7 @@ public final class AudioCurveAudioUnit: AUAudioUnit {
 
     private func startOutputMonitoring() {
         guard outputs == nil else { return }
+        startHeartbeat()
         let monitor = OutputDeviceMonitor()
         monitor.onChange = { [weak self] in self?.outputDeviceChanged() }
         outputs = monitor
@@ -193,6 +197,49 @@ public final class AudioCurveAudioUnit: AUAudioUnit {
         recompute()
         let cb = onOutputsChange
         MainActor.assumeIsolated { cb?() }
+    }
+
+    // MARK: Host channel (fullState) and heartbeat
+
+    private func startHeartbeat() {
+        writeHeartbeat()
+        let beat = MainBox(f: { [weak self] in self?.writeHeartbeat() })
+        let t = Timer(timeInterval: InstanceHeartbeat.interval, repeats: true) { _ in beat.f() }
+        RunLoop.main.add(t, forMode: .common)
+        heartbeatTimer = t
+    }
+
+    private func writeHeartbeat() {
+        store.writeHeartbeat(InstanceHeartbeat(pid: getpid(), hostBundleID: hostBundleID,
+                                               active: isProcessingActive, time: Date()))
+    }
+
+    /// The status the host reads from `fullState`.
+    private func channelStatus() -> PluginStatus {
+        let others = InstanceHeartbeat.live(store.readHeartbeats(), now: Date(), excludingPID: getpid())
+        return PluginStatus(profiles: store.list().map { ProfileSummary(id: $0.id, name: $0.name) },
+                            activeProfileID: sourceID, activeOutputs: activeOutputs,
+                            otherHosts: others.map(\.hostBundleID))
+    }
+
+    /// Main thread only.
+    private func run(_ command: PluginCommand) {
+        switch command {
+        case .loadProfile(let id): loadSaved(id: id)
+        case .setActiveOutputs(let a): setActiveOutputs(a)
+        case .identifyHost(let id):
+            hostBundleID = id
+            writeHeartbeat()
+        }
+    }
+
+    /// Makes a saved profile the current one. Returns false if it does not exist. Main thread only.
+    @discardableResult
+    public func loadSaved(id: UUID) -> Bool {
+        guard let saved = store.saved(id: id) else { return false }
+        setSource(id)
+        profile = saved.profile
+        return true
     }
 
     /// The system output device and all output devices (empty until monitoring has started). Main thread only.
@@ -236,9 +283,19 @@ public final class AudioCurveAudioUnit: AUAudioUnit {
         get {
             var d = super.fullState ?? [:]
             d[PluginState.key] = PluginState(version: PluginState.currentVersion, profile: profile).encoded()
+            d[PluginChannel.statusKey] = PluginChannel.encode(channelStatus())
             return d
         }
         set {
+            // A host command: run it and leave parameters and profile alone. A command that does
+            // not decode (newer or older host) is ignored the same way.
+            if newValue?[PluginChannel.commandKey] != nil {
+                if let c = PluginChannel.command(from: newValue) {
+                    let box = MainBox(f: { [weak self] in self?.run(c) })
+                    Self.onMain { box.f() }
+                }
+                return
+            }
             super.fullState = newValue
             let st = PluginState.decode(newValue?[PluginState.key] as? Data)
             // An empty or foreign host state must not wipe the profile we already have.
@@ -251,6 +308,8 @@ public final class AudioCurveAudioUnit: AUAudioUnit {
     }
 
     deinit {
+        heartbeatTimer?.invalidate()
+        store.removeHeartbeat(pid: getpid())
         // Flush an autosave that was still waiting out its debounce (one small file write).
         if let item = pendingSave, !item.isCancelled { item.cancel(); writeWorkingCopy() }
         // No KVO notifications during deinit; free the kernel directly.
