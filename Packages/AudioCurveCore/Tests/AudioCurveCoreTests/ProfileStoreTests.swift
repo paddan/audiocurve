@@ -141,3 +141,68 @@ private func profileFile(_ dir: URL, _ id: UUID) -> URL {
     try Data("nope".utf8).write(to: dir.appendingPathComponent("current.json"))
     #expect(store.loadWorkingCopy() == nil)
 }
+
+// MARK: Assignments, measurement, unique names
+
+private func sampleRecord() -> HearingTestRecord {
+    HearingTestRecord(date: Date(timeIntervalSince1970: 1_700_000_000),
+                      output: OutputDevice(uid: "u1", name: "AirPods Pro"),
+                      calibration: TestCalibration(transducer: .inEar),
+                      left: [TestPoint(frequencyHz: 1000, dBFS: -50, hl: 30)],
+                      right: [TestPoint(frequencyHz: 1000, dBFS: -55, hl: 25)],
+                      flags: [.asymmetry], appVersion: "2.2.0")
+}
+
+@Test func assignmentsRoundTrip() throws {
+    let (store, dir) = tempStore(); defer { try? FileManager.default.removeItem(at: dir) }
+    #expect(store.loadAssignments() == OutputAssignments())
+    var a = OutputAssignments()
+    a.assign(OutputDevice(uid: "x", name: "X"), profile: UUID(), levels: LevelSettings(strength: 1, inputGainDB: 0, outputGainDB: 0, tone: 0, mpoDBFS: -3))
+    store.saveAssignments(a)
+    #expect(store.loadAssignments() == a)
+}
+
+@Test func measurementRoundTripsAndOldFilesDecode() throws {
+    let (store, dir) = tempStore(); defer { try? FileManager.default.removeItem(at: dir) }
+    let id = UUID()
+    try store.saveNew(id: id, name: "Tested", profile: exampleProfile(), measurement: sampleRecord(), uniqueName: false)
+    #expect(store.saved(id: id)?.measurement == sampleRecord())
+    let old = try store.saveNew(name: "Old", profile: exampleProfile())
+    let file = profileFile(dir, old.id)
+    let text = try String(contentsOf: file, encoding: .utf8)
+    #expect(!text.contains("measurement"))
+    #expect(store.saved(id: old.id)?.measurement == nil)
+}
+
+@Test func uniqueNameAppendsSuffix() throws {
+    let (store, dir) = tempStore(); defer { try? FileManager.default.removeItem(at: dir) }
+    let n = "AirPods Pro – 16 Nov 2026"
+    let a = try store.saveNew(id: UUID(), name: n, profile: .flat(), measurement: nil, uniqueName: true)
+    let b = try store.saveNew(id: UUID(), name: n.uppercased(), profile: .flat(), measurement: nil, uniqueName: true)
+    let c = try store.saveNew(id: UUID(), name: n, profile: .flat(), measurement: nil, uniqueName: true)
+    #expect(a.name == n)
+    #expect(b.name == n.uppercased() + " (2)")
+    #expect(c.name == n + " (3)")
+}
+
+@Test func uniqueNameTruncatesBeforeSuffix() throws {
+    let (store, dir) = tempStore(); defer { try? FileManager.default.removeItem(at: dir) }
+    let base = String(repeating: "a", count: 55) + " " + String(repeating: "b", count: 14)
+    try store.saveNew(id: UUID(), name: base, profile: .flat(), measurement: nil, uniqueName: true)
+    let second = try store.saveNew(id: UUID(), name: base, profile: .flat(), measurement: nil, uniqueName: true)
+    #expect(second.name.count <= ProfileStore.maxNameLength)
+    #expect(second.name.hasSuffix(" (2)"))
+    #expect(!second.name.contains("  "))
+    let spaced = String(repeating: "c", count: 56) + " " + "dddd"
+    try store.saveNew(id: UUID(), name: spaced, profile: .flat(), measurement: nil, uniqueName: true)
+    let s2 = try store.saveNew(id: UUID(), name: spaced, profile: .flat(), measurement: nil, uniqueName: true)
+    #expect(s2.name == String(repeating: "c", count: 56) + " (2)")
+}
+
+@Test func saveNewUsesGivenID() throws {
+    let (store, dir) = tempStore(); defer { try? FileManager.default.removeItem(at: dir) }
+    let id = UUID()
+    let s = try store.saveNew(id: id, name: "X", profile: .flat(), measurement: nil, uniqueName: false)
+    #expect(s.id == id)
+    #expect(store.saved(id: id) != nil)
+}

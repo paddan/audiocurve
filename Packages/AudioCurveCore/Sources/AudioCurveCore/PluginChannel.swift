@@ -13,12 +13,16 @@ public struct PluginStatus: Codable, Sendable, Equatable {
     public var activeOutputs: ActiveOutputs
     /// Host bundle IDs of other plugin instances processing right now ("unknown" if not identified).
     public var otherHosts: [String]
+    /// Per-output profile and level assignments, keyed by output UID.
+    public var assignments: OutputAssignments
 
-    public init(profiles: [ProfileSummary], activeProfileID: UUID?, activeOutputs: ActiveOutputs, otherHosts: [String]) {
+    public init(profiles: [ProfileSummary], activeProfileID: UUID?, activeOutputs: ActiveOutputs,
+                otherHosts: [String], assignments: OutputAssignments = OutputAssignments()) {
         self.profiles = profiles
         self.activeProfileID = activeProfileID
         self.activeOutputs = activeOutputs
         self.otherHosts = otherHosts
+        self.assignments = assignments
     }
 }
 
@@ -28,6 +32,15 @@ public enum PluginCommand: Codable, Sendable, Equatable {
     case setActiveOutputs(ActiveOutputs)
     /// The host's bundle ID, recorded in the instance heartbeat.
     case identifyHost(String)
+    /// Sets (nil clears) the profile assigned to an output.
+    case assignProfile(OutputDevice, UUID?)
+    /// Saves a profile made by a hearing test, with its measurement, and optionally assigns it to an output.
+    case saveMeasuredProfile(id: UUID, name: String, profile: HearingProfile, measurement: HearingTestRecord, assignTo: OutputDevice?)
+}
+
+/// Identifiers shared by the app and the plugin.
+public enum AppIdentity {
+    public static let bundleID = "se.lindefors.audiocurve"
 }
 
 /// The app ↔ plugin channel. `AUMessageChannel` returns empty replies across the process

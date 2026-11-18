@@ -4,7 +4,11 @@ import SwiftUI
 /// The panel that opens from the menu bar ear.
 struct MenuPanel: View {
     @Bindable var model: AppModel
-    @Environment(\.openWindow) private var openWindow
+    /// Shows the main window (the app delegate owns it).
+    var openMain: () -> Void = {}
+    /// Lets the app delegate bring the app forward before Settings opens.
+    var settingsWillOpen: () -> Void = {}
+    @Environment(\.openSettings) private var openSettings
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -35,6 +39,7 @@ struct MenuPanel: View {
             }
             Text("Active on").font(.subheadline).foregroundStyle(.secondary)
             ForEach(model.activeOutputs.menuDevices(available: model.availableOutputs)) { d in
+                HStack(spacing: 6) {
                 Toggle(isOn: Binding(get: { model.activeOutputs.isChecked(d.uid) },
                                      set: { model.setOutput(d, enabled: $0) })) {
                     HStack(spacing: 4) {
@@ -48,17 +53,28 @@ struct MenuPanel: View {
                 }
                 .toggleStyle(.checkbox)
                 .disabled(model.activeOutputs.isLastChecked(d.uid, available: model.availableOutputs))
+                Spacer(minLength: 0)
+                Picker("Profile for \(d.name)", selection: Binding(
+                    get: { model.assignments.assignment(d.uid)?.profileID },
+                    set: { model.assign(d, profile: $0) })) {
+                    Text(verbatim: "—").tag(UUID?.none)
+                    ForEach(model.profiles) { Text(verbatim: $0.name).tag(Optional($0.id)) }
+                }
+                .pickerStyle(.menu)
+                .labelsHidden()
+                .frame(width: 110)
+                }
             }
             Divider()
-            Button("Open AudioCurve…") {
-                openWindow(id: MainWindow.id)
-                NSApp.activate()
+            Button("Open AudioCurve…") { openMain() }
+            Button("Settings…") {
+                settingsWillOpen()
+                openSettings()
             }
-            Toggle("Launch at login", isOn: $model.launchAtLogin).toggleStyle(.checkbox)
             Button("Quit AudioCurve") { model.quit() }
         }
         .buttonStyle(.borderless)
         .padding(14)
-        .frame(width: 300)
+        .frame(width: 340)
     }
 }

@@ -7,7 +7,7 @@
 
 # AudioCurve
 
-Hearing compensation for everything your Mac plays. AudioCurve shapes sound to your own audiogram, much like the headphone accommodations on iPhone with AirPods, but for any app and any output device. It runs from the menu bar and needs no other software; the same processing is also available as an Audio Unit (AUv3) effect for other audio apps.
+Hearing compensation for everything your Mac plays. AudioCurve shapes sound to your own audiogram, much like the headphone accommodations on iPhone with AirPods, but for any app and any output device. It runs in the background from the menu bar, or as an ordinary app, and needs no other software; the same processing is also available as an Audio Unit (AUv3) effect for other audio apps.
 
 **[⬇ Download the latest release](https://github.com/paddan/audiocurve/releases/latest)** · macOS 27 · Apple silicon
 
@@ -16,7 +16,7 @@ Hearing compensation for everything your Mac plays. AudioCurve shapes sound to y
   <img src="docs/screenshots/audiogram-light.png" alt="Audiogram editor">
 </picture>
 
-> **Not a medical device.** AudioCurve is a personal hobby project. It is not a hearing aid, it is not clinically validated, and it does not replace advice from an audiologist. Keep the volume at a comfortable level.
+> **Not a medical device.** AudioCurve is a personal hobby project. It is not a hearing aid, it is not clinically validated, and it does not replace advice from an audiologist. The built-in hearing test is not a clinical audiogram. Keep the volume at a comfortable level.
 
 ## Download
 
@@ -28,12 +28,14 @@ Requires macOS 27 on Apple silicon. Older versions are on the [Releases page](ht
    ```bash
    xattr -dr com.apple.quarantine /Applications/AudioCurve.app
    ```
-4. Open `AudioCurve.app`. It appears as an ear in the menu bar. The first time it processes sound, macOS asks for permission to record system audio: allow it, or AudioCurve cannot hear what your Mac plays.
+4. Open `AudioCurve.app`. Its window opens, and it appears as an ear in the menu bar. The first time it processes sound, macOS asks for permission to record system audio: allow it, or AudioCurve cannot hear what your Mac plays.
 
 Releases are built by the [Release workflow](.github/workflows/release.yml) whenever a `v*` tag is pushed.
 
 ## Features
 
+- **Hearing test.** **Hearing test…** in the window measures your hearing in about 10–15 minutes, both ears, at 11 frequencies from 125 Hz to 8 kHz. It plays pulsed tones and finds each threshold with a clinical-style staircase. It checks its own reliability (a retest at 1 kHz and silent catch trials) and warns about asymmetric results. To keep the level under control it sets the headphone volume to maximum and sets the level digitally, with a hard level cap per frequency; the volume is restored afterwards, also after a crash or a disconnect. The result is relative to the headphones it was measured with (it is not a calibrated audiogram), so it asks whether they are **In-ear** or **Over-ear**. It is saved as a profile and assigned to that output. The test refuses to start while the output is muted, another app is playing sound, or AudioCurve runs in another host.
+- **Profile per output.** Each output under **Active on** in the menu panel has its own profile picker, and the profile menu has **Use on <output>**. When the output changes, AudioCurve loads that output's profile and its level settings (Strength, Input and Output level, Tone, Ceiling). Only the menu bar app follows the output; the Audio Unit in other hosts keeps its own profile.
 - **Audiogram editor.** Enter your hearing thresholds (dB HL, 125 Hz – 8 kHz) for each ear by dragging or typing. You can save several named versions, and the latest one is restored automatically.
 - **Per-ear prescription.** A 12-band filterbank with wide dynamic range compression (WDRC) per band. Soft sounds get more gain than loud ones, and **Strength** scales the whole prescription. You can fine-tune each band with a per-band trim.
 - **Two prescriptions.** Each ear gets a **speech** fitting (NAL-inspired, not NAL-NL2: more gain for soft sounds and a gentle high-frequency emphasis) and a **music** fitting (near-linear and warmer, with no bass cut). The compressors use two time constants, so the treble gain no longer follows every syllable.
@@ -54,7 +56,7 @@ Releases are built by the [Release workflow](.github/workflows/release.yml) when
 
 ## Using it
 
-`AudioCurve.app` is a menu bar app. It captures what your Mac plays (a Core Audio process tap), runs it through AudioCurve and plays it on the current output device.
+`AudioCurve.app` captures what your Mac plays (a Core Audio process tap), runs it through AudioCurve and plays it on the current output device. Opening it from its app icon (Finder, the Dock, Launchpad, Spotlight) opens the window, also when it is already running.
 
 <p align="center">
   <picture>
@@ -63,16 +65,21 @@ Releases are built by the [Release workflow](.github/workflows/release.yml) when
   </picture>
 </p>
 
-- **Menu bar panel:** click the ear. It has an on/off switch, a status line, the profile picker, **Active on** (one checkbox per output device), **Open AudioCurve…**, **Launch at login** and **Quit**. The ear is filled while AudioCurve processes sound, an outline while it is paused, and crossed out when it is off or something is wrong.
+- **Menu bar panel:** click the ear. It has an on/off switch, a status line, the profile picker, **Active on** (one checkbox per output device), **Open AudioCurve…**, **Settings…** and **Quit**. The ear is filled while AudioCurve processes sound, an outline while it is paused, and crossed out when it is off or something is wrong.
+- **Settings** (**Settings…** in the panel, or ⌘,):
+  - **Process all sound in the background** (on by default): AudioCurve keeps processing with the window closed, and shows a Dock icon only while the window is open. Turned off, AudioCurve is an ordinary app: it starts with **Bypass (A/B)** ticked, processes the sound while you untick it, and quits when you close the window.
+  - **Show in menu bar**: hides or shows the ear. Without it, open AudioCurve from its app icon to get to the window.
+  - **Launch at login** (background mode only). A login launch keeps the window closed.
 - **Active on:** AudioCurve only processes sound on the ticked outputs. For example, tick your headphones but not your hearing aids. On other outputs the sound plays as if AudioCurve were not running.
 - **Window:** **Open AudioCurve…** shows the audiogram editor, the gain and spectrum views, the controls and the meters, with **Bypass (A/B)** at the top for comparing with and without AudioCurve.
 - **Other audio apps:** the Audio Unit still works in hosts such as SoundSource, Audio Hijack or a DAW, with the same profiles. Do not run it there and in the menu bar app at the same time: the panel warns if the sound is processed twice.
 
 A typical setup:
 
-1. Enter your audiogram, or start from a flat profile, and save it.
-2. Play something loud and press **Auto level**, or lower **Output level** until **Safety** stays near 0 dB.
-3. Set the listening level with the Mac's own volume.
+1. Take the hearing test (**Hearing test…** in the window) with your headphones on, or enter your audiogram yourself, or start from a flat profile, and save it.
+2. Pick a profile for each output under **Active on**.
+3. Play something loud and press **Auto level**, or lower **Output level** until **Safety** stays near 0 dB.
+4. Set the listening level with the Mac's own volume.
 
 AudioCurve adds a little delay, about 8 ms in the DSP kernel, plus the audio device's buffering, which is not noticeable in video. If something goes wrong (permission denied, the plugin crashes, an output disappears), AudioCurve steps aside and the sound plays unprocessed.
 

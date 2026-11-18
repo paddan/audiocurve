@@ -86,7 +86,7 @@ UI names below are the English ones; in other languages, use the matching transl
 
 Before testing a Debug build, make sure its plugin is the registered one (see the developer note in `docs/superpowers/plans/2026-11-13-spike-notes.md`).
 
-- [ ] First launch: the ear appears in the menu bar and the app asks once whether to start at login.
+- [ ] First launch: the window opens, the ear appears in the menu bar and the app asks once whether to start at login.
 - [ ] First processing: macOS asks for permission to record system audio. After Allow, sound is processed.
 - [ ] AirPods as output: music, a video and a call app are processed. Bypass (A/B) gives an audible difference.
 - [ ] Switch to the hearing aids and back: "Paused – … is the output", then "Active – …", with no click and no lasting silence.
@@ -98,8 +98,8 @@ Before testing a Debug build, make sure its plugin is the registered one (see th
 - [ ] SoundSource also running AudioCurve on the same output: the panel shows the "processed twice" warning within a few seconds.
 - [ ] Quit the app while audio plays: the sound continues unprocessed.
 - [ ] The panel's Profile picker and Active on match the window, in both directions.
-- [ ] The Dock icon shows only while the window is open.
-- [ ] Launch at login: tick it, log out and in: the ear is back.
+- [ ] The Dock icon shows only while the window is open (background mode).
+- [ ] Launch at login (Settings): tick it, log out and in: the ear is back and the window stays closed.
 
 ## Profiles
 
@@ -107,6 +107,63 @@ Before testing a Debug build, make sure its plugin is the registered one (see th
 - [ ] Save As, load, Rename, Duplicate and Delete work from the profile menu in the header.
 - [ ] The unsaved dot (•) appears after a change and disappears on Save.
 - [ ] The same versions show up in SoundSource.
+
+## Profile per output (2.2)
+
+Needs two saved profiles, A and B, and two outputs (here the speakers and the AirPods). Assign with the profile pop-ups under "Active on" in the menu panel (or "Use on <output>" in the window's profile menu).
+
+- [ ] Assign A to the speakers and B to the AirPods. Switching the system output loads A on the speakers and B on the AirPods; the panel and the window show the loaded profile.
+- [ ] Assigning a profile to the current output loads it at once.
+- [ ] On the speakers (A), change the audiogram in the editor, then switch to the AirPods and back: the edits are in A (saved into A, no "Unsaved" profile appears), and B is unchanged.
+- [ ] With a never-saved profile that is not flat loaded, switch to an output with an assigned profile: a profile named "Unsaved – <date time>" appears in the list holding those edits.
+- [ ] Set different Strength, Tone, Input level, Output level and Maximum output on each output: switching back and forth brings each output's own levels back, also after restarting the app. Mode, Compression, Limiter and Bypass do not change on a switch.
+- [ ] An output without an assignment keeps the current profile and levels when switched to.
+- [ ] Loading a profile by hand on an output does not change its assignment; the next switch to that output loads the assigned profile again.
+- [ ] SoundSource running AudioCurve: switching the output does not change SoundSource's profile or levels, and no "Unsaved" profile is created by it.
+- [ ] Delete B: switching to the AirPods keeps the current profile (no error); the AirPods' pop-up shows "—".
+
+## Hearing test (2.2)
+
+Run with AirPods (or other headphones with a settable volume). Before each test, set the volume to max by hand once and check the first tones: none may sound unexpectedly loud.
+
+- [ ] Full test on AirPods: "Hearing test…" shows the intro with "Output: AirPods …", the checklist (including the Do Not Disturb and system-wide EQ lines) and "In-ear" preselected. Start: the volume goes to max, tones come right ear first, then left; the progress counts to 24. Space and the "I hear it" button both answer; holding Space does not answer the next tone.
+- [ ] No tone sounds unexpectedly loud (start with the volume already at max to compare); tones step up gently above 80 dB HL.
+- [ ] At the end, the volume is back where it was, the result shows both ears (right red circles, left blue crosses), "Relative to <device>", any flags as warnings, and the name "<device> – <date>" with "Use on <device>" ticked.
+- [ ] Save: the window goes back to the plugin; the profile is in the profile list, assigned to the AirPods and active.
+- [ ] Pause: the volume goes back to where it was at once. Resume: the volume goes to max again and the same tone is played again.
+- [ ] While paused, play music in another app: the paused screen says to stop it and Resume is disabled; stop the music and Resume works. Same with muting the output while paused.
+- [ ] Force-quit the app mid-test (Activity Monitor): on the next launch the volume is restored.
+- [ ] Switch the output mid-test: the test stops at once with a message, the volume of the old output is restored.
+- [ ] Disconnect the headphones mid-test (Bluetooth off or AirPods in the case), then reconnect them with the app still running: their volume is restored (not left at max).
+- [ ] Disconnect the AirPods mid-test, run a test on another output, then reconnect the AirPods: the AirPods get their own original volume back.
+- [ ] Close the window mid-test: the test stops and the volume is restored; reopening shows the intro with a message.
+- [ ] Quit from the menu mid-test: the volume is restored.
+- [ ] SoundSource running AudioCurve: the intro names it and Start is disabled; starting it during a test stops the test.
+- [ ] Play music in another app: the intro warns and Start is disabled; started during the test, the test pauses, the volume goes back down at once, and Resume (after stopping the music) raises it again.
+- [ ] Mute the output: the intro says to unmute it and Start is disabled.
+- [ ] An output without a settable volume (e.g. HDMI): the intro says to set the volume to max yourself and to turn it back down when the test ends (no "The volume is restored afterwards"); the test runs. The result screen says "Turn the volume back down now."; so does the intro after Cancel mid-test (Cancel goes back to the intro instead of closing) and after a stopped test.
+- [ ] AirPods (or a Bluetooth headset) in call mode (open a call or the Voice Memos recorder so its microphone is used, the output drops to 16 kHz): the intro says the output runs at a low sample rate and Start is disabled. Starting the microphone during a test stops it with a message.
+- [ ] The status line says "Hearing test in progress" during the test, and the route resumes afterwards.
+
+## Launch and settings (2.3)
+
+Defaults: **Process all sound in the background** and **Show in menu bar** on.
+
+- [ ] Launch from Finder, the Dock, Launchpad and Spotlight: the window opens each time.
+- [ ] Close the window (background mode): the ear stays, the Dock icon goes, the sound is still processed. Open the app from its icon again: the window opens.
+- [ ] With another app in front and the window closed: **Settings…** in the panel opens Settings in front, with a Dock icon until Settings closes. ⌘, in the window opens it too; closing the main window while Settings is open keeps Settings reachable.
+- [ ] Minimise the window, then change a setting: the Dock icon and the minimised window stay.
+- [ ] Untick **Show in menu bar**: the ear disappears at once and the hint about the app icon shows. Close the window: the app keeps running without ear or Dock icon. Double-click the app in Finder: the window opens. Tick it again: the ear is back.
+- [ ] Untick **Process all sound in the background** with the window open: Bypass ticks itself, the sound plays unprocessed, **Launch at login** disappears from Settings and is off in System Settings → General → Login Items.
+- [ ] With the main window closed (background mode), untick **Process all sound in the background** in Settings: the main window opens.
+- [ ] In that mode: untick Bypass: the sound is processed. Tick it again: unprocessed, with no gap.
+- [ ] In that mode: close Settings: the app keeps running. Close the main window: the app quits and the sound continues unprocessed.
+- [ ] In that mode: launch again: the window opens with Bypass ticked and the Dock icon shows.
+- [ ] In that mode, with a hearing test running: close the window: the app quits and the headphone volume is restored.
+- [ ] In that mode, untick Bypass and kill the `AudioCurveAU` process: after the reload Bypass is still unticked and the sound is processed again.
+- [ ] Tick **Process all sound in the background** again: Bypass unticks itself and the sound is processed; closing the window no longer quits.
+- [ ] Both settings survive a relaunch.
+- [ ] Settings in each language: the toggles and the explanations are translated and fit.
 
 ## Languages
 

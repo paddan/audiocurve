@@ -54,12 +54,21 @@ public final class AudioCurveAudioUnit: AUAudioUnit {
     private var currentOutputUID: String?
     /// Output devices processing is enabled for (empty = all). Main thread only; shared on disk.
     public private(set) var activeOutputs = ActiveOutputs() { didSet { updateStatusSnapshot() } }
-    /// Copies of `sourceID` and `activeOutputs` for the `fullState` getter, which hosts call
-    /// off the main thread. Written on main, read anywhere, always under `statusLock`.
+    /// Profile and level settings per output. Main thread only; shared on disk. Only the app's
+    /// own instance acts on them (spec 5.3); other instances just report them.
+    public private(set) var assignments = OutputAssignments() { didSet { updateStatusSnapshot() } }
+    /// Debounced save of the level controls into the assignment of the output (`uid`) that was
+    /// current when the change was made.
+    private var pendingLevelsSave: (uid: String, item: DispatchWorkItem)?
+    /// Copies of `sourceID`, `activeOutputs` and `assignments` for the `fullState` getter, which
+    /// hosts call off the main thread. Written on main, read anywhere, always under `statusLock`.
     private let statusLock = NSLock()
-    private var statusSnapshot: (source: UUID?, outputs: ActiveOutputs) = (nil, ActiveOutputs())
+    private var statusSnapshot: (source: UUID?, outputs: ActiveOutputs, assignments: OutputAssignments) =
+        (nil, ActiveOutputs(), OutputAssignments())
     /// Called on the main queue after the output device or the active-output selection changed.
     public var onOutputsChange: (@MainActor () -> Void)?
+    /// Called on the main queue after `assignments` changed.
+    public var onAssignmentsChange: (@MainActor () -> Void)?
 
     /// Called on the main queue after the profile changed (not called when the new value equals the current one).
     public var onProfileChange: (@MainActor (HearingProfile?) -> Void)?
@@ -83,6 +92,7 @@ public final class AudioCurveAudioUnit: AUAudioUnit {
                                           outputGainDB: model.outputGain, mode: .auto)
         installParameterTree()
         activeOutputs = store.loadActiveOutputs()
+        assignments = store.loadAssignments()
         // Start device monitoring after init has returned, off the host's instantiation path.
         let start = MainBox(f: { [weak self] in self?.startOutputMonitoring() })
         DispatchQueue.main.async { start.f() }
@@ -99,7 +109,7 @@ public final class AudioCurveAudioUnit: AUAudioUnit {
         tree.implementorValueObserver = { [weak self] param, value in
             guard let self, let a = ParamAddress(rawValue: param.address) else { return }
             self.lock.lock(); self.model[a] = Double(value); self.lock.unlock()
-            self.recomputeOnMain()
+            self.parameterChanged(a)
         }
         tree.implementorValueProvider = { [weak self] param in
             guard let self, let a = ParamAddress(rawValue: param.address) else { return param.value }
@@ -188,6 +198,14 @@ public final class AudioCurveAudioUnit: AUAudioUnit {
 
     private func recomputeOnMain() { Self.onMain { [self] in recompute() } }
 
+    /// Any thread. Level controls are also remembered for the current output.
+    private func parameterChanged(_ a: ParamAddress) {
+        Self.onMain { [self] in
+            recompute()
+            if a.isLevel { scheduleLevelsSave() }
+        }
+    }
+
     private func startOutputMonitoring() {
         guard outputs == nil else { return }
         startHeartbeat()
@@ -198,7 +216,17 @@ public final class AudioCurveAudioUnit: AUAudioUnit {
     }
 
     private func outputDeviceChanged() {
-        currentOutputUID = outputs?.current?.uid
+        // Levels still waiting out their debounce belong to the output we are leaving.
+        flushLevelsSave()
+        let uid = outputs?.current?.uid
+        let switched = uid != currentOutputUID
+        currentOutputUID = uid
+        // Only a real switch loads the output's profile: a device list change must not undo a
+        // profile the user loaded by hand on this output.
+        if switched && isAppInstance {
+            reloadAssignments()
+            followOutput()
+        }
         recompute()
         let cb = onOutputsChange
         MainActor.assumeIsolated { cb?() }
@@ -222,7 +250,7 @@ public final class AudioCurveAudioUnit: AUAudioUnit {
 
     private func updateStatusSnapshot() {
         statusLock.lock()
-        statusSnapshot = (sourceID, activeOutputs)
+        statusSnapshot = (sourceID, activeOutputs, assignments)
         statusLock.unlock()
     }
 
@@ -234,7 +262,7 @@ public final class AudioCurveAudioUnit: AUAudioUnit {
         let others = InstanceHeartbeat.live(store.readHeartbeats(), now: Date(), excludingPID: getpid())
         return PluginStatus(profiles: store.list().map { ProfileSummary(id: $0.id, name: $0.name) },
                             activeProfileID: snap.source, activeOutputs: snap.outputs,
-                            otherHosts: others.map(\.hostBundleID))
+                            otherHosts: others.map(\.hostBundleID), assignments: snap.assignments)
     }
 
     /// Main thread only.
@@ -243,9 +271,144 @@ public final class AudioCurveAudioUnit: AUAudioUnit {
         case .loadProfile(let id): loadSaved(id: id)
         case .setActiveOutputs(let a): setActiveOutputs(a)
         case .identifyHost(let id):
+            let wasAppInstance = isAppInstance
             hostBundleID = id
             writeHeartbeat()
+            // The app identifies itself after the monitor has read the output: catch up once.
+            if isAppInstance && !wasAppInstance && currentOutputUID != nil {
+                reloadAssignments()
+                followOutput()
+            }
+        case .assignProfile(let d, let id): assign(d, profile: id)
+        case .saveMeasuredProfile(let id, let name, let p, let m, let assignTo):
+            saveMeasured(id: id, name: name, profile: p, measurement: m, assignTo: assignTo)
         }
+    }
+
+    // MARK: Profile and levels per output
+
+    /// The plugin instance hosted by the AudioCurve app itself; only it follows the output.
+    public var isAppInstance: Bool { hostBundleID == AppIdentity.bundleID }
+
+    /// Assigns a saved profile to an output (nil removes the assignment) and saves. A new
+    /// assignment copies the current level settings. Assigning to the current output in the
+    /// app's instance loads the profile at once. Main thread only.
+    public func assign(_ d: OutputDevice, profile id: UUID?) {
+        flushLevelsSave()
+        var a = assignments
+        if let id {
+            a.assign(d, profile: id, levels: a.assignment(d.uid)?.levels ?? currentLevels)
+        } else {
+            a.byUID[d.uid] = nil
+        }
+        setAssignments(a)
+        if d.uid == currentOutputUID && isAppInstance { followOutput() }
+    }
+
+    /// Saves a profile made by a hearing test (a taken name gets " (2)", …) and optionally assigns
+    /// it. Idempotent on `id`: the app's Retry resends the same command. Main thread only.
+    public func saveMeasured(id: UUID, name: String, profile p: HearingProfile,
+                             measurement: HearingTestRecord, assignTo: OutputDevice?) {
+        if store.saved(id: id) == nil {
+            do { try store.saveNew(id: id, name: name, profile: p, measurement: measurement, uniqueName: true) }
+            catch {
+                NSLog("AudioCurve: could not save the measured profile: %@", String(describing: error))
+                return
+            }
+        }
+        if let d = assignTo { assign(d, profile: id) }
+    }
+
+    private var currentLevels: LevelSettings {
+        lock.lock(); defer { lock.unlock() }
+        return model.levels
+    }
+
+    /// Prunes references to deleted profiles, saves and notifies. Main thread only.
+    private func setAssignments(_ a: OutputAssignments) {
+        var a = a
+        a.prune(existing: Set(store.list().map(\.id)))
+        store.saveAssignments(a)
+        guard a != assignments else { return }
+        assignments = a
+        let cb = onAssignmentsChange
+        MainActor.assumeIsolated { cb?() }
+    }
+
+    /// Picks up assignments saved on disk. Main thread only.
+    private func reloadAssignments() {
+        let a = store.loadAssignments()
+        guard a != assignments else { return }
+        assignments = a
+        let cb = onAssignmentsChange
+        MainActor.assumeIsolated { cb?() }
+    }
+
+    /// Loads the current output's profile and levels (spec 5.2, 5.3). App instance only. Main thread only.
+    private func followOutput() {
+        guard isAppInstance, let uid = currentOutputUID else { return }
+        flushAutosave()
+        let working = profile.map { WorkingCopy(profile: $0, sourceID: sourceID) }
+        let savedSource = sourceID.flatMap { store.saved(id: $0)?.profile }
+        let actions = OutputSwitch.actions(assignment: assignments.assignment(uid), workingCopy: working,
+                                           savedSource: savedSource, existing: Set(store.list().map(\.id)))
+        // If the edits cannot be saved, keep them loaded rather than replace them.
+        var editsSaved = true
+        for action in actions {
+            switch action {
+            case .overwrite(let id, let p):
+                do { try store.overwrite(id: id, profile: p) } catch { editsSaved = false }
+            case .saveUnsaved(let p):
+                let prefix = String(localized: "Unsaved", comment: "Start of the name given to unsaved edits saved automatically on an output switch, followed by a date and time")
+                let name = "\(prefix) – \(Date().formatted(date: .abbreviated, time: .shortened))"
+                do { try store.saveNew(id: UUID(), name: name, profile: p, measurement: nil, uniqueName: true) }
+                catch { editsSaved = false }
+            case .load(let id):
+                if editsSaved { loadSaved(id: id) }
+            case .applyLevels(let l):
+                var v = ParamValues()
+                v.apply(l)
+                for a in [ParamAddress.strength, .inputGain, .outputGain, .tone, .mpo] {
+                    setParameter(a, AUValue(v[a]))
+                }
+            }
+        }
+    }
+
+    /// Debounced: remembers the level controls for the output that is current now. App instance only.
+    private func scheduleLevelsSave() {
+        guard isAppInstance, let uid = currentOutputUID, assignments.assignment(uid) != nil else { return }
+        pendingLevelsSave?.item.cancel()
+        let item = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            self.pendingLevelsSave = nil
+            self.saveLevels(for: uid)
+        }
+        pendingLevelsSave = (uid, item)
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.autosaveDelay, execute: item)
+    }
+
+    private func flushLevelsSave() {
+        guard let pending = pendingLevelsSave else { return }
+        pendingLevelsSave = nil
+        pending.item.cancel()
+        saveLevels(for: pending.uid)
+    }
+
+    private func saveLevels(for uid: String) {
+        let l = currentLevels
+        guard let old = assignments.assignment(uid), old.levels != l else { return }
+        var a = assignments
+        a.setLevels(l, for: uid)
+        setAssignments(a)
+    }
+
+    /// Writes a working copy still waiting out its debounce now.
+    private func flushAutosave() {
+        guard let item = pendingSave, !item.isCancelled else { return }
+        item.cancel()
+        pendingSave = nil
+        writeWorkingCopy()
     }
 
     /// Makes a saved profile the current one. Returns false if it does not exist. Main thread only.
@@ -327,6 +490,12 @@ public final class AudioCurveAudioUnit: AUAudioUnit {
         store.removeHeartbeat(pid: getpid())
         // Flush an autosave that was still waiting out its debounce (one small file write).
         if let item = pendingSave, !item.isCancelled { item.cancel(); writeWorkingCopy() }
+        if let pending = pendingLevelsSave, !pending.item.isCancelled {
+            pending.item.cancel()
+            var a = assignments
+            a.setLevels(currentLevels, for: pending.uid)
+            store.saveAssignments(a)
+        }
         // No KVO notifications during deinit; free the kernel directly.
         if let k = state.pointee.kernel { ac_kernel_free(k) }
         state.pointee.kernel = nil

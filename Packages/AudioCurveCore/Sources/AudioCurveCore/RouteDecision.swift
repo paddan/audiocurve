@@ -23,21 +23,26 @@ public struct RouteInputs: Sendable, Equatable {
     /// The system's default output device, nil if it cannot be read.
     public var outputUID: String?
     public var activeOutputs: ActiveOutputs
+    /// A hearing test is running; the test owns the output until it ends.
+    public var testing: Bool
 
     public init(enabled: Bool, permission: PermissionState, plugin: PluginLoadState,
-                outputUID: String?, activeOutputs: ActiveOutputs) {
+                outputUID: String?, activeOutputs: ActiveOutputs, testing: Bool = false) {
         self.enabled = enabled
         self.permission = permission
         self.plugin = plugin
         self.outputUID = outputUID
         self.activeOutputs = activeOutputs
+        self.testing = testing
     }
 }
 
-/// The target route for `inputs`. First match wins: off, denied permission, plugin failed,
-/// plugin loading, unknown output, output not ticked in "Active on", else running.
+/// The target route for `inputs`. First match wins: off, testing (paused on the output, off if
+/// the output is unknown), denied permission, plugin failed, plugin loading, unknown output,
+/// output not ticked in "Active on", else running.
 public func routeTarget(for inputs: RouteInputs) -> RouteTarget {
     guard inputs.enabled else { return .off }
+    if inputs.testing { return inputs.outputUID.map { .paused(deviceUID: $0) } ?? .off }
     if inputs.permission == .denied { return .failed(.permission) }
     switch inputs.plugin {
     case .failed: return .failed(.plugin)

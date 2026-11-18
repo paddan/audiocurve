@@ -16,6 +16,14 @@ public enum ParamAddress: AUParameterAddress {
         case .tone: "tone"
         }
     }
+
+    /// One of the five level controls remembered per output (`LevelSettings`).
+    var isLevel: Bool {
+        switch self {
+        case .strength, .inputGain, .outputGain, .tone, .mpo: true
+        case .mode, .compression, .limiter: false
+        }
+    }
 }
 
 /// Plain values behind the parameter tree. Strength is a percentage (0...100).
@@ -56,6 +64,19 @@ struct ParamValues: Sendable {
             case .tone: tone = newValue
             }
         }
+    }
+
+    /// The level controls remembered per output; strength and tone stay percentages.
+    var levels: LevelSettings {
+        LevelSettings(strength: strength, inputGainDB: inputGain, outputGainDB: outputGain, tone: tone, mpoDBFS: mpo)
+    }
+
+    mutating func apply(_ l: LevelSettings) {
+        strength = l.strength
+        inputGain = l.inputGainDB
+        outputGain = l.outputGainDB
+        tone = l.tone
+        mpo = l.mpoDBFS
     }
 }
 

@@ -59,6 +59,14 @@ enum HAL {
 }
 
 extension HAL {
+    /// The nominal sample rate of the device with this UID, or nil.
+    static func nominalSampleRate(uid: String) -> Double? {
+        guard let id = device(uid: uid),
+              let rate = try? get(id, kAudioDevicePropertyNominalSampleRate, Float64(0)),
+              rate > 0, rate.isFinite else { return nil }
+        return rate
+    }
+
     /// Is any process other than this one playing audio right now?
     static func othersPlaying() -> Bool {
         var a = address(kAudioHardwarePropertyProcessObjectList)

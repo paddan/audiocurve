@@ -53,6 +53,17 @@ struct ProfileMenu: View {
                 if let id = vm.sourceID { vm.duplicate(id) }
             }
             .disabled(!hasSource)
+            Button {
+                vm.assignCurrentOutput()
+            } label: {
+                let title = vm.currentOutput.map { Text("Use on \($0.name)") } ?? Text("Use on current output")
+                if vm.isAssignedToCurrentOutput {
+                    Label { title } icon: { Image(systemName: "checkmark") }
+                } else {
+                    title
+                }
+            }
+            .disabled(vm.sourceID == nil || vm.currentOutput == nil)
             Button("Delete…") { confirmDelete = true }
                 .disabled(!hasSource)
         } label: {

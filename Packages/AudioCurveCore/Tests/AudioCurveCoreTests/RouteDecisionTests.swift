@@ -3,8 +3,9 @@ import Testing
 
 private func inputs(enabled: Bool = true, permission: PermissionState = .granted,
                     plugin: PluginLoadState = .loaded, output: String? = "airpods",
-                    active: ActiveOutputs = ActiveOutputs()) -> RouteInputs {
-    RouteInputs(enabled: enabled, permission: permission, plugin: plugin, outputUID: output, activeOutputs: active)
+                    active: ActiveOutputs = ActiveOutputs(), testing: Bool = false) -> RouteInputs {
+    RouteInputs(enabled: enabled, permission: permission, plugin: plugin, outputUID: output,
+                activeOutputs: active, testing: testing)
 }
 
 @Test func offWinsOverEverything() {
@@ -36,4 +37,17 @@ private func inputs(enabled: Bool = true, permission: PermissionState = .granted
 
 @Test func emptySelectionRunsEverywhere() {
     #expect(routeTarget(for: inputs(output: "spk")) == .running(deviceUID: "spk"))
+}
+
+@Test func testingPausesRoute() {
+    #expect(routeTarget(for: inputs(testing: true)) == .paused(deviceUID: "airpods"))
+    #expect(routeTarget(for: inputs(output: nil, testing: true)) == .off)
+}
+
+@Test func testingWinsOverPluginState() {
+    #expect(routeTarget(for: inputs(plugin: .loading, testing: true)) == .paused(deviceUID: "airpods"))
+}
+
+@Test func offStillWins() {
+    #expect(routeTarget(for: inputs(enabled: false, testing: true)) == .off)
 }

@@ -5,12 +5,16 @@ public struct SavedProfile: Codable, Equatable, Identifiable, Sendable {
     public var name: String
     public var modified: Date
     public var profile: HearingProfile
+    /// The hearing test this profile came from, if any.
+    public var measurement: HearingTestRecord?
 
-    public init(id: UUID, name: String, modified: Date, profile: HearingProfile) {
+    public init(id: UUID, name: String, modified: Date, profile: HearingProfile,
+                measurement: HearingTestRecord? = nil) {
         self.id = id
         self.name = name
         self.modified = modified
         self.profile = profile
+        self.measurement = measurement
     }
 }
 
@@ -44,6 +48,7 @@ public final class ProfileStore: @unchecked Sendable {
     private var profilesDir: URL { root.appendingPathComponent("profiles", isDirectory: true) }
     private var workingCopyURL: URL { root.appendingPathComponent("current.json") }
     private var activeOutputsURL: URL { root.appendingPathComponent("outputs.json") }
+    private var assignmentsURL: URL { root.appendingPathComponent("assignments.json") }
     private var instancesDir: URL { root.appendingPathComponent("instances", isDirectory: true) }
 
     public init(root: URL) { self.root = root }
@@ -71,9 +76,16 @@ public final class ProfileStore: @unchecked Sendable {
 
     @discardableResult
     public func saveNew(name: String, profile: HearingProfile) throws(ProfileStoreError) -> SavedProfile {
+        try saveNew(id: UUID(), name: name, profile: profile, measurement: nil, uniqueName: false)
+    }
+
+    /// With `uniqueName`, a taken name gets " (2)", " (3)", … instead of throwing `nameTaken`.
+    @discardableResult
+    public func saveNew(id: UUID, name: String, profile: HearingProfile, measurement: HearingTestRecord?,
+                        uniqueName: Bool) throws(ProfileStoreError) -> SavedProfile {
         try checkValid(profile)
-        let clean = try cleanName(name, excluding: nil)
-        let s = SavedProfile(id: UUID(), name: clean, modified: Date(), profile: profile)
+        let clean = uniqueName ? try uniqueCleanName(name) : try cleanName(name, excluding: nil)
+        let s = SavedProfile(id: id, name: clean, modified: Date(), profile: profile, measurement: measurement)
         try write(s, to: url(for: s.id))
         return s
     }
@@ -145,6 +157,18 @@ public final class ProfileStore: @unchecked Sendable {
         try? write(a, to: activeOutputsURL)
     }
 
+    // MARK: Output assignments
+
+    /// Missing or corrupt file → no assignments.
+    public func loadAssignments() -> OutputAssignments {
+        read(OutputAssignments.self, from: assignmentsURL) ?? OutputAssignments()
+    }
+
+    /// Best effort, never throws.
+    public func saveAssignments(_ a: OutputAssignments) {
+        try? write(a, to: assignmentsURL)
+    }
+
     // MARK: Instance heartbeats
 
     /// Writes `instances/<pid>.json`. Best effort, never throws.
@@ -190,6 +214,23 @@ public final class ProfileStore: @unchecked Sendable {
         let key = name.lowercased()
         if list().contains(where: { $0.id != id && $0.name.lowercased() == key }) { throw .nameTaken }
         return name
+    }
+
+    /// Like `cleanName`, but a taken name gets a " (n)" suffix, the base truncated so the result fits.
+    private func uniqueCleanName(_ raw: String) throws(ProfileStoreError) -> String {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty { throw .emptyName }
+        let base = String(trimmed.prefix(Self.maxNameLength)).trimmingCharacters(in: .whitespacesAndNewlines)
+        let taken = Set(list().map { $0.name.lowercased() })
+        if !taken.contains(base.lowercased()) { return base }
+        var n = 2
+        while true {
+            let suffix = " (\(n))"
+            let head = String(base.prefix(Self.maxNameLength - suffix.count)).trimmingCharacters(in: .whitespacesAndNewlines)
+            let candidate = head + suffix
+            if !taken.contains(candidate.lowercased()) { return candidate }
+            n += 1
+        }
     }
 
     private func read<T: Codable>(_ type: T.Type, from url: URL) -> T? {

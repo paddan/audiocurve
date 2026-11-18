@@ -80,6 +80,7 @@ final class PluginViewModel {
     var currentOutput: OutputDevice?
     var availableOutputs: [OutputDevice] = []
     var activeOutputs = ActiveOutputs()
+    var assignments = OutputAssignments()
     var processingActive = true
     /// Digits typed for the selected point, shown in its label until Enter or Esc.
     var typedBuffer: String = ""
@@ -133,7 +134,9 @@ final class PluginViewModel {
             }
         }
         refreshOutputs()
+        assignments = audioUnit.assignments
         audioUnit.onOutputsChange = { [weak self] in self?.refreshOutputs() }
+        audioUnit.onAssignmentsChange = { [weak self] in self?.assignments = self?.audioUnit.assignments ?? OutputAssignments() }
         audioUnit.onProfileChange = { [weak self] newProfile in
             guard let self, !self.isPushing else { return }
             self.profile = newProfile
@@ -151,6 +154,19 @@ final class PluginViewModel {
         availableOutputs = audioUnit.availableOutputs
         activeOutputs = audioUnit.activeOutputs
         processingActive = audioUnit.isProcessingActive
+    }
+
+    /// The saved profile is assigned to the output in use now.
+    var isAssignedToCurrentOutput: Bool {
+        guard let id = sourceID, let uid = currentOutput?.uid else { return false }
+        return assignments.assignment(uid)?.profileID == id
+    }
+
+    /// Assigns the current saved profile to the output in use now, or removes it when it already is.
+    func assignCurrentOutput() {
+        guard let id = sourceID, let d = currentOutput else { return }
+        audioUnit.assign(d, profile: isAssignedToCurrentOutput ? nil : id)
+        assignments = audioUnit.assignments
     }
 
     func setOutput(_ d: OutputDevice, enabled: Bool) {
