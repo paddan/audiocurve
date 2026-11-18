@@ -11,6 +11,15 @@ public struct Presentation: Equatable, Sendable {
     public var gapBeforeS: Double
     /// 1-based point number (1...totalPoints), for progress.
     public var index: Int
+
+    public init(ear: Ear, frequencyHz: Double, levelHL: Double, levelDBFS: Double?, gapBeforeS: Double, index: Int) {
+        self.ear = ear
+        self.frequencyHz = frequencyHz
+        self.levelHL = levelHL
+        self.levelDBFS = levelDBFS
+        self.gapBeforeS = gapBeforeS
+        self.index = index
+    }
 }
 
 public enum TestFlag: Codable, Equatable, Sendable {
@@ -27,6 +36,12 @@ public struct TestPoint: Codable, Equatable, Sendable {
     public var dBFS: Double
     /// Threshold in dB HL, rounded.
     public var hl: Double
+
+    public init(frequencyHz: Double, dBFS: Double, hl: Double) {
+        self.frequencyHz = frequencyHz
+        self.dBFS = dBFS
+        self.hl = hl
+    }
 }
 
 public struct HearingTestResult: Equatable, Sendable {
@@ -34,6 +49,12 @@ public struct HearingTestResult: Equatable, Sendable {
     public var left: [TestPoint]
     public var right: [TestPoint]
     public var flags: [TestFlag]
+
+    public init(left: [TestPoint], right: [TestPoint], flags: [TestFlag]) {
+        self.left = left
+        self.right = right
+        self.flags = flags
+    }
 
     public func audiogram(_ ear: Ear) -> Audiogram {
         let points = ear == .left ? left : right

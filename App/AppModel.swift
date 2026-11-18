@@ -95,7 +95,11 @@ final class AppModel {
     func start() async {
         // Screenshot hook: `open AudioCurve.app --env AUDIOCURVE_DEMO=panel` shows made-up devices
         // and profiles and processes no audio.
-        if ProcessInfo.processInfo.environment["AUDIOCURVE_DEMO"] == "panel" { showDemoData(); return }
+        // `AUDIOCURVE_DEMO=hearingtest` draws the hearing test screens instead.
+        if let demo = ProcessInfo.processInfo.environment["AUDIOCURVE_DEMO"], ["panel", "hearingtest"].contains(demo) {
+            showDemoData(demo)
+            return
+        }
         refreshOutputs()   // also restores a volume a crashed test left raised
         await host.load()
         afterLoad()
@@ -219,7 +223,7 @@ final class AppModel {
         didSet { UserDefaults.standard.set(showInMenuBar, forKey: Self.menuBarKey) }
     }
 
-    private func showDemoData() {
+    private func showDemoData(_ demo: String) {
         let airPods = OutputDevice(uid: "demo.airpods", name: "AirPods Pro")
         let hearingAids = OutputDevice(uid: "demo.hearing-aids", name: "Hearing Aids")
         let speakers = OutputDevice(uid: "demo.speakers", name: "Mac Studio Speakers")
@@ -232,7 +236,12 @@ final class AppModel {
         assignments.assign(airPods, profile: example.id, levels: nil)
         assignments.assign(speakers, profile: profiles[1].id, levels: nil)
         state = .running(deviceUID: airPods.uid)
-        if let dir = DemoSnapshot.outputDirectory { DemoSnapshot.writeAndQuit(model: self, to: dir) }
+        guard let dir = DemoSnapshot.outputDirectory else { return }
+        if demo == "hearingtest" {
+            DemoSnapshot.writeHearingTestAndQuit(app: self, device: airPods, to: dir)
+        } else {
+            DemoSnapshot.writeAndQuit(model: self, to: dir)
+        }
     }
 
     private func reloadPlugin() async {

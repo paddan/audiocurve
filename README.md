@@ -52,7 +52,11 @@ Releases are built by the [Release workflow](.github/workflows/release.yml) when
 |---|---|
 | <picture>  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/gain-dark.png">  <img src="docs/screenshots/gain-light.png" alt="Gain view: bars per band with speech and music prescription ticks"></picture> | <picture>  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/spectrum-dark.png">  <img src="docs/screenshots/spectrum-light.png" alt="Spectrum view: input and output spectra with the ceiling"></picture> |
 
-*The screenshots use a made-up, mildly sloping example audiogram and made-up device names. They are drawn by the code itself, not captured from the screen: `make screenshots` draws the plugin window, running the real kernel on generated noise, and `open AudioCurve.app --env AUDIOCURVE_DEMO=panel --env AUDIOCURVE_DEMO_OUT=<folder>` draws the menu bar panel.*
+| Hearing test | Hearing test result |
+|---|---|
+| <picture>  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/hearingtest-running-dark.png">  <img src="docs/screenshots/hearingtest-running-light.png" alt="Hearing test running: the frequency, progress, the left and right ear with the tested ear lit, and the I hear it button"></picture> | <picture>  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/hearingtest-result-dark.png">  <img src="docs/screenshots/hearingtest-result-light.png" alt="Hearing test result: the measured audiogram for both ears, the profile name and Use on AirPods Pro"></picture> |
+
+*The screenshots use a made-up, mildly sloping example audiogram and made-up device names. They are drawn by the code itself, not captured from the screen: `make screenshots` draws the plugin window, running the real kernel on generated noise, and `open AudioCurve.app --env AUDIOCURVE_DEMO=panel --env AUDIOCURVE_DEMO_OUT=<folder>` draws the menu bar panel (`AUDIOCURVE_DEMO=hearingtest` draws the hearing test).*
 
 ## Using it
 

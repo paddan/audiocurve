@@ -232,6 +232,21 @@ final class HearingTestModel {
         HearingTestRecord.defaultName(deviceName: device?.name ?? output?.name ?? "", date: testDate)
     }
 
+    /// Screenshot hook (`AUDIOCURVE_DEMO=hearingtest`): shows a made-up state. No checks, tones or
+    /// volume changes run.
+    func showDemo(device: OutputDevice, date: Date, phase: Phase, result: HearingTestResult?) {
+        checkTask?.cancel()
+        checkTask = nil
+        othersPlaying = false
+        muted = false
+        volumeSettable = true
+        lowSampleRate = false
+        self.device = device
+        testDate = date
+        self.result = result
+        self.phase = phase
+    }
+
     /// Stops everything; for leaving the test view and for quitting.
     func shutDown() {
         checkTask?.cancel()
