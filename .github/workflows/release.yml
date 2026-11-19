@@ -1,7 +1,7 @@
 name: Release
 
-# Builds AudioCurve.app (with the AUv3 extension inside), runs the tests and publishes a
-# downloadable zip as a GitHub release.
+# Builds AudioCurve.app (the Rust app, with the AUv3 extension inside) with `make`, runs the
+# tests and publishes a downloadable zip as a GitHub release.
 # - Push a tag like `v1.2.0` to publish a release for it.
 # - Run the workflow manually to get the zip as a build artifact without publishing.
 #
@@ -35,9 +35,7 @@ jobs:
         run: sudo xcode-select -s /Applications/Xcode_27.2.app
 
       - name: Toolchain
-        run: |
-          rustup target add aarch64-apple-darwin
-          brew install xcodegen
+        run: rustup target add aarch64-apple-darwin
 
       - name: Version
         id: version
@@ -48,17 +46,18 @@ jobs:
       - name: Test
         run: |
           (cd dsp && cargo test)
+          (cd core && cargo test)
+          (cd desktop && cargo test)
           (cd Packages/AudioCurveCore && swift test)
 
       - name: Build
         run: |
-          xcodegen generate
-          xcodebuild -scheme audiocurve -configuration Release -derivedDataPath build/dd \
+          make release ARCHS=arm64 \
             MARKETING_VERSION="${{ steps.version.outputs.version }}" \
-            CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
-            build
+            CURRENT_PROJECT_VERSION="${{ github.run_number }}"
+          scripts/check-bundle.sh build/release/AudioCurve.app
           mkdir -p build/out
-          ditto build/dd/Build/Products/Release/AudioCurve.app build/out/AudioCurve.app
+          ditto build/release/AudioCurve.app build/out/AudioCurve.app
 
       - name: Sign with Developer ID and notarize
         if: env.HAS_DEVELOPER_ID == 'true'

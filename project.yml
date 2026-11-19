@@ -1,3 +1,7 @@
+# The build path is `make` (see the Makefile): it builds the Rust app in desktop/ and this
+# AUv3 extension, and assembles AudioCurve.app. This file generates an Xcode project for the
+# extension alone, and the settings block below is the single source of the version numbers,
+# which the Makefile reads.
 name: audiocurve
 options:
   bundleIdPrefix: se.lindefors
@@ -20,21 +24,6 @@ packages:
   AudioCurveCore:
     path: Packages/AudioCurveCore
 targets:
-  audiocurve:
-    type: application
-    platform: macOS
-    sources: [App]
-    dependencies:
-      - target: AudioCurveAU
-        embed: true
-      - package: AudioCurveCore
-    settings:
-      base:
-        PRODUCT_BUNDLE_IDENTIFIER: se.lindefors.audiocurve
-        PRODUCT_NAME: AudioCurve
-        INFOPLIST_FILE: App/Info.plist
-        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
-        GENERATE_INFOPLIST_FILE: NO
   AudioCurveAU:
     type: app-extension
     platform: macOS
@@ -54,9 +43,9 @@ targets:
         script: |
           export PATH="$HOME/.cargo/bin:$PATH"; cd "$SRCROOT/dsp" && cargo build --release --target aarch64-apple-darwin
 schemes:
-  audiocurve:
+  AudioCurveAU:
     build:
       targets:
-        audiocurve: all
+        AudioCurveAU: all
     run:
       config: Debug

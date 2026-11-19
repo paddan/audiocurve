@@ -197,3 +197,18 @@ For each language:
 - [ ] An unsupported language (e.g. `-AppleLanguages '(it)'`) gives English.
 
 Known: the plugin's name in the hosts' effect lists comes from Info.plist and is not translated.
+
+## Stage 2 – Rust app
+
+`AudioCurve.app` from `make install` (the Rust app with the AUv3 inside). After each check, the sound plays normally and Audio MIDI Setup lists no leftover AudioCurve device.
+
+- [ ] Processing on and off: **AudioCurve on** in the menu turns processing on and off; the sound changes audibly with a strong profile, with no thump, and the ear icon follows (filled, crossed out).
+- [ ] Output switching: change the output (e.g. speakers to AirPods) while audio plays; the sound continues on the new output, with that output's profile, and an unticked output under **Active on** plays unprocessed with "Paused – <device> is the output".
+- [ ] Sleep and wake: put the Mac to sleep while processing, wake it; the sound plays processed again without restarting AudioCurve.
+- [ ] Unplugging a device mid-test: start the hearing test on wired or Bluetooth headphones and disconnect them; the test stops with a message and the headphones' volume is back where it was when they reconnect.
+- [ ] A crash mid-test: start the hearing test (the volume goes to maximum), `kill -9` the app, then relaunch it; the volume is restored to what it was before the test, and the sound is not muted.
+- [ ] Permission denied and granted: deny system audio recording (System Settings › Privacy & Security › Screen & System Audio Recording); the menu shows the problem and **Open System Settings**, and the sound plays unprocessed. Grant it again; processing resumes. The prompt names AudioCurve.
+- [ ] The login item: tick **Launch at login**, log out and in; AudioCurve starts with its window closed. Untick it; it no longer starts at login (System Settings › General › Login Items agrees).
+- [ ] Both background modes: with **Process all sound in the background** on, closing the window keeps processing and removes the Dock icon; opening the app icon again shows the window. With it off, the app starts with **Bypass (A/B)** ticked, processes while it is unticked, and quits (tearing the route down) when the window closes.
+- [ ] All eight languages render: with English, Swedish, Danish, Norwegian Bokmål, Finnish, German, French and Spanish as the first language, the window, the menu, Settings and the system audio prompt are translated and nothing is cut off or shows as boxes.
+- [ ] The AUv3 still loads in a host: `pluginkit -m -i se.lindefors.audiocurve.AudioCurveAU` lists it, and SoundSource (or another host) loads the AudioCurve effect and processes sound with the same profiles.

@@ -1,4 +1,5 @@
 dsp/target/
+core/target/
 *.xcodeproj
 .build/
 DerivedData/
@@ -9,3 +10,4 @@ listening/
 
 .superpowers/
 dsp/measurements/wav/
+desktop/target/

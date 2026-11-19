@@ -1,0 +1,56 @@
+[package]
+name = "audiocurve-app"
+version = "0.1.0"
+edition = "2024"
+description = "AudioCurve egui app."
+
+[lib]
+name = "audiocurve_app"
+
+[[bin]]
+name = "audiocurve"
+path = "src/main.rs"
+
+[[example]]
+name = "screenshots"
+required-features = ["screenshots"]
+
+[features]
+# `screenshots::render_all`, for the screenshots example and its test. Off in the app binary.
+screenshots = ["dep:egui_kittest", "dep:tempfile"]
+
+[dependencies]
+audiocurve-core = { path = "../core" }
+audiocurve-dsp = { path = "../dsp" }
+eframe = { version = "0.37", default-features = false, features = ["wgpu", "accesskit", "default_fonts"] }
+egui = "0.37"
+sys-locale = "0.3"
+uuid = { version = "1", features = ["v4", "serde"] }
+serde_json = "1"
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
+egui_kittest = { version = "0.37", features = ["wgpu", "snapshot"], optional = true }
+tempfile = { version = "3", optional = true }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "block2", "NSAppleEventDescriptor", "NSAppleEventManager", "NSArray", "NSNotification", "NSOperation", "NSDictionary", "NSError", "NSBundle", "NSData", "NSFileManager", "NSGeometry", "NSString", "NSURL", "NSUserDefaults", "NSUUID", "NSValue"] }
+objc2-core-foundation = { version = "0.3", default-features = false, features = ["std", "CFBase", "CFString", "CFDictionary"] }
+objc2-core-audio = "0.3"
+objc2-core-audio-types = "0.3"
+block2 = "0.6"
+dispatch2 = { version = "0.3", default-features = false, features = ["std", "objc2"] }
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "objc2-core-foundation", "NSApplication", "NSResponder", "NSRunningApplication", "NSWorkspace", "NSImage", "NSImageRep", "NSBitmapImageRep", "NSGraphics", "NSGraphicsContext", "NSFontDescriptor"] }
+objc2-service-management = { version = "0.3", default-features = false, features = ["std", "objc2", "objc2-foundation", "SMAppService"] }
+tray-icon = { version = "0.26", default-features = false }
+# The macOS event loop builder extensions (activation policy) for `NativeOptions::event_loop_builder`.
+winit = { version = "0.30", default-features = false }
+signal-hook = "0.3"
+
+[build-dependencies]
+serde_json = "1"
+
+[dev-dependencies]
+# Turns the `screenshots` feature on for tests and examples, so plain `cargo test` runs them.
+audiocurve-app = { path = ".", features = ["screenshots"] }
+egui_kittest = { version = "0.37", features = ["wgpu", "snapshot"] }
+tempfile = "3"

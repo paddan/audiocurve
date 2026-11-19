@@ -1,8 +1,9 @@
 # Build AudioCurve.app (with the embedded AudioCurveAU.appex) without Xcode.
 #
 # Needs only the Command Line Tools (`xcode-select --install`) and Rust via rustup.
-# The Xcode project generated from project.yml keeps working; this Makefile mirrors
-# its settings (bundle IDs, versions, deployment target, Swift 6 language mode).
+# The app is the Rust/egui app in desktop/; the AUv3 extension is the Swift code in AU/
+# and Packages/AudioCurveCore. This Makefile is the build path. project.yml holds the
+# version numbers and still generates an Xcode project for the extension alone.
 #
 #   make release                     build build/release/AudioCurve.app (ad hoc signed)
 #   make release ARCHS="arm64 x86_64"  universal build
@@ -11,7 +12,7 @@
 #   make uninstall                   remove it from /Applications again
 #   make notarize NOTARY_PROFILE=... notarize and staple (needs a Developer ID identity)
 #   make test                        run the Rust and Swift package tests
-#   make screenshots                 redraw the plugin window screenshots in docs/screenshots
+#   make screenshots                 redraw the app's README screenshots in docs/screenshots
 #   make clean                       remove build/
 
 APP_NAME      := AudioCurve
@@ -53,7 +54,11 @@ CORE_SRC  := $(wildcard $(CORE_DIR)/AudioCurveCore/*.swift)
 CDSP_DIR  := $(CORE_DIR)/CAudioCurveDSP
 CDSP_HDR  := $(CDSP_DIR)/include/audiocurve_dsp.h
 AU_SRC    := $(wildcard AU/*.swift AU/UI/*.swift)
-APP_SRC   := $(wildcard App/*.swift App/Audio/*.swift)
+# The Rust app and the crates it builds from; cargo itself decides what to recompile.
+APP_SRC   := desktop/Cargo.toml desktop/Cargo.lock desktop/build.rs desktop/strings/Localizable.xcstrings \
+             core/Cargo.toml dsp/Cargo.toml $(shell find desktop/src core/src dsp/src -name '*.rs')
+APP_PLIST := desktop/macos/Info.plist
+APP_STRINGS := desktop/strings/Localizable.xcstrings
 MODMAP    := $(OBJ_DIR)/modules/module.modulemap
 
 SWIFT_FLAGS = -sdk $(SDK) -target $*-apple-macos$(MACOS_MIN) -swift-version 6 \
@@ -78,10 +83,15 @@ release: $(STAMP)
 
 # --- Rust DSP --------------------------------------------------------------
 
-$(OBJ_DIR)/%/libaudiocurve_dsp.a: $(DSP_SRC)
+# Checks that cargo exists, and adds the Rust target for arch $(1) if rustup lacks it.
+define rust_toolchain
 	@test -x "$(CARGO)" || { echo "cargo not found; install Rust from https://rustup.rs" >&2; exit 1; }
-	@if [ -x "$(RUSTUP)" ] && ! "$(RUSTUP)" target list --installed | grep -qx '$(call rust_triple,$*)'; then \
-		"$(RUSTUP)" target add $(call rust_triple,$*); fi
+	@if [ -x "$(RUSTUP)" ] && ! "$(RUSTUP)" target list --installed | grep -qx '$(call rust_triple,$(1))'; then \
+		"$(RUSTUP)" target add $(call rust_triple,$(1)); fi
+endef
+
+$(OBJ_DIR)/%/libaudiocurve_dsp.a: $(DSP_SRC)
+	$(call rust_toolchain,$*)
 	cd dsp && "$(CARGO)" build --release --locked --target $(call rust_triple,$*)
 	@mkdir -p $(@D)
 	cp dsp/target/$(call rust_triple,$*)/release/libaudiocurve_dsp.a $@
@@ -107,9 +117,9 @@ $(OBJ_DIR)/%/AudioCurveCore.o: $(CORE_SRC) $(MODMAP)
 # --- Executables -----------------------------------------------------------
 
 # The SDK's @State macro needs a compiler plugin that only Xcode ships; views use
-# the ViewState alias of the property wrapper instead (see App/ViewState.swift).
+# the ViewState alias of the property wrapper instead (see AU/UI/ViewState.swift).
 check_no_state_macro = @if grep -n '@State[[:space:](]' $(1) /dev/null; then \
-	echo "error: use @ViewState instead of @State, so the code builds without Xcode (see App/ViewState.swift)" >&2; exit 1; fi
+	echo "error: use @ViewState instead of @State, so the code builds without Xcode (see AU/UI/ViewState.swift)" >&2; exit 1; fi
 
 $(OBJ_DIR)/%/$(AU_NAME): $(AU_SRC) $(OBJ_DIR)/%/AudioCurveCore.o $(OBJ_DIR)/%/shim.o $(OBJ_DIR)/%/libaudiocurve_dsp.a
 	$(call check_no_state_macro,$(AU_SRC))
@@ -118,13 +128,12 @@ $(OBJ_DIR)/%/$(AU_NAME): $(AU_SRC) $(OBJ_DIR)/%/AudioCurveCore.o $(OBJ_DIR)/%/sh
 		$(@D)/AudioCurveCore.o $(@D)/shim.o $(@D)/libaudiocurve_dsp.a \
 		-Xlinker -e -Xlinker _NSExtensionMain -Xlinker -dead_strip
 
-$(OBJ_DIR)/%/$(APP_NAME): $(APP_SRC) $(OBJ_DIR)/%/AudioCurveCore.o $(OBJ_DIR)/%/shim.o $(OBJ_DIR)/%/libaudiocurve_dsp.a
-	$(call check_no_state_macro,$(APP_SRC))
+# The app: the Rust binary `audiocurve` from desktop/, under the bundle's executable name.
+$(OBJ_DIR)/%/$(APP_NAME): $(APP_SRC)
+	$(call rust_toolchain,$*)
+	cd desktop && "$(CARGO)" build --release --locked --target $(call rust_triple,$*)
 	@mkdir -p $(@D)
-	$(SWIFTC) $(SWIFT_FLAGS) -module-name $(APP_NAME) \
-		-I $(dir $(MODMAP)) -I $(@D) -emit-executable -o $@ $(APP_SRC) \
-		$(@D)/AudioCurveCore.o $(@D)/shim.o $(@D)/libaudiocurve_dsp.a \
-		-Xlinker -dead_strip
+	cp desktop/target/$(call rust_triple,$*)/release/audiocurve $@
 
 # --- Bundles ---------------------------------------------------------------
 
@@ -147,39 +156,37 @@ endef
 
 
 $(STAMP): $(foreach a,$(ARCHS),$(OBJ_DIR)/$(a)/$(AU_NAME) $(OBJ_DIR)/$(a)/$(APP_NAME)) \
-          App/Info.plist AU/Info.plist App/Localizable.xcstrings AU/Localizable.xcstrings \
-          scripts/xcstrings2strings.py project.yml Makefile assets/AppIcon.icns
+          $(APP_PLIST) AU/Info.plist $(APP_STRINGS) AU/Localizable.xcstrings \
+          scripts/xcstrings2strings.py scripts/infoplist-strings.py project.yml Makefile assets/AppIcon.icns
 	rm -rf $(APP)
 	mkdir -p $(APP)/Contents/MacOS $(APP)/Contents/Resources $(APPEX)/Contents/MacOS $(APPEX)/Contents/Resources
 	lipo -create -output $(APP)/Contents/MacOS/$(APP_NAME) $(foreach a,$(ARCHS),$(OBJ_DIR)/$(a)/$(APP_NAME))
 	lipo -create -output $(APPEX)/Contents/MacOS/$(AU_NAME) $(foreach a,$(ARCHS),$(OBJ_DIR)/$(a)/$(AU_NAME))
-	$(call make_plist,App/Info.plist,$(APP)/Contents/Info.plist,$(APP_NAME),$(APP_ID))
+	$(call make_plist,$(APP_PLIST),$(APP)/Contents/Info.plist,$(APP_NAME),$(APP_ID))
 	$(call make_plist,AU/Info.plist,$(APPEX)/Contents/Info.plist,$(AU_NAME),$(AU_ID))
 	printf 'APPL????' > $(APP)/Contents/PkgInfo
 	# App icon: the Icon Composer icon needs Xcode's actool, so use the prebuilt dark .icns.
 	cp assets/AppIcon.icns $(APP)/Contents/Resources/AppIcon.icns
 	plutil -replace CFBundleIconFile -string AppIcon $(APP)/Contents/Info.plist
-	python3 scripts/xcstrings2strings.py App/Localizable.xcstrings $(APP)/Contents/Resources
+	# The Rust app has its strings built in; only the Info.plist texts need .lproj files.
+	python3 scripts/infoplist-strings.py $(APP)/Contents/Info.plist $(APP_STRINGS) $(APP)/Contents/Resources
 	python3 scripts/xcstrings2strings.py AU/Localizable.xcstrings $(APPEX)/Contents/Resources
 	@touch $@
 
 
 # --- README screenshots -----------------------------------------------------
 
-# The plugin view, drawn in-process from the AU sources with a made-up audiogram. The
-# plugin's profile store goes to a home folder under build/, never the user's own profiles.
-SHOT_TOOL := $(OBJ_DIR)/arm64/screenshots
-SHOT_HOME := $(BUILD_DIR)/screenshots-home
-$(SHOT_TOOL): scripts/screenshots/WindowSnapshot.swift $(AU_SRC) AU/Localizable.xcstrings $(OBJ_DIR)/arm64/AudioCurveCore.o $(OBJ_DIR)/arm64/shim.o $(OBJ_DIR)/arm64/libaudiocurve_dsp.a
-	$(SWIFTC) -sdk $(SDK) -target arm64-apple-macos$(MACOS_MIN) -swift-version 6 -O -parse-as-library \
-		-module-name Screenshots -I $(dir $(MODMAP)) -I $(@D) -emit-executable -o $@ \
-		scripts/screenshots/WindowSnapshot.swift $(filter-out AU/AudioCurveViewController.swift,$(AU_SRC)) \
-		$(@D)/AudioCurveCore.o $(@D)/shim.o $(@D)/libaudiocurve_dsp.a
-	python3 scripts/xcstrings2strings.py AU/Localizable.xcstrings $(@D)   # a bare executable finds .lproj beside it
+# The app's window on its fake platform (made-up audiogram and devices, a temporary profile
+# store, English), light and dark, at 2x. render_all's names are mapped to the README's.
+SHOT_DIR   := $(BUILD_DIR)/screenshots
+SHOT_NAMES := audiogram:audiogram gain:gain spectrum:spectrum \
+              hearing-test-running:hearingtest-running hearing-test-result:hearingtest-result
 
-screenshots: $(SHOT_TOOL)
-	@mkdir -p $(SHOT_HOME)
-	CFFIXED_USER_HOME=$(abspath $(SHOT_HOME)) $(SHOT_TOOL) $(abspath docs/screenshots) -AppleLanguages "(en)" -AppleLocale en_US
+screenshots:
+	cd desktop && "$(CARGO)" run --locked --example screenshots -- $(abspath $(SHOT_DIR))
+	@for pair in $(SHOT_NAMES); do for theme in light dark; do \
+		cp $(SHOT_DIR)/$${pair%%:*}-$$theme.png docs/screenshots/$${pair##*:}-$$theme.png || exit 1; \
+		echo "docs/screenshots/$${pair##*:}-$$theme.png"; done; done
 
 # --- Install, notarize, test, clean ----------------------------------------
 
@@ -207,6 +214,8 @@ notarize: release
 
 test:
 	cd dsp && "$(CARGO)" test
+	cd core && "$(CARGO)" test
+	cd desktop && "$(CARGO)" test
 	cd Packages/AudioCurveCore && swift test
 
 clean:
