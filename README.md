@@ -125,7 +125,7 @@ Run `docs/manual-test.md` for the checks that need ears and a real host.
 | `dsp/` | Rust DSP kernel behind a small C ABI: filterbank, WDRC, output budget, limiter, meters, spectrum, speech/music classifier |
 | `core/` | Rust: platform-independent logic (prescription, hearing test, profiles, outputs, route state) |
 | `desktop/` | The menu bar app (Rust and egui): model, interface, and the macOS backend (system audio capture, menu, login item) in `desktop/src/platform/macos/`; `desktop/macos/Info.plist` |
-| `Packages/AudioCurveCore/` | Swift package: C header, fitting rule (audiogram → band gains), profile storage, auto-level, route state machine, app ↔ plugin channel |
+| `Packages/AudioCurveCore/` | Swift package used by the Audio Unit: C header, fitting rule (audiogram → band gains), profile storage, auto-level, hearing test records, app ↔ plugin channel |
 | `AU/` | The AUv3 extension: parameters, state and the SwiftUI interface |
 | `docs/` | Design spec and manual test checklist |
 | `App/AppIcon.icon` | App icon (Icon Composer, light and dark); the build uses `assets/AppIcon.icns`, a dark version of it, because the `.icon` needs Xcode's `actool` |

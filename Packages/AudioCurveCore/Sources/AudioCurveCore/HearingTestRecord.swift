@@ -21,3 +21,25 @@ public struct HearingTestRecord: Codable, Equatable, Sendable {
         self.appVersion = appVersion
     }
 }
+
+public struct TestPoint: Codable, Equatable, Sendable {
+    public var frequencyHz: Double
+    /// Raw presented level of the threshold.
+    public var dBFS: Double
+    /// Threshold in dB HL, rounded.
+    public var hl: Double
+
+    public init(frequencyHz: Double, dBFS: Double, hl: Double) {
+        self.frequencyHz = frequencyHz
+        self.dBFS = dBFS
+        self.hl = hl
+    }
+}
+
+public enum TestFlag: Codable, Equatable, Sendable {
+    case retestMismatch(Ear, dB: Double)
+    case catchTrialPresses(Int)
+    case noResponseAtMax(Ear, frequencyHz: Double)
+    case notConverged(Ear, frequencyHz: Double)
+    case asymmetry
+}

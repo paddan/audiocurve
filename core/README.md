@@ -2,8 +2,8 @@
 
 The platform-independent logic of AudioCurve in Rust: prescription, hearing test, profiles and
 their storage, per-output settings, and the system-wide route state machine. It is a port of the
-Swift package `Packages/AudioCurveCore`, which the Swift app and Audio Unit still use; nothing in
-the Swift build depends on this crate yet. It builds on the DSP kernel in `../dsp`.
+Swift package `Packages/AudioCurveCore`, which the Audio Unit still uses; nothing in the Swift
+build depends on this crate yet. It builds on the DSP kernel in `../dsp`.
 
 Design: [docs/superpowers/specs/2026-11-18-rust-core-design.md](../docs/superpowers/specs/2026-11-18-rust-core-design.md).
 
@@ -30,6 +30,10 @@ cargo clippy --all-targets -- -D warnings
 | `VolumeSnapshot` | `volume` |
 | `InstanceHeartbeat` | `heartbeat` |
 | `PluginState` | `plugin_state` |
+
+The Swift `RouteDecision`, `RouteController`, `HearingTest` (except `TestPoint` and `TestFlag`,
+now in `HearingTestRecord`), `TestWarning`, `ToneSynth`, `VolumeSnapshot` and `AppMode` served
+only the Swift app and have been removed from the package; this crate is their only version now.
 
 Not ported: `OutputDeviceMonitor` (CoreAudio), `PluginChannel` (AUv3 host channel), `AppMode`
 (UI policy). Each Swift test has a Rust test with the same name in snake case, except the tests
